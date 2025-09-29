@@ -1,0 +1,182 @@
+# VLA-Arena Documentation Table of Contents (English)
+
+This document provides a comprehensive table of contents for all VLA-Arena documentation files.
+
+## 📚 Complete Documentation Overview
+
+### 1. Data Collection Guide
+**File:** `data_collection.md`
+
+A comprehensive guide for collecting demonstration data in custom scenes and converting data formats.
+
+#### Table of Contents:
+1. [Collect Demonstration Data](#1-collect-demonstration-data)
+   - Interactive simulation environment setup
+   - Keyboard controls for robotic arm manipulation
+   - Data collection process and best practices
+2. [Convert Data Format](#2-convert-data-format)
+   - Converting demonstration data to training format
+   - Image generation through trajectory replay
+   - Dataset creation process
+3. [Regenerate Dataset](#3-regenerate-dataset)
+   - Filtering noop actions for trajectory continuity
+   - Dataset optimization and validation
+   - Quality assurance procedures
+
+---
+
+### 2. Scene Construction Guide
+**File:** `scene_construction.md`
+
+Detailed guide for building custom task scenarios using BDDL (Behavior Domain Definition Language).
+
+#### Table of Contents:
+1. [BDDL File Structure](#1-bddl-file-structure)
+   - Basic structure definition
+   - Domain and problem definition
+   - Language instruction specification
+2. [Region Definition](#region-definition)
+   - Spatial scope definition
+   - Region parameters and configuration
+3. [Object Definition](#object-definition)
+   - Fixtures (static objects)
+   - Manipulable objects
+   - Objects of interest
+   - Moving objects with motion types
+4. [State Definition](#state-definition)
+   - Initial state configuration
+   - Goal state definition
+   - Supported state predicates
+5. [Image Effect Settings](#image-effect-settings)
+   - Rendering effect configuration
+   - Visual enhancement options
+6. [Cost Constraints](#cost-constraints)
+   - Penalty condition definition
+   - Supported cost predicates
+7. [Visualize BDDL File](#2-visualize-bddl-file)
+   - Scene visualization process
+   - Video generation workflow
+8. [Assets](#3-assets)
+   - Ready-made assets
+   - Custom asset preparation
+   - Asset registration process
+
+---
+
+### 3. Model Fine-tuning Guide
+**File:** `finetune.md` 
+
+Comprehensive guide for fine-tuning VLA models using VLA-Arena generated datasets.
+
+#### Table of Contents:
+1. [Quick Start](#quick-start)
+   - Environment setup
+   - Basic fine-tuning commands
+2. [Fine-tuning OpenVLA](#fine-tuning-openvla)
+   - OpenVLA library installation
+   - One-click fine-tuning scripts
+   - Parameter configuration
+   - Dataset configuration options
+3. [Fine-tuning OpenVLA OFT](#fine-tuning-openvla-oft)
+   - OFT fine-tuning introduction
+   - Advanced training options
+   - Architecture enhancements
+   - Multi-GPU support
+4. [Troubleshooting](#troubleshooting)
+   - Common issues and solutions
+   - Debugging techniques
+5. [Model Evaluation](#model-evaluation)
+   - Evaluation procedures
+   - Performance metrics
+6. [Adding Custom Models](#adding-custom-models)
+   - Custom model integration
+   - Configuration requirements
+7. [Configuration Instructions](#configuration-instructions)
+   - Detailed configuration options
+   - Best practices
+
+---
+
+### 4. Model Evaluation Guide
+**File:** `evaluation.md`
+
+Complete guide for evaluating VLA models and adding custom models to VLA-Arena.
+
+#### Table of Contents:
+1. [Quick Start](#quick-start)
+   - Environment preparation
+   - Basic evaluation commands
+2. [Model Evaluation](#model-evaluation)
+   - Supported models
+   - Evaluation procedures
+   - Performance metrics
+   - Result interpretation
+3. [Adding Custom Models](#adding-custom-models)
+   - Custom model integration
+   - Configuration requirements
+   - Implementation guidelines
+4. [Configuration Instructions](#configuration-instructions)
+   - Detailed configuration options
+   - Parameter descriptions
+   - Best practices
+5. [Troubleshooting](#troubleshooting)
+   - Common issues and solutions
+   - Debugging techniques
+   - Performance optimization
+
+---
+
+## 🔧 Script Files
+
+### Fine-tuning Scripts
+- **`finetune_openvla.sh`**: Standard OpenVLA fine-tuning script
+- **`finetune_openvla_oft.sh`**: OpenVLA OFT fine-tuning script with advanced options
+
+### Key Features:
+- Automated dataset configuration
+- Parameter validation
+- Multi-GPU support
+- Comprehensive error handling
+- Flexible training options
+
+---
+
+## 📁 Directory Structure
+
+```
+docs/
+├── data_collection.md          # Data collection guide (English)
+├── data_collection_zh.md       # Data collection guide (Chinese)
+├── scene_construction.md       # Scene construction guide (English)
+├── scene_construction_zh.md    # Scene construction guide (Chinese)
+├── finetune.md             # Model fine-tuning guide (Chinese)
+├── evaluation.md              # Model evaluation guide (English)
+├── evaluation_zh.md           # Model evaluation guide (Chinese)
+├── finetune_openvla.sh        # OpenVLA fine-tuning script
+├── finetune_openvla_oft.sh    # OpenVLA OFT fine-tuning script
+└── image/                     # Documentation images and GIFs
+```
+
+---
+
+## 🚀 Getting Started Workflow
+
+### 1. Scene Construction
+1. Read `scene_construction.md` for BDDL file structure
+2. Define your task scenarios using BDDL syntax
+3. Use `scripts/visualize_bddl.py` to preview scenes
+
+### 2. Data Collection
+1. Follow `data_collection.md` for demonstration collection
+2. Use `scripts/collect_demonstration.py` for interactive data collection
+3. Convert data format using `scripts/group_create_dataset.py`
+
+### 3. Model Training
+1. Use `finetune_openvla.sh` or `finetune_openvla_oft.sh` for model fine-tuning
+2. Configure training parameters according to your needs
+3. Monitor training progress through WandB
+
+### 4. Model Evaluation
+1. Follow `evaluation.md` for model evaluation procedures
+2. Use `scripts/evaluate_policy.py` for comprehensive evaluation
+3. Analyze results and iterate on model improvements

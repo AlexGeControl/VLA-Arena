@@ -1,0 +1,14 @@
+# Model-specific parameters
+model_family: "openvla"                    # Model family
+
+center_crop: true                          # Center crop? (if trained w/ random crop image aug)
+num_open_loop_steps: 8                     # Number of actions to execute open-loop before requerying policy
+
+lora_rank: 32                              # Rank of LoRA weight matrix (MAKE SURE THIS MATCHES TRAINING!)
+
+unnorm_key: ""                             # Action un-normalization key
+
+load_in_8bit: false                        # (For OpenVLA only) Load with 8-bit quantization
+load_in_4bit: false                        # (For OpenVLA only) Load with 4-bit quantization
+
+seed: 7                                    # Random Seed (for reproducibility)

@@ -1,0 +1,25 @@
+<mujoco>
+    <asset>
+        <!-- 加载 mesh -->
+        <mesh name="dump_truck_mesh" file="DumpTruck.obj" scale="0.025 0.025 0.025"/>
+
+        <!-- 加载贴图 texture -->
+        <texture name="dump_truck_tex" type="2d" file="DumpTruckDiffuseBake.png"/>
+
+        <!-- 定义材质，并使用贴图 rgba为蛋壳黄色-->
+        <material name="dump_truck_mat" texture="dump_truck_tex" specular="0.3" shininess="0.8"/>
+    </asset>
+
+    <worldbody>
+        <body pos="0 0 0">
+        <body name="object">
+            <!-- 将 mesh 和材质一起用于 geom -->
+            <geom type="mesh" mesh="dump_truck_mesh" material="dump_truck_mat" group="1"/> <geom type="sphere" size="0.01" material="dump_truck_mat" group="0"/>
+            <inertial pos="0 0 0" mass="0.03" diaginertia="0.01 0.01 0.01"/>
+        </body>
+        <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.04" name="bottom_site" />
+        <site rgba="0 0 0 0" size="0.005" pos="0 0 0.04" name="top_site" />
+        <site rgba="0 0 0 0" size="0.005" pos="0.025 0.025 0" name="horizontal_radius_site" />
+        </body>
+    </worldbody>
+</mujoco>
