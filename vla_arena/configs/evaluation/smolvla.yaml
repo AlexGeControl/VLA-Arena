@@ -1,5 +1,0 @@
-# Model-specific parameters
-model_family: "smolvla"                        # Model family
-
-# Random seed
-seed: 7                                        # Random Seed (for reproducibility)

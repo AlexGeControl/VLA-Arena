@@ -2,10 +2,10 @@ import os
 import json
 import argparse
 from vla_arena.evaluation.evaluator import Evaluator
-from vla_arena.evaluation.policy import SmolVLA
+# from vla_arena.evaluation.policy import SmolVLA
 from vla_arena.evaluation.policy import OpenVLA
-from vla_arena.evaluation.policy import OpenVLAOFT
-from vla_arena.evaluation.policy import OpenPI
+# from vla_arena.evaluation.policy import OpenVLAOFT
+# from vla_arena.evaluation.policy import OpenPI
 from vla_arena.evaluation.policy import RandomPolicy
 from vla_arena.evaluation.policy import PolicyRegistry
 
@@ -67,11 +67,11 @@ def get_args():
                            "generalization_task_workflows",
                            "generalization_unseen_objects",
                            "long_horizon",
-                           "libero_10",
-                           "libero_90",
-                           "libero_spatial",
-                           "libero_object",
-                           "libero_goal",
+                        #    "libero_10",
+                        #    "libero_90",
+                        #    "libero_spatial",
+                        #    "libero_object",
+                        #    "libero_goal",
                        ], 
                        help="The evaluation track to run")
     
