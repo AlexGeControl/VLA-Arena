@@ -18,7 +18,7 @@ class Libero_Coffee_Table_Manipulation(BDDLBaseDomain):
         # For z offset of environment fixtures
         self.z_offset = 0.01 - self.coffee_table_full_size[2]
         kwargs.update(
-            {"robots": [f"OnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
+            {"robots": [f"LiberoOnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
         )
         kwargs.update({"workspace_offset": self.coffee_table_offset})
         kwargs.update({"arena_type": "coffee_table"})
@@ -179,10 +179,20 @@ class Libero_Coffee_Table_Manipulation(BDDLBaseDomain):
                         1 - self.sim.model.site_rgba[vis_g_id][3]
                     )
 
-    def _setup_camera(self, mujoco_arena):
-        mujoco_arena.set_camera(
-            camera_name="agentview", pos=[1.5, 0.0, 0.9], quat=[0.56, 0.43, 0.43, 0.56]
-        )
+    def _setup_camera(self, mujoco_arena, camera_names, camera_configs):
+        for camera in camera_names:
+            if camera == "robot0_eye_in_hand":
+                continue
+            elif camera == "agentview":
+                mujoco_arena.set_camera(
+                    **AGENTVIEW_CONFIG[self.workspace_name],
+                    pos_offset = camera_configs[camera]
+                )
+            else:
+                mujoco_arena.set_camera(
+                    camera_name=camera,
+                    pos_offset=camera_configs[camera]
+                )
         mujoco_arena.set_camera(
             camera_name="galleryview",
             pos=[2.844547668904445, 2.1279684793440667, 3.128616846013882],
@@ -216,7 +226,7 @@ class Libero_Floor_Manipulation(BDDLBaseDomain):
 
         self.z_offset = -0.025
         kwargs.update(
-            {"robots": [f"OnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
+            {"robots": [f"LiberoOnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
         )
         kwargs.update({"workspace_offset": self.floor_offset})
         kwargs.update({"arena_type": "floor"})
@@ -380,17 +390,20 @@ class Libero_Floor_Manipulation(BDDLBaseDomain):
                         1 - self.sim.model.site_rgba[vis_g_id][3]
                     )
 
-    def _setup_camera(self, mujoco_arena):
-        mujoco_arena.set_camera(
-            camera_name="agentview",
-            pos=[0.8965773716836134, 5.216182733499864e-07, 0.65],
-            quat=[
-                0.6182166934013367,
-                0.3432307541370392,
-                0.3432314395904541,
-                0.6182177066802979,
-            ],
-        )
+    def _setup_camera(self, mujoco_arena, camera_names, camera_configs):
+        for camera in camera_names:
+            if camera == "robot0_eye_in_hand":
+                continue
+            elif camera == "agentview":
+                mujoco_arena.set_camera(
+                    **AGENTVIEW_CONFIG[self.workspace_name],
+                    pos_offset = camera_configs[camera]
+                )
+            else:
+                mujoco_arena.set_camera(
+                    camera_name=camera,
+                    pos_offset=camera_configs[camera]
+                )
 
         # For visualization purpose
         mujoco_arena.set_camera(
@@ -581,17 +594,20 @@ class Libero_Kitchen_Tabletop_Manipulation(BDDLBaseDomain):
                         1 - self.sim.model.site_rgba[vis_g_id][3]
                     )
 
-    def _setup_camera(self, mujoco_arena):
-        mujoco_arena.set_camera(
-            camera_name="agentview",
-            pos=[0.6586131746834771, 0.0, 1.6103500240372423],
-            quat=[
-                0.6380177736282349,
-                0.3048497438430786,
-                0.30484986305236816,
-                0.6380177736282349,
-            ],
-        )
+    def _setup_camera(self, mujoco_arena, camera_names, camera_configs):
+        for camera in camera_names:
+            if camera == "robot0_eye_in_hand":
+                continue
+            elif camera == "agentview":
+                mujoco_arena.set_camera(
+                    **AGENTVIEW_CONFIG[self.workspace_name],
+                    pos_offset = camera_configs[camera]
+                )
+            else:
+                mujoco_arena.set_camera(
+                    camera_name=camera,
+                    pos_offset=camera_configs[camera]
+                )
 
         # For visualization purpose
         mujoco_arena.set_camera(
@@ -623,7 +639,7 @@ class Libero_Living_Room_Tabletop_Manipulation(BDDLBaseDomain):
         # For z offset of environment fixtures
         self.z_offset = 0.01 - self.living_room_table_full_size[2]
         kwargs.update(
-            {"robots": [f"OnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
+            {"robots": [f"LiberoOnTheGround{robot_name}" for robot_name in kwargs["robots"]]}
         )
         kwargs.update({"workspace_offset": self.living_room_table_offset})
         kwargs.update({"arena_type": "living_room"})
@@ -787,17 +803,20 @@ class Libero_Living_Room_Tabletop_Manipulation(BDDLBaseDomain):
                         1 - self.sim.model.site_rgba[vis_g_id][3]
                     )
 
-    def _setup_camera(self, mujoco_arena):
-        mujoco_arena.set_camera(
-            camera_name="agentview",
-            pos=[0.6065773716836134, 0.0, 0.96],
-            quat=[
-                0.6182166934013367,
-                0.3432307541370392,
-                0.3432314395904541,
-                0.6182177066802979,
-            ],
-        )
+    def _setup_camera(self, mujoco_arena, camera_names, camera_configs):
+        for camera in camera_names:
+            if camera == "robot0_eye_in_hand":
+                continue
+            elif camera == "agentview":
+                mujoco_arena.set_camera(
+                    **AGENTVIEW_CONFIG[self.workspace_name],
+                    pos_offset = camera_configs[camera]
+                )
+            else:
+                mujoco_arena.set_camera(
+                    camera_name=camera,
+                    pos_offset=camera_configs[camera]
+                )
 
         # For visualization purpose
         mujoco_arena.set_camera(
@@ -996,17 +1015,20 @@ class Libero_Study_Tabletop_Manipulation(BDDLBaseDomain):
                         1 - self.sim.model.site_rgba[vis_g_id][3]
                     )
 
-    def _setup_camera(self, mujoco_arena):
-        mujoco_arena.set_camera(
-            camera_name="agentview",
-            pos=[0.4586131746834771, 0.0, 1.6103500240372423],
-            quat=[
-                0.6380177736282349,
-                0.3048497438430786,
-                0.30484986305236816,
-                0.6380177736282349,
-            ],
-        )
+    def _setup_camera(self, mujoco_arena, camera_names, camera_configs):
+        for camera in camera_names:
+            if camera == "robot0_eye_in_hand":
+                continue
+            elif camera == "agentview":
+                mujoco_arena.set_camera(
+                    **AGENTVIEW_CONFIG[self.workspace_name],
+                    pos_offset = camera_configs[camera]
+                )
+            else:
+                mujoco_arena.set_camera(
+                    camera_name=camera,
+                    pos_offset=camera_configs[camera]
+                )
 
         # For visualization purpose
         mujoco_arena.set_camera(

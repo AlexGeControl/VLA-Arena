@@ -1,5 +1,6 @@
 from .mounted_panda import MountedPanda
 from .on_the_ground_panda import OnTheGroundPanda
+from .libero_on_the_ground_panda import LiberoOnTheGroundPanda
 
 from robosuite.robots import ROBOT_CLASS_MAPPING
 import numpy as np
@@ -36,5 +37,6 @@ ROBOT_CLASS_MAPPING.update(
     {
         "MountedPanda": FixedBaseRobot  ,
         "OnTheGroundPanda": FixedBaseRobot,
+        "LiberoOnTheGroundPanda": FixedBaseRobot,
     }
 )

@@ -28,11 +28,11 @@ def scan_bddl_files_and_generate_dict(base_path="./vla_arena/vla_arena/bddl_file
         "generalization_task_workflows": "generalization_task_workflows",
         "generalization_unseen_objects": "generalization_unseen_objects",
         "long_horizon": "long_horizon",
-        # "libero_10": "libero_10",
-        # "libero_90": "libero_90",
-        # "libero_spatial": "libero_spatial",
-        # "libero_object": "libero_object",
-        # "libero_goal": "libero_goal",
+        "libero_10": "libero_10",
+        "libero_90": "libero_90",
+        "libero_spatial": "libero_spatial",
+        "libero_object": "libero_object",
+        "libero_goal": "libero_goal",
     }
     
     # 遍历每个任务套件

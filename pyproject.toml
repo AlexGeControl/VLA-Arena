@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vla-arena"
+version = "0.1.0"
+authors = [
+    {name = "Borong Zhang"},
+    {name = "Jiahao Li", email = "jiahaoli2077@gmail.com"},
+    {name = "Jiachen Shen"}
+]
+description = "VLA-Arena: A Comprehensive Benchmark for Vision-Language-Action Models in Robotic Manipulation"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3"
+
+
+[project.scripts]
+vla-arena.main = "vla_arena.main:main"
+vla-arena.eval = "vla_arena.evaluate:main"
+vla-arena.config_copy = "scripts.config_copy:main"
+vla-arena.create_template = "scripts.create_template:main"
+
+[
+tool.setuptools.packages.find
+]
+where = ["."]
+include = ["vla_arena*"]
+exclude = []
+
+
+[
+tool.setuptools
+]
+eager-resources = ["*"]
+include-package-data = true
