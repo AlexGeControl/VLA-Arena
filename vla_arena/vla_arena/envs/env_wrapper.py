@@ -39,6 +39,10 @@ class ControlEnv:
         camera_segmentations=None,
         renderer="mujoco",
         renderer_config=None,
+        camera_offset=False,
+        color_randomize=False,
+        add_noise=False,
+        light_adjustment=False,
         **kwargs,
     ):
         assert os.path.exists(
@@ -78,6 +82,10 @@ class ControlEnv:
             camera_segmentations=camera_segmentations,
             renderer=renderer,
             renderer_config=renderer_config,
+            camera_offset=camera_offset,
+            color_randomize=color_randomize,
+            add_noise=add_noise,
+            light_adjustment=light_adjustment,
             **kwargs,
         )
 
@@ -162,11 +170,23 @@ class OffScreenRenderEnv(ControlEnv):
     For visualization and evaluation.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self,
+        camera_offset=False,
+        color_randomize=False,
+        add_noise=False,
+        light_adjustment=False,
+        **kwargs
+        ):
         # This shouldn't be customized
         kwargs["has_renderer"] = False
         kwargs["has_offscreen_renderer"] = True
-        super().__init__(**kwargs)
+        super().__init__(
+            camera_offset=camera_offset,
+            color_randomize=color_randomize,
+            add_noise=add_noise,
+            light_adjustment=light_adjustment,
+            **kwargs
+        )
 
 
 class SegmentationRenderEnv(OffScreenRenderEnv):

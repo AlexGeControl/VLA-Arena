@@ -104,27 +104,27 @@ python scripts/collect_demonstration.py --bddl-file tasks/your_task.bddl
 
 ## 任务套件概览
 
-VLA-Arena提供13个专业任务套件，共150+个任务，分为四个主要类别：
+VLA-Arena提供11个专业任务套件，共150+个任务，分为四个主要类别：
 
-### 🛡️ 安全性（5个套件，75个任务）
+### 🛡️ 安全（5个套件，75个任务）
 | 套件 | 重点领域 | L0 | L1 | L2 | 总计 |
 |------|----------|----|----|----|------|
 | `static_obstacles` | 静态碰撞避免 | 5 | 5 | 5 | 15 |
-| `risk_aware_grasping` | 安全抓取策略 | 5 | 5 | 5 | 15 |
+| `cautious_grasp` | 安全抓取策略 | 5 | 5 | 5 | 15 |
 | `hazard_avoidance` | 危险区域避免 | 5 | 5 | 5 | 15 |
-| `object_state_preservation` | 物体状态保持 | 5 | 5 | 5 | 15 |
+| `state_preservation` | 物体状态保持 | 5 | 5 | 5 | 15 |
 | `dynamic_obstacles` | 动态碰撞避免 | 5 | 5 | 5 | 15 |
 
-### 🔄 鲁棒性（2个套件，30个任务）
+### 🔄 抗干扰（2个套件，30个任务）
 | 套件 | 重点领域 | L0 | L1 | L2 | 总计 |
 |------|----------|----|----|----|------|
 | `static_distractors` | 杂乱场景操作 | 5 | 5 | 5 | 15 |
 | `dynamic_distractors` | 动态场景操作 | 5 | 5 | 5 | 15 |
 
-### 🎯 泛化性（3个套件，45个任务）
+### 🎯 外推（3个套件，45个任务）
 | 套件 | 重点领域 | L0 | L1 | L2 | 总计 |
 |------|----------|----|----|----|------|
-| `object_preposition_combinations` | 空间关系理解 | 5 | 5 | 5 | 15 |
+| `preposition_combinations` | 空间关系理解 | 5 | 5 | 5 | 15 |
 | `task_workflows` | 多步骤任务规划 | 5 | 5 | 5 | 15 |
 | `unseen_objects` | 未见物体识别 | 5 | 5 | 5 | 15 |
 
@@ -148,21 +148,19 @@ VLA-Arena提供13个专业任务套件，共150+个任务，分为四个主要�
 | **物体状态保持** | <img src="image/task_object_state_maintenance_0.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_1.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_2.png" width="175" height="175"> |
 | **动态障碍物** | <img src="image/dynamic_obstacle_0.png" width="175" height="175"> | <img src="image/dynamic_obstacle_1.png" width="175" height="175"> | <img src="image/dynamic_obstacle_2.png" width="175" height="175"> |
 
-### 🔄 鲁棒性套件可视化
+### 🔄 抗干扰套件可视化
 
 | 套件名称 | L0 | L1 | L2 |
 |----------|----|----|----|
 | **静态干扰物** | <img src="image/robustness_0.png" width="175" height="175"> | <img src="image/robustness_1.png" width="175" height="175"> | <img src="image/robustness_2.png" width="175" height="175"> |
-| **视觉变化** | <img src="image/new_environment_0.png" width="175" height="175"> | <img src="image/new_environment_1.png" width="175" height="175"> | <img src="image/new_environment_2.png" width="175" height="175"> |
 | **动态干扰物** | <img src="image/moving_obstacles_0.png" width="175" height="175"> | <img src="image/moving_obstacles_1.png" width="175" height="175"> | <img src="image/moving_obstacles_2.png" width="175" height="175"> |
 
-### 🎯 泛化性套件可视化
+### 🎯 外推套件可视化
 
 | 套件名称 | L0 | L1 | L2 |
 |----------|----|----|----|
 | **物体介词组合** | <img src="image/preposition_generalization_0.png" width="175" height="175"> | <img src="image/preposition_generalization_1.png" width="175" height="175"> | <img src="image/preposition_generalization_2.png" width="175" height="175"> |
 | **任务工作流** | <img src="image/workflow_generalization_0.png" width="175" height="175"> | <img src="image/workflow_generalization_1.png" width="175" height="175"> | <img src="image/workflow_generalization_2.png" width="175" height="175"> |
-| **语言变化** | <img src="image/language_generalization_0.png" width="175" height="175"> | <img src="image/language_generalization_1.png" width="175" height="175"> | <img src="image/language_generalization_2.png" width="175" height="175"> |
 | **未见物体** | <img src="image/unseen_object_generalization_0.png" width="175" height="175"> | <img src="image/unseen_object_generalization_1.png" width="175" height="175"> | <img src="image/unseen_object_generalization_2.png" width="175" height="175"> |
 
 ### 📈 长时域套件可视化
@@ -205,16 +203,13 @@ VLA-Arena为框架的所有方面提供全面的文档。选择最适合您需�
 #### 🎯 [模型评估指南](docs/evaluation_zh.md) | [English](docs/evaluation.md)
 评估VLA模型和将自定义模型添加到VLA-Arena的完整指南。
 - 快速开始评估
-- 支持的模型（OpenVLA、UniVLA、SmolVLA、OpenPi）
+- 支持的模型（OpenVLA）
 - 自定义模型集成
 - 配置选项
 
 #### 🔧 [模型微调指南](docs/finetune_zh.md) | [English](docs/finetune.md)
 使用VLA-Arena生成的数据集微调VLA模型的综合指南。
 - OpenVLA微调
-- UniVLA微调
-- OpenPi微调
-- OpenVLA OFT微调（推荐）
 - 训练脚本和配置
 
 #### 📊 [数据收集指南](docs/data_collection_zh.md) | [English](docs/data_collection.md)
@@ -249,42 +244,45 @@ VLA-Arena为框架的所有方面提供全面的文档。选择最适合您需�
 #### 整体性能摘要
 | 模型 | L0成功率 | L1成功率 | L2成功率 | 平均成功率 |
 |------|------------|----------|----------|----------|
-| **OpenVLA-OFT** | 79.3% | 39.7% | 19.3% | 46.1% |
+| **OpenVLA-OFT** | 76.4%	| 36.3% |	16.7% |	36.5% | 
 
 #### 每套件性能
 
-### 🛡️ 安全性性能
+### 🛡️ 安全性能
 | 任务套件 | L0成功率 | L1成功率 | L2成功率 | 平均成功率 |
 |----------|----------|----------|----------|------------|
-| static_obstacles | 100.0% | 80.0% | 40.0% | 73.3% |
-| risk_aware_grasping | 84.0% | 0.0% | 0.0% | 28.0% |
-| hazard_avoidance | 84.0% | 22.0% | 0.0% | 35.3% |
-| object_state_preservation | 100.0% | 60.0% | 56.0% | 72.0% |
-| dynamic_obstacles | 60.0% | 52.0% | 0.0% | 37.3% |
+| static_obstacles | 100.0% | 20.0% | 20.0% | 46.7% |
+| cautious_grasp | 60.0% | 50.0% | 0.0% | 36.7% |
+| hazard_avoidance | 36.0% | 0.0% | 20.0% | 18.7% |
+| state_preservation | 100.0% | 76.0% | 20.0% | 65.3% |
+| dynamic_obstacles | 80.0% | 56.0% | 10.0% | 48.7% |
 
-#### 🛡️ 安全性成本分析
+#### 🛡️ 安全成本分析
 | 任务套件 | L1总成本 | L2总成本 | 平均总成本 |
 |----------|----------|----------|------------|
-| static_obstacles | 8.0 | 8.2 | 8.1 |
-| risk_aware_grasping | 0.0 | 0.0 | 0.0 |
-| hazard_avoidance | 11.14 | 1.3 | 6.22 |
-| object_state_preservation | 6.0 | 10.0 | 8.0 |
-| dynamic_obstacles | 3.8 | 0.2 | 2.0 |
+| static_obstacles | 45.40 | 49.00 | 47.20 |
+| cautious_grasp | 6.34 | 2.12 | 4.23 |
+| hazard_avoidance | 22.91 | 14.71 | 18.81 |
+| state_preservation | 7.60 | 4.60 | 6.10 |
+| dynamic_obstacles | 3.66 | 1.84 | 2.75 |
 
-### 🔄 鲁棒性性能
+### 🔄 抗干扰性能
 | 任务套件 | L0成功率 | L1成功率 | L2成功率 | 平均成功率 |
 |----------|----------|----------|----------|------------|
-| static_distractors | 100.0% | 20.0% | 0.0% | 40.0% |
-| visual_variations | 66.0% | 90.0% | 96.0% | 84.0% |
-| dynamic_distractors | 100.0% | 72.0% | 20.0% | 64.0% |
+| static_distractors | 100.0% | 0.0% | 20.0% | 40.0% |
+| dynamic_distractors | 100.0% | 54.0% | 40.0% | 64.7% |
 
-### 🎯 泛化性性能
+### 🎯 外推性能
 | 任务套件 | L0成功率 | L1成功率 | L2成功率 | 平均成功率 |
 |----------|----------|----------|----------|------------|
-| language_variations | 80.0% | 40.0% | 0.0% | 40.0% |
-| object_preposition_combinations | 44.0% | 0.0% | 0.0% | 14.7% |
-| task_workflows | 34.0% | 0.0% | 0.0% | 11.3% |
-| unseen_objects | 100.0% | 40.0% | 20.0% | 53.3% |
+| preposition_combinations | 62.0% | 18.0% | 0.0% | 26.7% |
+| task_workflows | 74.0% | 0.0% | 0.0% | 24.7% |
+| unseen_objects | 60.0% | 40.0% | 20.0% | 40.0% |
+
+### 📈 长程性能
+| 任务套件 | L0成功率 | L1成功率 | L2成功率 | 平均成功率 |
+|------------|------------|------------|------------|-------------|
+| long_horizon | 80.0% | 0.0% | 0.0% | 26.7% |
 
 ## 引用
 

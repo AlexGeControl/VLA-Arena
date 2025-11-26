@@ -24,40 +24,6 @@ pip install -e .
 export MUJOCO_GL=egl
 ```
 
-### OpenPi Model Installation
-
-If you plan to use the OpenPi model for evaluation, you need to install the OpenPi library separately:
-
-#### 1. Clone OpenPi Repository
-
-```bash
-# Clone repository (including submodules)
-git clone --recurse-submodules git@github.com:Physical-Intelligence/openpi.git
-
-# Or if you already cloned the repository:
-cd openpi
-git submodule update --init --recursive
-```
-
-#### 2. Install Dependencies
-
-OpenPi uses [uv](https://docs.astral.sh/uv/) to manage Python dependencies. First install uv:
-
-```bash
-# Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Then install OpenPi:
-
-```bash
-cd openpi
-GIT_LFS_SKIP_SMUDGE=1 uv sync
-GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
-```
-
-**Note:** `GIT_LFS_SKIP_SMUDGE=1` is required to skip LFS file downloads for LeRobot dependencies.
-
 ### Basic Evaluation Command
 
 The simplest evaluation command:
@@ -79,11 +45,6 @@ python scripts/evaluate_policy.py \
 VLA-Arena currently supports the following models:
 
 - **OpenVLA**: Standard OpenVLA model
-- **OpenVLA-OFT**: OpenVLA model with online fine-tuning capability
-- **SmolVLA**: SmolVLA model
-- **Random**: Random policy (for baseline testing)
-- **UniVLA**: UniVLA model
-- **OpenPi**: OpenPi model (requires starting policy server first)
 
 ### Using Evaluation Scripts
 

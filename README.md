@@ -13,8 +13,8 @@ VLA-Arena is an open-source benchmark for systematic evaluation of Vision-Langua
 
 VLA-Arena focuses on four key domains: 
 - **Safety**: Operate reliably and safely in the physical world.
-- **Robustness**: Maintain stable performance when facing environmental unpredictability.
-- **Generalization**: Generalize learned knowledge to novel situations.
+- **Distractors**: Maintain stable performance when facing environmental unpredictability.
+- **Extrapolation**: Generalize learned knowledge to novel situations.
 - **Long Horizon**: Combine long sequences of actions to achieve a complex goal.
 
 ## 📰 News
@@ -105,21 +105,21 @@ VLA-Arena provides 11 specialized task suites with 150+ tasks total, organized i
 | Suite | Description | L0 | L1 | L2 | Total |
 |-------|------------|----|----|----|-------|
 | `static_obstacles` | Static collision avoidance | 5 | 5 | 5 | 15 |
-| `risk_aware_grasping` | Safe grasping strategies | 5 | 5 | 5 | 15 |
+| `cautious_grasp` | Safe grasping strategies | 5 | 5 | 5 | 15 |
 | `hazard_avoidance` | Hazard area avoidance | 5 | 5 | 5 | 15 |
-| `object_state_preservation` | Object state preservation | 5 | 5 | 5 | 15 |
+| `state_preservation` | Object state preservation | 5 | 5 | 5 | 15 |
 | `dynamic_obstacles` | Dynamic collision avoidance | 5 | 5 | 5 | 15 |
 
-### 🔄 Robustness (2 suites, 30 tasks)
+### 🔄 Distractor (2 suites, 30 tasks)
 | Suite | Description | L0 | L1 | L2 | Total |
 |-------|------------|----|----|----|-------|
 | `static_distractors` | Cluttered scene manipulation | 5 | 5 | 5 | 15 |
 | `dynamic_distractors` | Dynamic scene manipulation | 5 | 5 | 5 | 15 |
 
-### 🎯 Generalization (3 suites, 45 tasks)
+### 🎯 Extrapolation (3 suites, 45 tasks)
 | Suite | Description | L0 | L1 | L2 | Total |
 |-------|------------|----|----|----|-------|
-| `object_preposition_combinations` | Spatial relationship understanding | 5 | 5 | 5 | 15 |
+| `preposition_combinations` | Spatial relationship understanding | 5 | 5 | 5 | 15 |
 | `task_workflows` | Multi-step task planning | 5 | 5 | 5 | 15 |
 | `unseen_objects` | Unseen object recognition | 5 | 5 | 5 | 15 |
 
@@ -137,28 +137,26 @@ VLA-Arena provides 11 specialized task suites with 150+ tasks total, organized i
 
 | Suite Name | L0 | L1 | L2 |
 |------------|----|----|----|
-| **Safety Static Obstacles** | <img src="image/static_obstacles_0.png" width="175" height="175"> | <img src="image/static_obstacles_1.png" width="175" height="175"> | <img src="image/static_obstacles_2.png" width="175" height="175"> |
-| **Safety Risk Aware Grasping** | <img src="image/safe_pick_0.png" width="175" height="175"> | <img src="image/safe_pick_1.png" width="175" height="175"> | <img src="image/safe_pick_2.png" width="175" height="175"> |
-| **Safety Hazard Avoidance** | <img src="image/dangerous_zones_0.png" width="175" height="175"> | <img src="image/dangerous_zones_1.png" width="175" height="175"> | <img src="image/dangerous_zones_2.png" width="175" height="175"> |
-| **Safety Object State Preservation** | <img src="image/task_object_state_maintenance_0.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_1.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_2.png" width="175" height="175"> |
-| **Safety Dynamic Obstacles** | <img src="image/dynamic_obstacle_0.png" width="175" height="175"> | <img src="image/dynamic_obstacle_1.png" width="175" height="175"> | <img src="image/dynamic_obstacle_2.png" width="175" height="175"> |
+| **Static Obstacles** | <img src="image/static_obstacles_0.png" width="175" height="175"> | <img src="image/static_obstacles_1.png" width="175" height="175"> | <img src="image/static_obstacles_2.png" width="175" height="175"> |
+| **Cautious Grasp** | <img src="image/safe_pick_0.png" width="175" height="175"> | <img src="image/safe_pick_1.png" width="175" height="175"> | <img src="image/safe_pick_2.png" width="175" height="175"> |
+| **Hazard Avoidance** | <img src="image/dangerous_zones_0.png" width="175" height="175"> | <img src="image/dangerous_zones_1.png" width="175" height="175"> | <img src="image/dangerous_zones_2.png" width="175" height="175"> |
+| **State Preservation** | <img src="image/task_object_state_maintenance_0.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_1.png" width="175" height="175"> | <img src="image/task_object_state_maintenance_2.png" width="175" height="175"> |
+| **Dynamic Obstacles** | <img src="image/dynamic_obstacle_0.png" width="175" height="175"> | <img src="image/dynamic_obstacle_1.png" width="175" height="175"> | <img src="image/dynamic_obstacle_2.png" width="175" height="175"> |
 
-### 🔄 Robustness Suites Visualization
-
-| Suite Name | L0 | L1 | L2 |
-|------------|----|----|----|
-| **Robustness Static Distractors** | <img src="image/robustness_0.png" width="175" height="175"> | <img src="image/robustness_1.png" width="175" height="175"> | <img src="image/robustness_2.png" width="175" height="175"> |
-| **Robustness Visual Variations** | <img src="image/new_environment_0.png" width="175" height="175"> | <img src="image/new_environment_1.png" width="175" height="175"> | <img src="image/new_environment_2.png" width="175" height="175"> |
-| **Robustness Dynamic Distractors** | <img src="image/moving_obstacles_0.png" width="175" height="175"> | <img src="image/moving_obstacles_1.png" width="175" height="175"> | <img src="image/moving_obstacles_2.png" width="175" height="175"> |
-
-### 🎯 Generalization Suites Visualization
+### 🔄 Distractor Suites Visualization
 
 | Suite Name | L0 | L1 | L2 |
 |------------|----|----|----|
-| **Generalization Object Preposition Combinations** | <img src="image/preposition_generalization_0.png" width="175" height="175"> | <img src="image/preposition_generalization_1.png" width="175" height="175"> | <img src="image/preposition_generalization_2.png" width="175" height="175"> |
-| **Generalization Task Workflows** | <img src="image/workflow_generalization_0.png" width="175" height="175"> | <img src="image/workflow_generalization_1.png" width="175" height="175"> | <img src="image/workflow_generalization_2.png" width="175" height="175"> |
-| **Generalization Language Variations** | <img src="image/language_generalization_0.png" width="175" height="175"> | <img src="image/language_generalization_1.png" width="175" height="175"> | <img src="image/language_generalization_2.png" width="175" height="175"> |
-| **Generalization Unseen Objects** | <img src="image/unseen_object_generalization_0.png" width="175" height="175"> | <img src="image/unseen_object_generalization_1.png" width="175" height="175"> | <img src="image/unseen_object_generalization_2.png" width="175" height="175"> |
+| **Static Distractors** | <img src="image/robustness_0.png" width="175" height="175"> | <img src="image/robustness_1.png" width="175" height="175"> | <img src="image/robustness_2.png" width="175" height="175"> |
+| **Dynamic Distractors** | <img src="image/moving_obstacles_0.png" width="175" height="175"> | <img src="image/moving_obstacles_1.png" width="175" height="175"> | <img src="image/moving_obstacles_2.png" width="175" height="175"> |
+
+### 🎯 Extrapolation Suites Visualization
+
+| Suite Name | L0 | L1 | L2 |
+|------------|----|----|----|
+| **Preposition Combinations** | <img src="image/preposition_generalization_0.png" width="175" height="175"> | <img src="image/preposition_generalization_1.png" width="175" height="175"> | <img src="image/preposition_generalization_2.png" width="175" height="175"> |
+| **Task Workflows** | <img src="image/workflow_generalization_0.png" width="175" height="175"> | <img src="image/workflow_generalization_1.png" width="175" height="175"> | <img src="image/workflow_generalization_2.png" width="175" height="175"> |
+| **Unseen Objects** | <img src="image/unseen_object_generalization_0.png" width="175" height="175"> | <img src="image/unseen_object_generalization_1.png" width="175" height="175"> | <img src="image/unseen_object_generalization_2.png" width="175" height="175"> |
 
 ### 📈 Long Horizon Suite Visualization
 
@@ -214,17 +212,13 @@ Collect demonstrations in custom scenes.
 #### 🔧 [Model Fine-tuning Guide](docs/finetune.md) | [中文版](docs/finetune_zh.md)
 Fine-tune VLA models using VLA-Arena generated datasets.
 - OpenVLA fine-tuning
-- OpenVLA OFT fine-tuning (recommended)
 - Training scripts and configuration
-- UniVLA fine-tuning
-- SmolVLA fine-tuning
-- OpenPi fine-tuning (requires starting policy server first)
 - Model evaluation
 
 #### 🎯 [Model Evaluation Guide](docs/evaluation.md) | [中文版](docs/evaluation_zh.md)
 Evaluate VLA models and adding custom models to VLA-Arena.
 - Quick start evaluation
-- Supported models (OpenVLA, UniVLA, SmolVLA, OpenPi)
+- Supported models (OpenVLA)
 - Custom model integration
 - Configuration options
 
@@ -245,41 +239,44 @@ Evaluate VLA models and adding custom models to VLA-Arena.
 #### Overall Performance Summary
 | Model | L0 Success | L1 Success | L2 Success | Avg Success |
 |-------|------------|------------|------------|-------------|
-| **OpenVLA-OFT** | 79.3% | 39.7% | 19.3% | 46.1% | 
+| **OpenVLA-OFT** | 76.4%	| 36.3% |	16.7% |	36.5% | 
 
 
 #### 🛡️ Safety Performance
 | Task Suite | L0 Success | L1 Success | L2 Success | Avg Success |
 |------------|------------|------------|------------|-------------|
-| static_obstacles | 100.0% | 80.0% | 40.0% | 73.3% |
-| risk_aware_grasping | 84.0% | 0.0% | 0.0% | 28.0% |
-| hazard_avoidance | 84.0% | 22.0% | 0.0% | 35.3% |
-| object_state_preservation | 100.0% | 60.0% | 56.0% | 72.0% |
-| dynamic_obstacles | 60.0% | 52.0% | 0.0% | 37.3% |
+| static_obstacles | 100.0% | 20.0% | 20.0% | 46.7% |
+| cautious_grasp | 60.0% | 50.0% | 0.0% | 36.7% |
+| hazard_avoidance | 36.0% | 0.0% | 20.0% | 18.7% |
+| state_preservation | 100.0% | 76.0% | 20.0% | 65.3% |
+| dynamic_obstacles | 80.0% | 56.0% | 10.0% | 48.7% |
 
 #### 🛡️ Safety Cost Analysis
 | Task Suite | L1 Total Cost | L2 Total Cost | Avg Total Cost |
 |------------|---------------|---------------|----------------|
-| static_obstacles | 8.0 | 8.2 | 8.1 |
-| risk_aware_grasping | 0.0 | 0.0 | 0.0 |
-| hazard_avoidance | 11.14 | 1.3 | 6.22 |
-| object_state_preservation | 6.0 | 10.0 | 8.0 |
-| dynamic_obstacles | 3.8 | 0.2 | 2.0 |
+| static_obstacles | 45.40 | 49.00 | 47.20 |
+| cautious_grasp | 6.34 | 2.12 | 4.23 |
+| hazard_avoidance | 22.91 | 14.71 | 18.81 |
+| state_preservation | 7.60 | 4.60 | 6.10 |
+| dynamic_obstacles | 3.66 | 1.84 | 2.75 |
 
-#### 🔄 Robustness Performance
+#### 🔄 Distractor Performance
 | Task Suite | L0 Success | L1 Success | L2 Success | Avg Success |
 |------------|------------|------------|------------|-------------|
-| robustness_static_distractors | 100.0% | 20.0% | 0.0% | 40.0% |
-| robustness_visual_variations | 66.0% | 90.0% | 96.0% | 84.0% |
-| robustness_dynamic_distractors | 100.0% | 72.0% | 20.0% | 64.0% |
+| robustness_static_distractors | 100.0% | 0.0% | 20.0% | 40.0% |
+| robustness_dynamic_distractors | 100.0% | 54.0% | 40.0% | 64.7% |
 
-#### 🎯 Generalization Performance
+#### 🎯 Extrapolation Performance
 | Task Suite | L0 Success | L1 Success | L2 Success | Avg Success |
 |------------|------------|------------|------------|-------------|
-| language_variations | 80.0% | 40.0% | 0.0% | 40.0% |
-| object_preposition_combinations | 44.0% | 0.0% | 0.0% | 14.7% |
-| task_workflows | 34.0% | 0.0% | 0.0% | 11.3% |
-| unseen_objects | 100.0% | 40.0% | 20.0% | 53.3% |
+| preposition_combinations | 62.0% | 18.0% | 0.0% | 26.7% |
+| task_workflows | 74.0% | 0.0% | 0.0% | 24.7% |
+| unseen_objects | 60.0% | 40.0% | 20.0% | 40.0% |
+
+#### 📈 Long Horizon Performance
+| Task Suite | L0 Success | L1 Success | L2 Success | Avg Success |
+|------------|------------|------------|------------|-------------|
+| long_horizon | 80.0% | 0.0% | 0.0% | 26.7% |
 
 
 ## License

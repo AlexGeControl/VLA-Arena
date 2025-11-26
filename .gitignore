@@ -29,3 +29,4 @@ render.bat
 render_dataset_with_omniverse.py
 my_evaluation.sh
 print_hdf5.py
+pic.py

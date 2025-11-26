@@ -148,6 +148,10 @@ class BDDLBaseDomain(SingleArmEnv):
         arena_type="table",
         scene_xml="scenes/libero_base_style.xml",
         scene_properties={},
+        camera_offset=False,
+        color_randomize=False,
+        add_noise=False,
+        light_adjustment=False,
         **kwargs,
     ):
         t0 = time.time()
@@ -216,6 +220,18 @@ class BDDLBaseDomain(SingleArmEnv):
         self._arena_type = arena_type
         self._arena_xml = os.path.join(self.custom_asset_dir, scene_xml)
         self._arena_properties = scene_properties
+
+        if camera_offset:
+            self.camera_configs[self.camera_names[0]]=(np.random.random(3) * 0.21 - 0.105).tolist()
+        if color_randomize:
+            self.random_color=True
+        if add_noise:
+            self.noise=["gaussian",0,0.085]
+        if light_adjustment:
+            self.image_settings["brightness"]=np.random.random() * 1.5 - 0.75
+            self.image_settings["contrast"]=np.random.random() * 1.5 - 0.75
+            self.image_settings["saturation"]=np.random.random() * 1.5 - 0.75
+            self.image_settings["temperature"]=3500 + np.random.random() * 5000
 
         super().__init__(
             robots=robots,

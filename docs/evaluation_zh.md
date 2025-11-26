@@ -24,40 +24,6 @@ pip install -e .
 export MUJOCO_GL=egl
 ```
 
-### OpenPi 模型安装
-
-如果您计划使用 OpenPi 模型进行评估，需要单独安装 OpenPi 库：
-
-#### 1. 克隆 OpenPi 仓库
-
-```bash
-# 克隆仓库（包含子模块）
-git clone --recurse-submodules git@github.com:Physical-Intelligence/openpi.git
-
-# 或者如果已经克隆了仓库：
-cd openpi
-git submodule update --init --recursive
-```
-
-#### 2. 安装依赖
-
-OpenPi 使用 [uv](https://docs.astral.sh/uv/) 管理 Python 依赖。首先安装 uv：
-
-```bash
-# 安装 uv（如果尚未安装）
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-然后安装 OpenPi：
-
-```bash
-cd openpi
-GIT_LFS_SKIP_SMUDGE=1 uv sync
-GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
-```
-
-**注意：** `GIT_LFS_SKIP_SMUDGE=1` 是必需的，用于跳过 LeRobot 依赖的 LFS 文件下载。
-
 
 ### 基本评估命令
 
@@ -80,11 +46,6 @@ python scripts/evaluate_policy.py \
 VLA-Arena 目前支持以下模型：
 
 - **OpenVLA**: 标准 OpenVLA 模型
-- **OpenVLA-OFT**: 带有在线微调功能的 OpenVLA 模型
-- **SmolVLA**: SmolVLA 模型
-- **Random**: 随机策略（用于基线测试）
-- **UniVLA**: UniVLA 模型
-- **OpenPi**: OpenPi 模型（需要先启动策略服务器）
 
 ### 评估脚本使用
 

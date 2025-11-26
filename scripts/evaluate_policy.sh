@@ -19,7 +19,7 @@ POLICY="openvla"                                    # Options: openvla, random (
 MODEL_CKPT="path/to/model/checkpoint"                   # Path to model checkpoint
 
 # Task Configuration
-TASK_SUITE="libero_10"                                       # Options:  
+TASK_SUITE="safety_static_obstacles"                                       # Options:  
 TASK_LEVEL=0                                        # Difficulty level: 0 (easy), 1 (medium), 2 (hard)
 N_EPISODES=1                                       # Number of episodes per task
 
