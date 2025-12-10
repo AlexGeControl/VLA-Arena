@@ -1,3 +1,18 @@
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 """Utils for evaluating OpenVLA or fine-tuned OpenVLA policies."""
 
 import filecmp
@@ -7,30 +22,31 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Sequence
+from typing import Any, Dict, List, Tuple, Union
 
 import json_numpy
 import numpy as np
-import torch.nn as nn
-import requests
 import tensorflow as tf
 import torch
 from huggingface_hub import HfApi, hf_hub_download
 from PIL import Image
 
+
 # Apply JSON numpy patch for serialization
 json_numpy.patch()
 
 import sys
+
+
 sys.path.insert(0, '/DATA/disk0/borong/openvla-oft')
 # Initialize important constants
-DATE = time.strftime("%Y_%m_%d")
-DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+DATE = time.strftime('%Y_%m_%d')
+DATE_TIME = time.strftime('%Y_%m_%d-%H_%M_%S')
+DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 OPENVLA_IMAGE_SIZE = 224  # Standard image size expected by OpenVLA
 
 # Configure NumPy print settings
-np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
+np.set_printoptions(formatter={'float': lambda x: f'{x:0.3f}'})
 
 
 """
@@ -42,6 +58,7 @@ training or evaluation. If it is unclear, defaults to using the LIBERO simulatio
 import sys
 from enum import Enum
 
+
 # Llama 2 token constants
 IGNORE_INDEX = -100
 ACTION_TOKEN_BEGIN_IDX = 31743
@@ -51,34 +68,33 @@ STOP_INDEX = 2  # '</s>'
 # Defines supported normalization schemes for action and proprioceptive state.
 class NormalizationType(str, Enum):
     # fmt: off
-    NORMAL = "normal"               # Normalize to Mean = 0, Stdev = 1
-    BOUNDS = "bounds"               # Normalize to Interval = [-1, 1]
-    BOUNDS_Q99 = "bounds_q99"       # Normalize [quantile_01, ..., quantile_99] --> [-1, ..., 1]
+    NORMAL = 'normal'               # Normalize to Mean = 0, Stdev = 1
+    BOUNDS = 'bounds'               # Normalize to Interval = [-1, 1]
+    BOUNDS_Q99 = 'bounds_q99'       # Normalize [quantile_01, ..., quantile_99] --> [-1, ..., 1]
     # fmt: on
 
 
 # Define constants for each robot platform
 LIBERO_CONSTANTS = {
-    "NUM_ACTIONS_CHUNK": 8,
-    "ACTION_DIM": 7,
-    "PROPRIO_DIM": 8,
-    "ACTION_PROPRIO_NORMALIZATION_TYPE": NormalizationType.BOUNDS_Q99,
+    'NUM_ACTIONS_CHUNK': 8,
+    'ACTION_DIM': 7,
+    'PROPRIO_DIM': 8,
+    'ACTION_PROPRIO_NORMALIZATION_TYPE': NormalizationType.BOUNDS_Q99,
 }
 
 
 # Function to detect robot platform from command line arguments
 def detect_robot_platform():
-    cmd_args = " ".join(sys.argv).lower()
+    cmd_args = ' '.join(sys.argv).lower()
 
-    if "libero" in cmd_args:
-        return "LIBERO"
-    elif "aloha" in cmd_args:
-        return "ALOHA"
-    elif "bridge" in cmd_args:
-        return "BRIDGE"
-    else:
-        # Default to LIBERO if unclear
-        return "LIBERO"
+    if 'libero' in cmd_args:
+        return 'LIBERO'
+    if 'aloha' in cmd_args:
+        return 'ALOHA'
+    if 'bridge' in cmd_args:
+        return 'BRIDGE'
+    # Default to LIBERO if unclear
+    return 'LIBERO'
 
 
 # Determine which robot platform to use
@@ -88,18 +104,19 @@ ROBOT_PLATFORM = detect_robot_platform()
 constants = LIBERO_CONSTANTS
 
 # Assign constants to global variables
-NUM_ACTIONS_CHUNK = constants["NUM_ACTIONS_CHUNK"]
-ACTION_DIM = constants["ACTION_DIM"]
-PROPRIO_DIM = constants["PROPRIO_DIM"]
-ACTION_PROPRIO_NORMALIZATION_TYPE = constants["ACTION_PROPRIO_NORMALIZATION_TYPE"]
+NUM_ACTIONS_CHUNK = constants['NUM_ACTIONS_CHUNK']
+ACTION_DIM = constants['ACTION_DIM']
+PROPRIO_DIM = constants['PROPRIO_DIM']
+ACTION_PROPRIO_NORMALIZATION_TYPE = constants['ACTION_PROPRIO_NORMALIZATION_TYPE']
 
 # Print which robot platform constants are being used (for debugging)
-print(f"Using {ROBOT_PLATFORM} constants:")
-print(f"  NUM_ACTIONS_CHUNK = {NUM_ACTIONS_CHUNK}")
-print(f"  ACTION_DIM = {ACTION_DIM}")
-print(f"  PROPRIO_DIM = {PROPRIO_DIM}")
-print(f"  ACTION_PROPRIO_NORMALIZATION_TYPE = {ACTION_PROPRIO_NORMALIZATION_TYPE}")
-print("If needed, manually set the correct constants in `vla_arena/evaluation/openvla_utils.py`!")
+print(f'Using {ROBOT_PLATFORM} constants:')
+print(f'  NUM_ACTIONS_CHUNK = {NUM_ACTIONS_CHUNK}')
+print(f'  ACTION_DIM = {ACTION_DIM}')
+print(f'  PROPRIO_DIM = {PROPRIO_DIM}')
+print(f'  ACTION_PROPRIO_NORMALIZATION_TYPE = {ACTION_PROPRIO_NORMALIZATION_TYPE}')
+print('If needed, manually set the correct constants in `vla_arena/evaluation/openvla_utils.py`!')
+
 
 def update_auto_map(pretrained_checkpoint: str) -> None:
     """
@@ -114,32 +131,32 @@ def update_auto_map(pretrained_checkpoint: str) -> None:
     if not os.path.isdir(pretrained_checkpoint):
         return
 
-    config_path = os.path.join(pretrained_checkpoint, "config.json")
+    config_path = os.path.join(pretrained_checkpoint, 'config.json')
     if not os.path.exists(config_path):
-        print(f"Warning: No config.json found at {config_path}")
+        print(f'Warning: No config.json found at {config_path}')
         return
 
     # Create timestamped backup
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(pretrained_checkpoint, f"config.json.back.{timestamp}")
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_path = os.path.join(pretrained_checkpoint, f'config.json.back.{timestamp}')
     shutil.copy2(config_path, backup_path)
-    print(f"Created backup of original config at: {os.path.abspath(backup_path)}")
+    print(f'Created backup of original config at: {os.path.abspath(backup_path)}')
 
     # Read and update the config
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = json.load(f)
 
-    config["auto_map"] = {
-        "AutoConfig": "processing_prismatic.OpenVLAConfig",
-        "AutoModelForVision2Seq": "processing_prismatic.OpenVLAForActionPrediction",
+    config['auto_map'] = {
+        'AutoConfig': 'processing_prismatic.OpenVLAConfig',
+        'AutoModelForVision2Seq': 'processing_prismatic.OpenVLAForActionPrediction',
     }
 
     # Write back the updated config
-    with open(config_path, "w") as f:
+    with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
 
-    print(f"Updated config.json at: {os.path.abspath(config_path)}")
-    print("Changes made:")
+    print(f'Updated config.json at: {os.path.abspath(config_path)}')
+    print('Changes made:')
     print('  - Set AutoConfig to "processing_prismatic.OpenVLAConfig"')
     print('  - Set AutoModelForVision2Seq to "processing_prismatic.OpenVLAForActionPrediction"')
 
@@ -182,34 +199,36 @@ def _handle_file_sync(curr_filepath: str, checkpoint_filepath: str, file_type: s
 
         if not match:
             print(
-                "\n------------------------------------------------------------------------------------------------\n"
-                f"Found mismatch between:\n"
-                f"Current:   {curr_filepath}\n"
-                f"Checkpoint: {checkpoint_filepath}\n"
+                '\n------------------------------------------------------------------------------------------------\n'
+                f'Found mismatch between:\n'
+                f'Current:   {curr_filepath}\n'
+                f'Checkpoint: {checkpoint_filepath}\n',
             )
 
             # Create timestamped backup
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_path = f"{checkpoint_filepath}.back.{timestamp}"
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_path = f'{checkpoint_filepath}.back.{timestamp}'
             shutil.copy2(checkpoint_filepath, backup_path)
-            print(f"Created backup of original checkpoint file at: {os.path.abspath(backup_path)}")
+            print(f'Created backup of original checkpoint file at: {os.path.abspath(backup_path)}')
 
             # Copy current version to checkpoint directory
             shutil.copy2(curr_filepath, checkpoint_filepath)
-            print(f"Copied current version to checkpoint at: {os.path.abspath(checkpoint_filepath)}")
             print(
-                f"Changes complete. The checkpoint will now use the current version of {file_type}"
-                "\n------------------------------------------------------------------------------------------------\n"
+                f'Copied current version to checkpoint at: {os.path.abspath(checkpoint_filepath)}',
+            )
+            print(
+                f'Changes complete. The checkpoint will now use the current version of {file_type}'
+                '\n------------------------------------------------------------------------------------------------\n',
             )
     else:
         # If file doesn't exist in checkpoint directory, copy it
         shutil.copy2(curr_filepath, checkpoint_filepath)
         print(
-            "\n------------------------------------------------------------------------------------------------\n"
-            f"No {file_type} found in checkpoint directory.\n"
-            f"Copied current version from: {curr_filepath}\n"
-            f"To checkpoint location: {os.path.abspath(checkpoint_filepath)}"
-            "\n------------------------------------------------------------------------------------------------\n"
+            '\n------------------------------------------------------------------------------------------------\n'
+            f'No {file_type} found in checkpoint directory.\n'
+            f'Copied current version from: {curr_filepath}\n'
+            f'To checkpoint location: {os.path.abspath(checkpoint_filepath)}'
+            '\n------------------------------------------------------------------------------------------------\n',
         )
 
 
@@ -229,17 +248,17 @@ def check_model_logic_mismatch(pretrained_checkpoint: str) -> None:
         return
 
     # Find current files
-    curr_files = {"modeling_prismatic.py": None, "processing_prismatic.py": None}
+    curr_files = {'modeling_prismatic.py': None, 'processing_prismatic.py': None}
 
-    for root, _, files in os.walk("./vla_arena/evaluation/policy/prismatic_for_openvla/"):
-        for filename in curr_files.keys():
+    for root, _, files in os.walk('./vla_arena/evaluation/policy/prismatic_for_openvla/'):
+        for filename in curr_files:
             if filename in files and curr_files[filename] is None:
                 curr_files[filename] = os.path.join(root, filename)
 
     # Check and handle each file
     for filename, curr_filepath in curr_files.items():
         if curr_filepath is None:
-            print(f"WARNING: `{filename}` is not found anywhere in the current directory.")
+            print(f'WARNING: `{filename}` is not found anywhere in the current directory.')
             continue
 
         checkpoint_filepath = os.path.join(pretrained_checkpoint, filename)
@@ -260,17 +279,19 @@ def find_checkpoint_file(pretrained_checkpoint: str, file_pattern: str) -> str:
     Raises:
         AssertionError: If no files or multiple files match the pattern
     """
-    assert os.path.isdir(pretrained_checkpoint), f"Checkpoint path must be a directory: {pretrained_checkpoint}"
+    assert os.path.isdir(
+        pretrained_checkpoint,
+    ), f'Checkpoint path must be a directory: {pretrained_checkpoint}'
 
     checkpoint_files = []
     for filename in os.listdir(pretrained_checkpoint):
-        if file_pattern in filename and "checkpoint" in filename:
+        if file_pattern in filename and 'checkpoint' in filename:
             full_path = os.path.join(pretrained_checkpoint, filename)
             checkpoint_files.append(full_path)
 
-    assert len(checkpoint_files) == 1, (
-        f"Expected exactly 1 {file_pattern} checkpoint but found {len(checkpoint_files)} in directory: {pretrained_checkpoint}"
-    )
+    assert (
+        len(checkpoint_files) == 1
+    ), f'Expected exactly 1 {file_pattern} checkpoint but found {len(checkpoint_files)} in directory: {pretrained_checkpoint}'
 
     return checkpoint_files[0]
 
@@ -290,12 +311,13 @@ def load_component_state_dict(checkpoint_path: str) -> Dict[str, torch.Tensor]:
     # If the component was trained with DDP, elements in the state dict have prefix "module." which we must remove
     new_state_dict = {}
     for k, v in state_dict.items():
-        if k.startswith("module."):
+        if k.startswith('module.'):
             new_state_dict[k[7:]] = v
         else:
             new_state_dict[k] = v
 
     return new_state_dict
+
 
 def _load_dataset_stats(vla: torch.nn.Module, checkpoint_path: str) -> None:
     """
@@ -309,19 +331,19 @@ def _load_dataset_stats(vla: torch.nn.Module, checkpoint_path: str) -> None:
         # Download dataset stats directly from HF Hub
         dataset_statistics_path = hf_hub_download(
             repo_id=checkpoint_path,
-            filename="dataset_statistics.json",
+            filename='dataset_statistics.json',
         )
     else:
-        dataset_statistics_path = os.path.join(checkpoint_path, "dataset_statistics.json")
+        dataset_statistics_path = os.path.join(checkpoint_path, 'dataset_statistics.json')
     if os.path.isfile(dataset_statistics_path):
-        with open(dataset_statistics_path, "r") as f:
+        with open(dataset_statistics_path) as f:
             norm_stats = json.load(f)
         vla.norm_stats = norm_stats
     else:
         print(
-            "WARNING: No local dataset_statistics.json file found for current checkpoint.\n"
-            "You can ignore this if you are loading the base VLA (i.e. not fine-tuned) checkpoint."
-            "Otherwise, you may run into errors when trying to call `predict_action()` due to an absent `unnorm_key`."
+            'WARNING: No local dataset_statistics.json file found for current checkpoint.\n'
+            'You can ignore this if you are loading the base VLA (i.e. not fine-tuned) checkpoint.'
+            'Otherwise, you may run into errors when trying to call `predict_action()` due to an absent `unnorm_key`.',
         )
 
 
@@ -351,10 +373,10 @@ def _load_dataset_stats(vla: torch.nn.Module, checkpoint_path: str) -> None:
 #     return noisy_action_projector
 
 
-
-
-
-def resize_image_for_policy(img: np.ndarray, resize_size: Union[int, Tuple[int, int]]) -> np.ndarray:
+def resize_image_for_policy(
+    img: np.ndarray,
+    resize_size: Union[int, Tuple[int, int]],
+) -> np.ndarray:
     """
     Resize an image to match the policy's expected input size.
 
@@ -374,7 +396,7 @@ def resize_image_for_policy(img: np.ndarray, resize_size: Union[int, Tuple[int, 
     # Resize using the same pipeline as in RLDS dataset builder
     img = tf.image.encode_jpeg(img)  # Encode as JPEG
     img = tf.io.decode_image(img, expand_animations=False, dtype=tf.uint8)  # Decode back
-    img = tf.image.resize(img, resize_size, method="lanczos3", antialias=True)
+    img = tf.image.resize(img, resize_size, method='lanczos3', antialias=True)
     img = tf.cast(tf.clip_by_value(tf.round(img), 0, 255), tf.uint8)
     # print(f"image", img[0])
     return img.numpy()
@@ -395,7 +417,7 @@ def crop_and_resize(image: tf.Tensor, crop_scale: float, batch_size: int) -> tf.
         tf.Tensor: The cropped and resized image
     """
     # Handle 3D inputs by adding batch dimension if needed
-    assert image.shape.ndims in (3, 4), "Image must be 3D or 4D tensor"
+    assert image.shape.ndims in (3, 4), 'Image must be 3D or 4D tensor'
     expanded_dims = False
     if image.shape.ndims == 3:
         image = tf.expand_dims(image, axis=0)
@@ -420,7 +442,10 @@ def crop_and_resize(image: tf.Tensor, crop_scale: float, batch_size: int) -> tf.
 
     # Apply crop and resize
     image = tf.image.crop_and_resize(
-        image, bounding_boxes, tf.range(batch_size), (OPENVLA_IMAGE_SIZE, OPENVLA_IMAGE_SIZE)
+        image,
+        bounding_boxes,
+        tf.range(batch_size),
+        (OPENVLA_IMAGE_SIZE, OPENVLA_IMAGE_SIZE),
     )
 
     # Remove batch dimension if it was added
@@ -460,7 +485,7 @@ def center_crop_image(image: Union[np.ndarray, Image.Image]) -> Image.Image:
     image = tf.image.convert_image_dtype(image, orig_dtype, saturate=True)
 
     # Convert to PIL Image
-    return Image.fromarray(image.numpy()).convert("RGB")
+    return Image.fromarray(image.numpy()).convert('RGB')
 
 
 def check_image_format(image: Any) -> None:
@@ -478,8 +503,8 @@ def check_image_format(image: Any) -> None:
     has_correct_dtype = image.dtype == np.uint8
 
     assert is_numpy_array and has_correct_shape and has_correct_dtype, (
-        "Incorrect image format detected! Make sure that the input image is a "
-        "numpy array with shape (H, W, 3) and dtype np.uint8!"
+        'Incorrect image format detected! Make sure that the input image is a '
+        'numpy array with shape (H, W, 3) and dtype np.uint8!'
     )
 
 
@@ -495,13 +520,13 @@ def normalize_proprio(proprio: np.ndarray, norm_stats: Dict[str, Any]) -> np.nda
         np.ndarray: Normalized proprioception data
     """
     if ACTION_PROPRIO_NORMALIZATION_TYPE == NormalizationType.BOUNDS:
-        mask = norm_stats.get("mask", np.ones_like(norm_stats["min"], dtype=bool))
-        proprio_high, proprio_low = np.array(norm_stats["max"]), np.array(norm_stats["min"])
+        mask = norm_stats.get('mask', np.ones_like(norm_stats['min'], dtype=bool))
+        proprio_high, proprio_low = np.array(norm_stats['max']), np.array(norm_stats['min'])
     elif ACTION_PROPRIO_NORMALIZATION_TYPE == NormalizationType.BOUNDS_Q99:
-        mask = norm_stats.get("mask", np.ones_like(norm_stats["q01"], dtype=bool))
-        proprio_high, proprio_low = np.array(norm_stats["q99"]), np.array(norm_stats["q01"])
+        mask = norm_stats.get('mask', np.ones_like(norm_stats['q01'], dtype=bool))
+        proprio_high, proprio_low = np.array(norm_stats['q99']), np.array(norm_stats['q01'])
     else:
-        raise ValueError("Unsupported action/proprio normalization type detected!")
+        raise ValueError('Unsupported action/proprio normalization type detected!')
 
     normalized_proprio = np.clip(
         np.where(
@@ -538,7 +563,7 @@ def prepare_images_for_vla(images: List[np.ndarray], center_crop: bool = True) -
             image = resize_image_for_policy(image, OPENVLA_IMAGE_SIZE)
 
         # Convert to PIL image
-        pil_image = Image.fromarray(image).convert("RGB")
+        pil_image = Image.fromarray(image).convert('RGB')
 
         # Apply center crop if configured
         if center_crop:
@@ -547,6 +572,7 @@ def prepare_images_for_vla(images: List[np.ndarray], center_crop: bool = True) -
         processed_images.append(pil_image)
 
     return processed_images
+
 
 def find_checkpoint_file(pretrained_checkpoint: str, file_pattern: str) -> str:
     """
@@ -562,19 +588,22 @@ def find_checkpoint_file(pretrained_checkpoint: str, file_pattern: str) -> str:
     Raises:
         AssertionError: If no files or multiple files match the pattern
     """
-    assert os.path.isdir(pretrained_checkpoint), f"Checkpoint path must be a directory: {pretrained_checkpoint}"
+    assert os.path.isdir(
+        pretrained_checkpoint,
+    ), f'Checkpoint path must be a directory: {pretrained_checkpoint}'
 
     checkpoint_files = []
     for filename in os.listdir(pretrained_checkpoint):
-        if file_pattern in filename and "checkpoint" in filename:
+        if file_pattern in filename and 'checkpoint' in filename:
             full_path = os.path.join(pretrained_checkpoint, filename)
             checkpoint_files.append(full_path)
 
-    assert len(checkpoint_files) == 1, (
-        f"Expected exactly 1 {file_pattern} checkpoint but found {len(checkpoint_files)} in directory: {pretrained_checkpoint}"
-    )
+    assert (
+        len(checkpoint_files) == 1
+    ), f'Expected exactly 1 {file_pattern} checkpoint but found {len(checkpoint_files)} in directory: {pretrained_checkpoint}'
 
     return checkpoint_files[0]
+
 
 def load_component_state_dict(checkpoint_path: str) -> Dict[str, torch.Tensor]:
     """
@@ -591,12 +620,13 @@ def load_component_state_dict(checkpoint_path: str) -> Dict[str, torch.Tensor]:
     # If the component was trained with DDP, elements in the state dict have prefix "module." which we must remove
     new_state_dict = {}
     for k, v in state_dict.items():
-        if k.startswith("module."):
+        if k.startswith('module.'):
             new_state_dict[k[7:]] = v
         else:
             new_state_dict[k] = v
 
     return new_state_dict
+
 
 def normalize_proprio(proprio: np.ndarray, norm_stats: Dict[str, Any]) -> np.ndarray:
     """
@@ -610,13 +640,13 @@ def normalize_proprio(proprio: np.ndarray, norm_stats: Dict[str, Any]) -> np.nda
         np.ndarray: Normalized proprioception data
     """
     if ACTION_PROPRIO_NORMALIZATION_TYPE == NormalizationType.BOUNDS:
-        mask = norm_stats.get("mask", np.ones_like(norm_stats["min"], dtype=bool))
-        proprio_high, proprio_low = np.array(norm_stats["max"]), np.array(norm_stats["min"])
+        mask = norm_stats.get('mask', np.ones_like(norm_stats['min'], dtype=bool))
+        proprio_high, proprio_low = np.array(norm_stats['max']), np.array(norm_stats['min'])
     elif ACTION_PROPRIO_NORMALIZATION_TYPE == NormalizationType.BOUNDS_Q99:
-        mask = norm_stats.get("mask", np.ones_like(norm_stats["q01"], dtype=bool))
-        proprio_high, proprio_low = np.array(norm_stats["q99"]), np.array(norm_stats["q01"])
+        mask = norm_stats.get('mask', np.ones_like(norm_stats['q01'], dtype=bool))
+        proprio_high, proprio_low = np.array(norm_stats['q99']), np.array(norm_stats['q01'])
     else:
-        raise ValueError("Unsupported action/proprio normalization type detected!")
+        raise ValueError('Unsupported action/proprio normalization type detected!')
 
     normalized_proprio = np.clip(
         np.where(
@@ -630,6 +660,7 @@ def normalize_proprio(proprio: np.ndarray, norm_stats: Dict[str, Any]) -> np.nda
 
     return normalized_proprio
 
+
 def model_is_on_hf_hub(model_path: str) -> bool:
     """Checks whether a model path points to a model on Hugging Face Hub."""
     # If the API call below runs without error, the model is on the hub
@@ -638,6 +669,7 @@ def model_is_on_hf_hub(model_path: str) -> bool:
         return True
     except Exception:
         return False
+
 
 def crop_and_resize(image, crop_scale, batch_size):
     """

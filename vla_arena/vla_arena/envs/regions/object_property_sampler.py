@@ -1,11 +1,21 @@
-import collections
-import numpy as np
-import os
-import robosuite
-import xml.etree.ElementTree as ET
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
 from copy import copy
 
+import numpy as np
 from robosuite.models.objects import MujocoObject
 
 
@@ -47,14 +57,10 @@ class ObjectPropertySampler:
             mujoco_objects (MujocoObject or list of MujocoObject): single model or list of MJCF object models
         """
         mujoco_objects = (
-            [mujoco_objects]
-            if isinstance(mujoco_objects, MujocoObject)
-            else mujoco_objects
+            [mujoco_objects] if isinstance(mujoco_objects, MujocoObject) else mujoco_objects
         )
         for obj in mujoco_objects:
-            assert (
-                obj not in self.mujoco_objects
-            ), "Object '{}' already in sampler!".format(obj.name)
+            assert obj not in self.mujoco_objects, f"Object '{obj.name}' already in sampler!"
             self.mujoco_objects.append(obj)
 
     def reset(self):
@@ -89,7 +95,7 @@ class OpenCloseSampler(ObjectPropertySampler):
         mujoco_objects=None,
         joint_ranges=(0.0, 0.0),
     ):
-        assert state_type in ["open", "close"]
+        assert state_type in ['open', 'close']
         self.state_type = state_type
         self.joint_ranges = joint_ranges
         assert self.joint_ranges[0] <= self.joint_ranges[1]
@@ -107,7 +113,7 @@ class TurnOnOffSampler(ObjectPropertySampler):
         mujoco_objects=None,
         joint_ranges=(0.0, 0.0),
     ):
-        assert state_type in ["turnon", "turnoff"]
+        assert state_type in ['turnon', 'turnoff']
         self.state_type = state_type
         self.joint_ranges = joint_ranges
         assert self.joint_ranges[0] <= self.joint_ranges[1]

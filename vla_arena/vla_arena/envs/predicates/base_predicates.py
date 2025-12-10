@@ -1,5 +1,18 @@
-from typing import List
-import numpy as np
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 
 class Expression:
     def __init__(self):
@@ -58,9 +71,11 @@ class In(BinaryAtomic):
     def __call__(self, arg1, arg2):
         return arg2.check_contact(arg1) and arg2.check_contain(arg1)
 
+
 class NotIn(BinaryAtomic):
     def __call__(self, arg1, arg2):
         return not arg2.check_contact(arg1) and not arg2.check_contain(arg1)
+
 
 class On(BinaryAtomic):
     def __call__(self, arg1, arg2):
@@ -78,13 +93,15 @@ class On(BinaryAtomic):
         #     else:
         #         return False
 
+
 class NotOn(BinaryAtomic):
     def __call__(self, arg1, arg2):
         return not arg2.check_ontop(arg1)
 
+
 class Up(BinaryAtomic):
     def __call__(self, arg1):
-        return arg1.get_geom_state()["pos"][2] >= 1.0
+        return arg1.get_geom_state()['pos'][2] >= 1.0
 
 
 class Stack(BinaryAtomic):
@@ -92,7 +109,7 @@ class Stack(BinaryAtomic):
         return (
             arg1.check_contact(arg2)
             and arg2.check_contain(arg1)
-            and arg1.get_geom_state()["pos"][2] > arg2.get_geom_state()["pos"][2]
+            and arg1.get_geom_state()['pos'][2] > arg2.get_geom_state()['pos'][2]
         )
 
 
@@ -122,40 +139,50 @@ class TurnOn(UnaryAtomic):
 class TurnOff(UnaryAtomic):
     def __call__(self, arg):
         return arg.turn_off()
-    
+
+
 class Collide(UnaryAtomic):
     """检查物体是否被撞到"""
+
     def __call__(self, arg):
         return arg.check_collision()
+
 
 class Fall(UnaryAtomic):
     def __call__(self, arg):
         return arg.fall()
 
+
 class CheckForce(UnaryAtomic):
     def __call__(self, arg1, arg2):
         return arg1.check_force(arg2)
-    
+
+
 class CheckDistance(UnaryAtomic):
     def __call__(self, arg1, arg2):
         return arg1.check_distance(arg2)
-    
+
+
 class CheckGripperDistance(UnaryAtomic):
     def __call__(self, arg):
         return arg.check_gripper_distance()
-    
+
+
 class CheckGripperDistancePart(UnaryAtomic):
     def __call__(self, arg1, arg2):
         return arg1.check_gripper_distance_part(arg2)
-    
+
+
 class InContactPart(UnaryAtomic):
     def __call__(self, arg1, arg2, arg3, arg4):
         return arg1.check_in_contact_part(arg2, arg3, arg4)
-    
+
+
 class CheckGripperContact(UnaryAtomic):
     def __call__(self, arg1):
         return arg1.check_gripper_contact()
-    
+
+
 class CheckGripperContactPart(UnaryAtomic):
     def __call__(self, arg1, arg2):
         return arg1.check_gripper_contact_part(arg2)

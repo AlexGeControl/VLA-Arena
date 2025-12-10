@@ -1,0 +1,51 @@
+# Include documentation
+include README.md
+include README_zh.md
+include LICENSE
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include CHANGELOG.md
+
+# Include configuration files
+include pyproject.toml
+include setup.py
+include Makefile
+include requirements.txt
+include conversion_requirements.txt
+
+# Include package data
+recursive-include vla_arena *.yaml *.yml *.json *.txt
+recursive-include vla_arena/vla_arena/assets *
+recursive-include vla_arena/vla_arena/bddl_files *.bddl
+recursive-include vla_arena/vla_arena/init_files *.pruned_init
+recursive-include vla_arena/configs *.yaml
+
+# Exclude unnecessary files
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude * .git*
+exclude .gitignore
+exclude .pre-commit-config.yaml
+
+# Exclude test and development files
+recursive-exclude tests *
+exclude tests/.coveragerc
+
+# Exclude large data files
+recursive-exclude scripts/demonstration_data *
+recursive-exclude scripts/datasets *
+recursive-exclude demonstration_data *
+recursive-exclude datasets *
+recursive-exclude rollouts *
+
+# Exclude documentation build files
+recursive-exclude docs/_build *
+recursive-exclude docs/_static *
+
+# Exclude experiment outputs
+recursive-exclude outputs *
+recursive-exclude experiments *
+recursive-exclude experiments_saved *
+recursive-exclude logs *
+recursive-exclude wandb *

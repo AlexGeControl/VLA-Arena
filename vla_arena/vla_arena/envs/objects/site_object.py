@@ -1,10 +1,23 @@
-import os
-import numpy as np
-
-from robosuite.utils.mjcf_utils import string_to_array
-import robosuite.utils.transform_utils as transform_utils
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
 import pathlib
+
+import numpy as np
+from robosuite.utils.mjcf_utils import string_to_array
+
 
 absolute_path = pathlib.Path(__file__).parent.parent.parent.absolute()
 
@@ -17,9 +30,9 @@ class SiteObject:
         joints=None,
         size=None,
         rgba=None,
-        site_type="box",
-        site_pos="0 0 0",
-        site_quat="1 0 0 0",
+        site_type='box',
+        site_pos='0 0 0',
+        site_quat='1 0 0 0',
         object_properties={},
     ):
         self.name = name
@@ -56,9 +69,7 @@ class SiteObject:
         return np.all(other_position > lb) and np.all(other_position < ub)
 
     def __str__(self):
-        return (
-            f"Object {self.name} : \n geom type: {self.site_type} \n size: {self.size}"
-        )
+        return f'Object {self.name} : \n geom type: {self.site_type} \n size: {self.size}'
 
     def under(self, this_position, this_mat, other_position, other_height=0.10):
         """
@@ -75,6 +86,6 @@ class SiteObject:
         delta_position = this_mat @ (other_position - this_position)
         # print(total_size, " | ", delta_position)
         # print(total_size[2] < delta_position[2] < total_size[2] + other_height, np.all(np.abs(delta_position[:2]) < total_size[:2]))
-        return total_size[2] - 0.005 < delta_position[2] < total_size[
-            2
-        ] + other_height and np.all(np.abs(delta_position[:2]) < total_size[:2])
+        return total_size[2] - 0.005 < delta_position[2] < total_size[2] + other_height and np.all(
+            np.abs(delta_position[:2]) < total_size[:2],
+        )

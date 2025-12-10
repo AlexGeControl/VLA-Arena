@@ -1,10 +1,24 @@
-import shutil
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
-from lerobot.common.datasets.lerobot_dataset import HF_LEROBOT_HOME
-from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
+import shutil
 from pathlib import Path
+
 import tensorflow_datasets as tfds
 import tyro
+from lerobot.common.datasets.lerobot_dataset import HF_LEROBOT_HOME, LeRobotDataset
 
 
 def main(data_dir: str, output_path: Path = HF_LEROBOT_HOME, *, push_to_hub: bool = False):
@@ -16,29 +30,29 @@ def main(data_dir: str, output_path: Path = HF_LEROBOT_HOME, *, push_to_hub: boo
     # OpenPi assumes that proprio is stored in `state` and actions in `action`
     # LeRobot assumes that dtype of image data is `image`
     dataset = LeRobotDataset.create(
-        repo_id="VLA_Arena",
-        robot_type="panda",
+        repo_id='VLA_Arena',
+        robot_type='panda',
         fps=10,
         features={
-            "image": {
-                "dtype": "image",
-                "shape": (256, 256, 3),
-                "names": ["height", "width", "channel"],
+            'image': {
+                'dtype': 'image',
+                'shape': (256, 256, 3),
+                'names': ['height', 'width', 'channel'],
             },
-            "wrist_image": {
-                "dtype": "image",
-                "shape": (256, 256, 3),
-                "names": ["height", "width", "channel"],
+            'wrist_image': {
+                'dtype': 'image',
+                'shape': (256, 256, 3),
+                'names': ['height', 'width', 'channel'],
             },
-            "state": {
-                "dtype": "float32",
-                "shape": (8,),
-                "names": ["state"],
+            'state': {
+                'dtype': 'float32',
+                'shape': (8,),
+                'names': ['state'],
             },
-            "actions": {
-                "dtype": "float32",
-                "shape": (7,),
-                "names": ["actions"],
+            'actions': {
+                'dtype': 'float32',
+                'shape': (7,),
+                'names': ['actions'],
             },
         },
         image_writer_threads=10,
@@ -49,27 +63,27 @@ def main(data_dir: str, output_path: Path = HF_LEROBOT_HOME, *, push_to_hub: boo
     # You can modify this for your own data format
     raw_dataset = tfds.builder_from_directory(data_dir).as_dataset(split='all')
     for episode in raw_dataset:
-        for step in episode["steps"].as_numpy_iterator():
+        for step in episode['steps'].as_numpy_iterator():
             dataset.add_frame(
                 {
-                    "image": step["observation"]["image"],
-                    "wrist_image": step["observation"]["wrist_image"],
-                    "state": step["observation"]["state"],
-                    "actions": step["action"],
+                    'image': step['observation']['image'],
+                    'wrist_image': step['observation']['wrist_image'],
+                    'state': step['observation']['state'],
+                    'actions': step['action'],
                 },
-                task=step["language_instruction"].decode()
+                task=step['language_instruction'].decode(),
             )
         dataset.save_episode()
 
     # Optionally push to the Hugging Face Hub
     if push_to_hub:
         dataset.push_to_hub(
-            tags=["vla-arena", "panda", "rlds"],
+            tags=['vla-arena', 'panda', 'rlds'],
             private=False,
             push_videos=True,
-            license="apache-2.0",
+            license='apache-2.0',
         )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     tyro.cli(main)

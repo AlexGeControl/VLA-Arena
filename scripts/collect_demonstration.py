@@ -1,33 +1,53 @@
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 import argparse
-import cv2
 import datetime
-import h5py
 import json
-import numpy as np
 import os
-import robosuite as suite
 import time
+from copy import deepcopy
 from glob import glob
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+import robosuite as suite
 from robosuite.controllers import load_composite_controller_config
 from robosuite.controllers.composite.composite_controller import WholeBody
 from robosuite.wrappers import DataCollectionWrapper, VisualizationWrapper
-from copy import deepcopy
 
 import vla_arena.vla_arena.envs.bddl_utils as BDDLUtils
 from vla_arena.vla_arena.envs import *
-from visualize_bddl import save_rollout_video, get_image
-
-import matplotlib.pyplot as plt
 
 
 def collect_human_trajectory(
-    env, device, arm, env_configuration, problem_info, remove_directory=[],
-    new_dir=None, use_synchronous_cost_curve=False, max_fr=20
+    env,
+    device,
+    arm,
+    env_configuration,
+    problem_info,
+    remove_directory=[],
+    new_dir=None,
+    use_synchronous_cost_curve=False,
+    max_fr=20,
 ):
     """
     Use the device (keyboard or SpaceNav 3D mouse) to collect a demonstration.
     The rollout trajectory is saved to files in npz format.
-    
+
     Args:
         env (MujocoEnv): environment to control
         device (Device): to receive controls from the device
@@ -47,98 +67,103 @@ def collect_human_trajectory(
             reset_success = True
         except:
             continue
-    
+
     env.render()
-    
+
     task_completion_hold_count = -1  # counter to collect 10 timesteps after reaching goal
     device.start_control()
-    
+
     # Print action info for all robots
     for robot in env.robots:
         robot.print_action_info_dict()
-    
+
     saving = True
     count = 0
-    
+
     # ====== 绘图变量 ======
     cost_list = []
     cumulative_cost = 0
     step_list = []
-    
+
     # 只在需要实时显示时初始化交互式图表
     fig = None
     ax = None
     line = None
-    
+
     if use_synchronous_cost_curve:
         plt.ion()  # 开启交互模式
         fig, ax = plt.subplots()
-        line, = ax.plot([], [], label="Cumulative Cost")
-        ax.set_xlabel("Step Count")
-        ax.set_ylabel("Cumulative Cost")
-        ax.set_title("Real-time Cost Curve")
+        (line,) = ax.plot([], [], label='Cumulative Cost')
+        ax.set_xlabel('Step Count')
+        ax.set_ylabel('Cumulative Cost')
+        ax.set_title('Real-time Cost Curve')
         ax.legend()
-    
+
     # Keep track of prev gripper actions when using since they are position-based and must be maintained when arms switched
     all_prev_gripper_actions = [
         {
-            f"{robot_arm}_gripper": np.repeat([0], robot.gripper[robot_arm].dof)
+            f'{robot_arm}_gripper': np.repeat([0], robot.gripper[robot_arm].dof)
             for robot_arm in robot.arms
             if robot.gripper[robot_arm].dof > 0
         }
         for robot in env.robots
     ]
-    
+
     # Loop until we get a reset from the input or the task completes
     while True:
         start = time.time()
         count += 1
-        
+
         # Set active robot
         active_robot = env.robots[device.active_robot]
-        
+
         # Get the newest action
         input_ac_dict = device.input2action()
-        
+
         # If action is none, then this a reset so we should break
         if input_ac_dict is None:
-            print("Break")
+            print('Break')
             saving = False
             break
-        
+
         action_dict = deepcopy(input_ac_dict)
-        
+
         # set arm actions
         for arm_name in active_robot.arms:
             if isinstance(active_robot.composite_controller, WholeBody):
-                controller_input_type = active_robot.composite_controller.joint_action_policy.input_type
+                controller_input_type = (
+                    active_robot.composite_controller.joint_action_policy.input_type
+                )
             else:
                 controller_input_type = active_robot.part_controllers[arm_name].input_type
-            
-            if controller_input_type == "delta":
-                action_dict[arm_name] = input_ac_dict[f"{arm_name}_delta"]
-            elif controller_input_type == "absolute":
-                action_dict[arm_name] = input_ac_dict[f"{arm_name}_abs"]
+
+            if controller_input_type == 'delta':
+                action_dict[arm_name] = input_ac_dict[f'{arm_name}_delta']
+            elif controller_input_type == 'absolute':
+                action_dict[arm_name] = input_ac_dict[f'{arm_name}_abs']
             else:
                 raise ValueError
-        
+
         # Maintain gripper state for each robot but only update the active robot with action
-        env_action = [robot.create_action_vector(all_prev_gripper_actions[i]) for i, robot in enumerate(env.robots)]
+        env_action = [
+            robot.create_action_vector(all_prev_gripper_actions[i])
+            for i, robot in enumerate(env.robots)
+        ]
         env_action[device.active_robot] = active_robot.create_action_vector(action_dict)
         env_action = np.concatenate(env_action)
         for gripper_ac in all_prev_gripper_actions[device.active_robot]:
             all_prev_gripper_actions[device.active_robot][gripper_ac] = action_dict[gripper_ac]
-        
+
         obs, reward, done, info = env.step(env_action)
         # replay_images.append(get_image(obs))
         env.render()
-        
+
         # ====== 始终收集cost数据 ======
-        if "cost" in info:
-            cumulative_cost += info["cost"]
+        if 'cost' in info:
+            cumulative_cost += info['cost']
             cost_list.append(cumulative_cost)
             step_list.append(count)
-            
+
             # 只在flag为True时实时更新显示
             if use_synchronous_cost_curve and fig is not None:
                 line.set_data(step_list, cost_list)
@@ -149,11 +174,11 @@ def collect_human_trajectory(
                     fig.canvas.flush_events()
                 except:
                     pass  # 忽略GUI更新错误
-        
+
         # Also break if we complete the task
         if task_completion_hold_count == 0:
             break
-        
+
         # state machine to check for having a success for 10 consecutive timesteps
         if env._check_success():
             if task_completion_hold_count > 0:
@@ -162,22 +187,22 @@ def collect_human_trajectory(
                 task_completion_hold_count = 10  # reset count on first success timestep
         else:
             task_completion_hold_count = -1  # null the counter if there's no success
-        
+
         # limit frame rate if necessary
         if max_fr is not None:
             elapsed = time.time() - start
             diff = 1 / max_fr - elapsed
             if diff > 0:
                 time.sleep(diff)
-    
-    print(f"Total steps: {count}")
-    
+
+    print(f'Total steps: {count}')
+
     if not saving:
-        remove_directory.append(env.ep_directory.split("/")[-1])
-    
+        remove_directory.append(env.ep_directory.split('/')[-1])
+
     # cleanup for end of data collection episodes
     env.close()
-    
+
     # ====== 保存图表（无论是否实时显示） ======
     if len(cost_list) > 0:
         # 如果之前在实时显示，关闭交互模式
@@ -187,23 +212,23 @@ def collect_human_trajectory(
         else:
             # 如果没有实时显示，创建新的figure来保存
             fig, ax = plt.subplots()
-            ax.plot(step_list, cost_list, label="Cumulative Cost")
-            ax.set_xlabel("Step Count")
-            ax.set_ylabel("Cumulative Cost")
-            ax.set_title("Cost Curve")
+            ax.plot(step_list, cost_list, label='Cumulative Cost')
+            ax.set_xlabel('Step Count')
+            ax.set_ylabel('Cumulative Cost')
+            ax.set_title('Cost Curve')
             ax.legend()
-        
+
         # 保存图表
-        date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        date = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         if new_dir is not None:
             os.makedirs(new_dir, exist_ok=True)
-            plt.savefig(os.path.join(new_dir, f"cost_curve_{date}.png"))
+            plt.savefig(os.path.join(new_dir, f'cost_curve_{date}.png'))
         else:
-            plt.savefig(f"cost_curve_{date}.png")
-        
+            plt.savefig(f'cost_curve_{date}.png')
+
         plt.close(fig)
     else:
-        print("Warning: No cost data collected, skipping plot save")
+        print('Warning: No cost data collected, skipping plot save')
         if fig is not None:
             plt.close(fig)
     # save_rollout_video(
@@ -216,9 +241,7 @@ def collect_human_trajectory(
     return saving
 
 
-def gather_demonstrations_as_hdf5(
-    directory, out_dir, env_info, args, remove_directory=[]
-):
+def gather_demonstrations_as_hdf5(directory, out_dir, env_info, args, remove_directory=[]):
     """
     Gathers the demonstrations saved in @directory into a
     single hdf5 file.
@@ -248,12 +271,12 @@ def gather_demonstrations_as_hdf5(
         remove_directory: List of directories to skip
     """
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    hdf5_path = os.path.join(out_dir, f"demo_{timestamp}.hdf5")
-    f = h5py.File(hdf5_path, "w")
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    hdf5_path = os.path.join(out_dir, f'demo_{timestamp}.hdf5')
+    f = h5py.File(hdf5_path, 'w')
 
     # store some metadata in the attributes of one group
-    grp = f.create_group("data")
+    grp = f.create_group('data')
 
     num_eps = 0
     env_name = None  # will get populated at some point
@@ -262,25 +285,25 @@ def gather_demonstrations_as_hdf5(
     for ep_directory in os.listdir(directory):
         # Skip directories marked for removal
         if ep_directory in remove_directory:
-            print(f"Skipping {ep_directory}")
+            print(f'Skipping {ep_directory}')
             continue
-            
-        state_paths = os.path.join(directory, ep_directory, "state_*.npz")
+
+        state_paths = os.path.join(directory, ep_directory, 'state_*.npz')
         states = []
         actions = []
         success = False
 
         for state_file in sorted(glob(state_paths)):
             dic = np.load(state_file, allow_pickle=True)
-            env_name = str(dic["env"])
+            env_name = str(dic['env'])
 
-            states.extend(dic["states"])
-            for ai in dic["action_infos"]:
-                actions.append(ai["actions"])
-            
+            states.extend(dic['states'])
+            for ai in dic['action_infos']:
+                actions.append(ai['actions'])
+
             # Check for success flag if it exists
-            if "successful" in dic:
-                success = success or dic["successful"]
+            if 'successful' in dic:
+                success = success or dic['successful']
             else:
                 success = True  # Default to saving all demos if no success flag
 
@@ -294,115 +317,115 @@ def gather_demonstrations_as_hdf5(
         assert len(states) == len(actions)
 
         num_eps += 1
-        ep_data_grp = grp.create_group("demo_{}".format(num_eps))
+        ep_data_grp = grp.create_group(f'demo_{num_eps}')
 
         # store model xml as an attribute
-        xml_path = os.path.join(directory, ep_directory, "model.xml")
-        with open(xml_path, "r") as f:
+        xml_path = os.path.join(directory, ep_directory, 'model.xml')
+        with open(xml_path) as f:
             xml_str = f.read()
-        ep_data_grp.attrs["model_file"] = xml_str
+        ep_data_grp.attrs['model_file'] = xml_str
 
         # write datasets for states and actions
-        ep_data_grp.create_dataset("states", data=np.array(states))
-        ep_data_grp.create_dataset("actions", data=np.array(actions))
+        ep_data_grp.create_dataset('states', data=np.array(states))
+        ep_data_grp.create_dataset('actions', data=np.array(actions))
 
     # write dataset attributes (metadata)
     now = datetime.datetime.now()
-    grp.attrs["date"] = "{}-{}-{}".format(now.month, now.day, now.year)
-    grp.attrs["time"] = "{}:{}:{}".format(now.hour, now.minute, now.second)
-    grp.attrs["repository_version"] = suite.__version__
-    grp.attrs["env"] = env_name
-    grp.attrs["env_info"] = env_info
+    grp.attrs['date'] = f'{now.month}-{now.day}-{now.year}'
+    grp.attrs['time'] = f'{now.hour}:{now.minute}:{now.second}'
+    grp.attrs['repository_version'] = suite.__version__
+    grp.attrs['env'] = env_name
+    grp.attrs['env_info'] = env_info
 
     # Add BDDL-specific metadata if available
     if hasattr(args, 'bddl_file'):
-        grp.attrs["problem_info"] = json.dumps(problem_info)
-        grp.attrs["bddl_file_name"] = args.bddl_file
-        grp.attrs["bddl_file_content"] = str(open(args.bddl_file, "r", encoding="utf-8").read())
+        grp.attrs['problem_info'] = json.dumps(problem_info)
+        grp.attrs['bddl_file_name'] = args.bddl_file
+        grp.attrs['bddl_file_content'] = str(open(args.bddl_file, encoding='utf-8').read())
 
     f.close()
-    print(f"Saved {num_eps} demonstrations to {hdf5_path}")
+    print(f'Saved {num_eps} demonstrations to {hdf5_path}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--directory",
+        '--directory',
         type=str,
-        default="demonstration_data",
+        default='demonstration_data',
     )
     parser.add_argument(
-        "--robots",
-        nargs="+",
+        '--robots',
+        nargs='+',
         type=str,
-        default=["Panda"],
-        help="Which robot(s) to use in the env",
+        default=['Panda'],
+        help='Which robot(s) to use in the env',
     )
     parser.add_argument(
-        "--config",
+        '--config',
         type=str,
-        default="single-arm-opposed",
-        help="Specified environment configuration if necessary",
+        default='single-arm-opposed',
+        help='Specified environment configuration if necessary',
     )
     parser.add_argument(
-        "--arm",
+        '--arm',
         type=str,
-        default="right",
+        default='right',
         help="Which arm to control (eg bimanual) 'right' or 'left'",
     )
     parser.add_argument(
-        "--camera",
+        '--camera',
         type=str,
-        default="agentview",
-        help="Which camera to use for collecting demos",
+        default='agentview',
+        help='Which camera to use for collecting demos',
     )
     parser.add_argument(
-        "--controller",
+        '--controller',
         type=str,
-        default="BASIC",
+        default='BASIC',
         help="Choice of controller. Can be generic (eg. 'BASIC' or 'WHOLE_BODY_MINK_IK') or json file",
     )
-    parser.add_argument("--device", type=str, default="keyboard")
+    parser.add_argument('--device', type=str, default='keyboard')
     parser.add_argument(
-        "--pos-sensitivity",
+        '--pos-sensitivity',
         type=float,
         default=1.5,
-        help="How much to scale position user inputs",
+        help='How much to scale position user inputs',
     )
     parser.add_argument(
-        "--rot-sensitivity",
+        '--rot-sensitivity',
         type=float,
         default=1.5,
-        help="How much to scale rotation user inputs",
+        help='How much to scale rotation user inputs',
     )
     parser.add_argument(
-        "--num-demonstration",
+        '--num-demonstration',
         type=int,
         default=10,
-        help="How many demonstrations to collect",
+        help='How many demonstrations to collect',
     )
-    parser.add_argument("--bddl-file", type=str)
-    parser.add_argument("--vendor-id", type=int, default=9583)
-    parser.add_argument("--product-id", type=int, default=50734)
-    parser.add_argument("--use-synchronous-cost-curve", action="store_true")
+    parser.add_argument('--bddl-file', type=str)
+    parser.add_argument('--vendor-id', type=int, default=9583)
+    parser.add_argument('--product-id', type=int, default=50734)
+    parser.add_argument('--use-synchronous-cost-curve', action='store_true')
     parser.add_argument(
-        "--max-fr",
+        '--max-fr',
         default=20,
         type=int,
-        help="Sleep when simulation runs faster than specified frame rate; 20 fps is real time.",
+        help='Sleep when simulation runs faster than specified frame rate; 20 fps is real time.',
     )
     parser.add_argument(
-        "--renderer",
+        '--renderer',
         type=str,
-        default="mjviewer",
+        default='mjviewer',
         help="Use Mujoco's builtin interactive viewer (mjviewer) or OpenCV viewer (mujoco)",
     )
     parser.add_argument(
-        "--reverse-xy",
+        '--reverse-xy',
         type=bool,
         default=False,
-        help="(DualSense Only) Reverse the effect of the x and y axes of the joystick",
+        help='(DualSense Only) Reverse the effect of the x and y axes of the joystick',
     )
 
     args = parser.parse_args()
@@ -415,22 +438,22 @@ if __name__ == "__main__":
 
     # Create argument configuration
     config = {
-        "robots": args.robots,
-        "controller_configs": controller_config,
+        'robots': args.robots,
+        'controller_configs': controller_config,
     }
 
     assert os.path.exists(args.bddl_file)
     problem_info = BDDLUtils.get_problem_info(args.bddl_file)
-    
+
     # Check if we're using a multi-armed environment and use env_configuration argument if so
     # Create environment
-    problem_name = problem_info["problem_name"]
-    domain_name = problem_info["domain_name"]
-    language_instruction = problem_info["language_instruction"]
-    if "TwoArm" in problem_name:
-        config["env_configuration"] = args.config
+    problem_name = problem_info['problem_name']
+    domain_name = problem_info['domain_name']
+    language_instruction = problem_info['language_instruction']
+    if 'TwoArm' in problem_name:
+        config['env_configuration'] = args.config
     print(language_instruction)
-    
+
     env = TASK_MAPPING[problem_name](
         bddl_file_name=args.bddl_file,
         **config,
@@ -451,61 +474,63 @@ if __name__ == "__main__":
     env_info = json.dumps(config)
 
     # wrap the environment with data collection wrapper
-    tmp_directory = "demonstration_data/tmp/{}_ln_{}/{}".format(
+    tmp_directory = 'demonstration_data/tmp/{}_ln_{}/{}'.format(
         problem_name,
-        language_instruction.replace(" ", "_"),
-        str(time.time()).replace(".", "_"),
+        language_instruction.replace(' ', '_'),
+        str(time.time()).replace('.', '_'),
     )
 
     env = DataCollectionWrapper(env, tmp_directory)
 
     # initialize device using new interface
-    if args.device == "keyboard":
+    if args.device == 'keyboard':
         from robosuite.devices import Keyboard
-        
+
         device = Keyboard(
             env=env,
             pos_sensitivity=args.pos_sensitivity,
             rot_sensitivity=args.rot_sensitivity,
         )
-            
-    elif args.device == "spacemouse":
+
+    elif args.device == 'spacemouse':
         from robosuite.devices import SpaceMouse
-        
+
         device = SpaceMouse(
             env=env,
             pos_sensitivity=args.pos_sensitivity,
             rot_sensitivity=args.rot_sensitivity,
         )
-            
-    elif args.device == "dualsense":
+
+    elif args.device == 'dualsense':
         from robosuite.devices import DualSense
-        
+
         device = DualSense(
             env=env,
             pos_sensitivity=args.pos_sensitivity,
             rot_sensitivity=args.rot_sensitivity,
             reverse_xy=args.reverse_xy,
         )
-        
-    elif args.device == "mjgui":
-        assert args.renderer == "mjviewer", "Mocap is only supported with the mjviewer renderer"
+
+    elif args.device == 'mjgui':
+        assert args.renderer == 'mjviewer', 'Mocap is only supported with the mjviewer renderer'
         from robosuite.devices.mjgui import MJGUI
-        
+
         device = MJGUI(env=env)
-        
+
     else:
         raise Exception(
-            "Invalid device choice: choose 'keyboard', 'spacemouse', 'dualsense', or 'mjgui'."
+            "Invalid device choice: choose 'keyboard', 'spacemouse', 'dualsense', or 'mjgui'.",
         )
 
     # make a new timestamped directory
-    t1, t2 = datetime.datetime.now().strftime("%Y%m%d_%H%M%S"), datetime.datetime.now().strftime("%f")
-    DATE = time.strftime("%Y_%m_%d")
+    t1, t2 = datetime.datetime.now().strftime('%Y%m%d_%H%M%S'), datetime.datetime.now().strftime(
+        '%f',
+    )
+    DATE = time.strftime('%Y_%m_%d')
     new_dir = os.path.join(
-        args.directory,f"{DATE}",
-        f"{t1}_{t2}_{domain_name}_"
-        + language_instruction.replace(" ", "_"),
+        args.directory,
+        f'{DATE}',
+        f'{t1}_{t2}_{domain_name}_' + language_instruction.replace(' ', '_'),
     )
 
     os.makedirs(new_dir, exist_ok=True)
@@ -514,15 +539,19 @@ if __name__ == "__main__":
     remove_directory = []
     i = 0
     while i < args.num_demonstration:
-        print(f"Collecting demonstration {i + 1}/{args.num_demonstration}")
+        print(f'Collecting demonstration {i + 1}/{args.num_demonstration}')
         saving = collect_human_trajectory(
-            env, device, args.arm, args.config, problem_info, 
-            remove_directory, new_dir, args.use_synchronous_cost_curve,
-            args.max_fr
+            env,
+            device,
+            args.arm,
+            args.config,
+            problem_info,
+            remove_directory,
+            new_dir,
+            args.use_synchronous_cost_curve,
+            args.max_fr,
         )
         if saving:
-            print(f"Remove directory list: {remove_directory}")
-            gather_demonstrations_as_hdf5(
-                tmp_directory, new_dir, env_info, args, remove_directory
-            )
+            print(f'Remove directory list: {remove_directory}')
+            gather_demonstrations_as_hdf5(tmp_directory, new_dir, env_info, args, remove_directory)
             i += 1

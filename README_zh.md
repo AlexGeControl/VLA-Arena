@@ -181,7 +181,7 @@ VLA-Arena提供11个专业任务套件，共150+个任务，分为四个主要�
 ### 安装步骤
 ```bash
 # 克隆仓库
-git clone https://github.com/your-org/VLA-Arena.git
+git clone https://github.com/PKU-Alignment/VLA-Arena.git
 cd VLA-Arena
 
 # 创建环境

@@ -1,0 +1,16 @@
+[run]
+omit =
+    ../vla_arena/__init__.py
+    ../vla_arena/__version__.py
+    ../docs/*
+    ../scripts/*
+    ../vla_arena/vla_arena/assets/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+    if __name__ == ('__main__'|"__main__"):
+    if TYPE_CHECKING:

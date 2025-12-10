@@ -1,3 +1,18 @@
+# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 """
 Helper script to report dataset information. By default, will print trajectory length statistics,
 the maximum and minimum action element in the dataset, filter keys present, environment
@@ -22,52 +37,53 @@ Example usage:
     # run script only on validation data
     python get_dataset_info.py --dataset ../../tests/assets/test.hdf5 --filter_key valid
 """
-import h5py
-import json
+
 import argparse
+import json
+
+import h5py
 import numpy as np
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--dataset",
+        '--dataset',
         type=str,
-        help="path to hdf5 dataset",
+        help='path to hdf5 dataset',
     )
     parser.add_argument(
-        "--filter_key",
+        '--filter_key',
         type=str,
         default=None,
-        help="(optional) if provided, report statistics on the subset of trajectories \
-            in the file that correspond to this filter key",
+        help='(optional) if provided, report statistics on the subset of trajectories \
+            in the file that correspond to this filter key',
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="verbose output",
+        '--verbose',
+        action='store_true',
+        help='verbose output',
     )
     args = parser.parse_args()
 
     # extract demonstration list from file
     filter_key = args.filter_key
     all_filter_keys = None
-    f = h5py.File(args.dataset, "r")
+    f = h5py.File(args.dataset, 'r')
     if filter_key is not None:
         # use the demonstrations from the filter key instead
-        print("NOTE: using filter key {}".format(filter_key))
-        demos = sorted(
-            [elem.decode("utf-8") for elem in np.array(f["mask/{}".format(filter_key)])]
-        )
+        print(f'NOTE: using filter key {filter_key}')
+        demos = sorted([elem.decode('utf-8') for elem in np.array(f[f'mask/{filter_key}'])])
     else:
         # use all demonstrations
-        demos = sorted(list(f["data"].keys()))
+        demos = sorted(list(f['data'].keys()))
 
         # extract filter key information
-        if "mask" in f:
+        if 'mask' in f:
             all_filter_keys = {}
-            for fk in f["mask"]:
+            for fk in f['mask']:
                 fk_demos = sorted(
-                    [elem.decode("utf-8") for elem in np.array(f["mask/{}".format(fk)])]
+                    [elem.decode('utf-8') for elem in np.array(f[f'mask/{fk}'])],
                 )
                 all_filter_keys[fk] = fk_demos
 
@@ -80,66 +96,63 @@ if __name__ == "__main__":
     action_min = np.inf
     action_max = -np.inf
     for ep in demos:
-        traj_lengths.append(f["data/{}/actions".format(ep)].shape[0])
-        action_min = min(action_min, np.min(f["data/{}/actions".format(ep)][()]))
-        action_max = max(action_max, np.max(f["data/{}/actions".format(ep)][()]))
+        traj_lengths.append(f[f'data/{ep}/actions'].shape[0])
+        action_min = min(action_min, np.min(f[f'data/{ep}/actions'][()]))
+        action_max = max(action_max, np.max(f[f'data/{ep}/actions'][()]))
     traj_lengths = np.array(traj_lengths)
 
-    problem_info = json.loads(f["data"].attrs["problem_info"])
+    problem_info = json.loads(f['data'].attrs['problem_info'])
 
-    language_instruction = "".join(problem_info["language_instruction"])
+    language_instruction = ''.join(problem_info['language_instruction'])
     # report statistics on the data
-    print("")
-    print("total transitions: {}".format(np.sum(traj_lengths)))
-    print("total trajectories: {}".format(traj_lengths.shape[0]))
-    print("traj length mean: {}".format(np.mean(traj_lengths)))
-    print("traj length std: {}".format(np.std(traj_lengths)))
-    print("traj length min: {}".format(np.min(traj_lengths)))
-    print("traj length max: {}".format(np.max(traj_lengths)))
-    print("action min: {}".format(action_min))
-    print("action max: {}".format(action_max))
-    print("language instruction: {}".format(language_instruction.strip('"')))
-    print("")
-    print("==== Filter Keys ====")
+    print('')
+    print(f'total transitions: {np.sum(traj_lengths)}')
+    print(f'total trajectories: {traj_lengths.shape[0]}')
+    print(f'traj length mean: {np.mean(traj_lengths)}')
+    print(f'traj length std: {np.std(traj_lengths)}')
+    print(f'traj length min: {np.min(traj_lengths)}')
+    print(f'traj length max: {np.max(traj_lengths)}')
+    print(f'action min: {action_min}')
+    print(f'action max: {action_max}')
+    print('language instruction: {}'.format(language_instruction.strip('"')))
+    print('')
+    print('==== Filter Keys ====')
     if all_filter_keys is not None:
         for fk in all_filter_keys:
-            print("filter key {} with {} demos".format(fk, len(all_filter_keys[fk])))
+            print(f'filter key {fk} with {len(all_filter_keys[fk])} demos')
     else:
-        print("no filter keys")
-    print("")
+        print('no filter keys')
+    print('')
     if args.verbose:
         if all_filter_keys is not None:
-            print("==== Filter Key Contents ====")
+            print('==== Filter Key Contents ====')
             for fk in all_filter_keys:
                 print(
-                    "filter_key {} with {} demos: {}".format(
-                        fk, len(all_filter_keys[fk]), all_filter_keys[fk]
-                    )
+                    f'filter_key {fk} with {len(all_filter_keys[fk])} demos: {all_filter_keys[fk]}',
                 )
-        print("")
-    env_meta = json.loads(f["data"].attrs["env_args"])
-    print("==== Env Meta ====")
+        print('')
+    env_meta = json.loads(f['data'].attrs['env_args'])
+    print('==== Env Meta ====')
     print(json.dumps(env_meta, indent=4))
-    print("")
+    print('')
 
-    print("==== Dataset Structure ====")
+    print('==== Dataset Structure ====')
     for ep in demos:
         print(
-            "episode {} with {} transitions".format(
-                ep, f["data/{}".format(ep)].attrs["num_samples"]
-            )
+            'episode {} with {} transitions'.format(
+                ep,
+                f[f'data/{ep}'].attrs['num_samples'],
+            ),
         )
-        for k in f["data/{}".format(ep)]:
-            if k in ["obs", "next_obs"]:
-                print("    key: {}".format(k))
-                for obs_k in f["data/{}/{}".format(ep, k)]:
-                    shape = f["data/{}/{}/{}".format(ep, k, obs_k)].shape
-                    print(
-                        "        observation key {} with shape {}".format(obs_k, shape)
-                    )
-            elif isinstance(f["data/{}/{}".format(ep, k)], h5py.Dataset):
-                key_shape = f["data/{}/{}".format(ep, k)].shape
-                print("    key: {} with shape {}".format(k, key_shape))
+        for k in f[f'data/{ep}']:
+            if k in ['obs', 'next_obs']:
+                print(f'    key: {k}')
+                for obs_k in f[f'data/{ep}/{k}']:
+                    shape = f[f'data/{ep}/{k}/{obs_k}'].shape
+                    print(f'        observation key {obs_k} with shape {shape}')
+            elif isinstance(f[f'data/{ep}/{k}'], h5py.Dataset):
+                key_shape = f[f'data/{ep}/{k}'].shape
+                print(f'    key: {k} with shape {key_shape}')
 
         if not args.verbose:
             break
@@ -147,10 +160,8 @@ if __name__ == "__main__":
     f.close()
 
     # maybe display error message
-    print("")
+    print('')
     if (action_min < -1.0) or (action_max > 1.0):
         raise Exception(
-            "Dataset should have actions in [-1., 1.] but got bounds [{}, {}]".format(
-                action_min, action_max
-            )
+            f'Dataset should have actions in [-1., 1.] but got bounds [{action_min}, {action_max}]',
         )
