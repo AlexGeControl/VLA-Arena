@@ -22,6 +22,12 @@ A comprehensive guide for collecting demonstration data in custom scenes and con
    - Filtering noop actions for trajectory continuity
    - Dataset optimization and validation
    - Quality assurance procedures
+4. [Convert Dataset to RLDS Format](#4-convert-dataset-to-rlds-format)
+   - RLDS format conversion
+   - Dataset standardization
+5. [Convert RLDS Dataset to LeRobot Format](#5-convert-rlds-dataset-to-lerobot-format)
+   - LeRobot format conversion
+   - Compatibility handling
 
 ---
 
@@ -63,81 +69,25 @@ Detailed guide for building custom task scenarios using BDDL (Behavior Domain De
 
 ---
 
-### 3. Model Fine-tuning Guide
-**File:** `finetune.md` 
+### 3. Model Fine-tuning and Evaluation Guide
+**File:** `finetuning_and_evaluation.md`
 
-Comprehensive guide for fine-tuning VLA models using VLA-Arena generated datasets.
-
-#### Table of Contents:
-1. [Quick Start](#quick-start)
-   - Environment setup
-   - Basic fine-tuning commands
-2. [Fine-tuning OpenVLA](#fine-tuning-openvla)
-   - OpenVLA library installation
-   - One-click fine-tuning scripts
-   - Parameter configuration
-   - Dataset configuration options
-3. [Fine-tuning OpenVLA OFT](#fine-tuning-openvla-oft)
-   - OFT fine-tuning introduction
-   - Advanced training options
-   - Architecture enhancements
-   - Multi-GPU support
-4. [Troubleshooting](#troubleshooting)
-   - Common issues and solutions
-   - Debugging techniques
-5. [Model Evaluation](#model-evaluation)
-   - Evaluation procedures
-   - Performance metrics
-6. [Adding Custom Models](#adding-custom-models)
-   - Custom model integration
-   - Configuration requirements
-7. [Configuration Instructions](#configuration-instructions)
-   - Detailed configuration options
-   - Best practices
-
----
-
-### 4. Model Evaluation Guide
-**File:** `evaluation.md`
-
-Complete guide for evaluating VLA models and adding custom models to VLA-Arena.
+Comprehensive guide for fine-tuning and evaluating VLA models using VLA-Arena generated datasets. Supports OpenVLA, OpenVLA-OFT, Openpi, UniVLA, SmolVLA, and other models.
 
 #### Table of Contents:
-1. [Quick Start](#quick-start)
-   - Environment preparation
-   - Basic evaluation commands
-2. [Model Evaluation](#model-evaluation)
-   - Supported models
-   - Evaluation procedures
-   - Performance metrics
-   - Result interpretation
-3. [Adding Custom Models](#adding-custom-models)
-   - Custom model integration
-   - Configuration requirements
-   - Implementation guidelines
-4. [Configuration Instructions](#configuration-instructions)
-   - Detailed configuration options
-   - Parameter descriptions
-   - Best practices
-5. [Troubleshooting](#troubleshooting)
-   - Common issues and solutions
-   - Debugging techniques
-   - Performance optimization
-
----
-
-## 🔧 Script Files
-
-### Fine-tuning Scripts
-- **`finetune_openvla.sh`**: Standard OpenVLA fine-tuning script
-- **`finetune_openvla_oft.sh`**: OpenVLA OFT fine-tuning script with advanced options
-
-### Key Features:
-- Automated dataset configuration
-- Parameter validation
-- Multi-GPU support
-- Comprehensive error handling
-- Flexible training options
+1. [General Models (OpenVLA, OpenVLA-OFT, UniVLA, SmolVLA)](#general-models)
+   - Dependency installation
+   - Model fine-tuning
+   - Model evaluation
+2. [Openpi Model](#openpi)
+   - Environment setup (using uv)
+   - Training configuration and execution
+   - Policy server startup
+   - Model evaluation
+3. [Configuration File Notes](#configuration-file-notes)
+   - Dataset path configuration
+   - Model parameter settings
+   - Training hyperparameter configuration
 
 ---
 
@@ -145,16 +95,15 @@ Complete guide for evaluating VLA models and adding custom models to VLA-Arena.
 
 ```
 docs/
-├── data_collection.md          # Data collection guide (English)
-├── data_collection_zh.md       # Data collection guide (Chinese)
-├── scene_construction.md       # Scene construction guide (English)
-├── scene_construction_zh.md    # Scene construction guide (Chinese)
-├── finetune.md             # Model fine-tuning guide (Chinese)
-├── evaluation.md              # Model evaluation guide (English)
-├── evaluation_zh.md           # Model evaluation guide (Chinese)
-├── finetune_openvla.sh        # OpenVLA fine-tuning script
-├── finetune_openvla_oft.sh    # OpenVLA OFT fine-tuning script
-└── image/                     # Documentation images and GIFs
+├── data_collection.md                    # Data collection guide (English)
+├── data_collection_zh.md                 # Data collection guide (Chinese)
+├── scene_construction.md                 # Scene construction guide (English)
+├── scene_construction_zh.md              # Scene construction guide (Chinese)
+├── finetuning_and_evaluation.md         # Model fine-tuning and evaluation guide (English)
+├── finetuning_and_evaluation_zh.md      # Model fine-tuning and evaluation guide (Chinese)
+├── README_EN.md                          # Documentation table of contents (English)
+├── README_ZH.md                          # Documentation table of contents (Chinese)
+└── image/                                # Documentation images and GIFs
 ```
 
 ---
@@ -171,12 +120,10 @@ docs/
 2. Use `scripts/collect_demonstration.py` for interactive data collection
 3. Convert data format using `scripts/group_create_dataset.py`
 
-### 3. Model Training
-1. Use `finetune_openvla.sh` or `finetune_openvla_oft.sh` for model fine-tuning
-2. Configure training parameters according to your needs
-3. Monitor training progress through WandB
-
-### 4. Model Evaluation
-1. Follow `evaluation.md` for model evaluation procedures
-2. Use `scripts/evaluate_policy.py` for comprehensive evaluation
-3. Analyze results and iterate on model improvements
+### 3. Model Training and Evaluation
+1. Follow `finetuning_and_evaluation.md` to install model dependencies
+2. Use `vla-arena train` command for model fine-tuning
+3. Configure training parameters according to your needs
+4. Use `vla-arena eval` command to evaluate model performance
+5. Monitor training progress through WandB
+6. Analyze results and iterate on model improvements

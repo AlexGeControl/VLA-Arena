@@ -1,35 +1,23 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
+import cloudpickle
 import ctypes
-import time
+import gym
+import numpy as np
+import numpy as np
 import warnings
+import time
+
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from multiprocessing import Array, Pipe, connection
 from multiprocessing.context import Process
 from typing import Any, Callable, List, Optional, Tuple, Union
 
-import cloudpickle
-import gym
-import numpy as np
-
 
 gym_old_venv_step_type = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-gym_new_venv_step_type = Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-warnings.simplefilter('once', DeprecationWarning)
+gym_new_venv_step_type = Tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+]
+warnings.simplefilter("once", DeprecationWarning)
 _NP_TO_CT = {
     np.bool_: ctypes.c_bool,
     np.uint8: ctypes.c_uint8,
@@ -50,7 +38,7 @@ def deprecation(msg: str) -> None:
     warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
 
 
-class CloudpickleWrapper:
+class CloudpickleWrapper(object):
     """A cloudpickle wrapper used in SubprocVectorEnv."""
 
     def __init__(self, data: Any) -> None:
@@ -64,11 +52,11 @@ class CloudpickleWrapper:
 
 
 GYM_RESERVED_KEYS = [
-    'metadata',
-    'reward_range',
-    'spec',
-    'action_space',
-    'observation_space',
+    "metadata",
+    "reward_range",
+    "spec",
+    "action_space",
+    "observation_space",
 ]
 
 
@@ -91,7 +79,7 @@ class EnvWorker(ABC):
             Tuple[np.ndarray, dict],
             np.ndarray,
         ]
-        # self.action_space = self.get_env_attr("action_space")
+        # self.action_space = self.get_env_attr("action_space")  # noqa: B009
         self.is_reset = False
 
     @abstractmethod
@@ -109,10 +97,10 @@ class EnvWorker(ABC):
         it indicates "step" signal. The paired return value from "recv"
         function is determined by such kind of different signal.
         """
-        if hasattr(self, 'send_action'):
+        if hasattr(self, "send_action"):
             deprecation(
-                'send_action will soon be deprecated. '
-                'Please use send and recv for your own EnvWorker.',
+                "send_action will soon be deprecated. "
+                "Please use send and recv for your own EnvWorker."
             )
             if action is None:
                 self.is_reset = True
@@ -128,7 +116,7 @@ class EnvWorker(ABC):
         gym_new_venv_step_type,
         Tuple[np.ndarray, dict],
         np.ndarray,
-    ]:
+    ]:  # noqa:E125
         """Receive result from low-level worker.
 
         If the last "send" function sends a NULL action, it only returns a
@@ -136,10 +124,10 @@ class EnvWorker(ABC):
         info) or (obs, rew, terminated, truncated, info), based on whether
         the environment is using the old step API or the new one.
         """
-        if hasattr(self, 'get_result'):
+        if hasattr(self, "get_result"):
             deprecation(
-                'get_result will soon be deprecated. '
-                'Please use send and recv for your own EnvWorker.',
+                "get_result will soon be deprecated. "
+                "Please use send and recv for your own EnvWorker."
             )
             if not self.is_reset:
                 self.result = self.get_result()
@@ -149,7 +137,9 @@ class EnvWorker(ABC):
     def reset(self, **kwargs: Any) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
         pass
 
-    def step(self, action: np.ndarray) -> Union[gym_old_venv_step_type, gym_new_venv_step_type]:
+    def step(
+        self, action: np.ndarray
+    ) -> Union[gym_old_venv_step_type, gym_new_venv_step_type]:
         """Perform one timestep of the environment's dynamic.
 
         "send" and "recv" are coupled in sync simulation, so users only call
@@ -161,10 +151,8 @@ class EnvWorker(ABC):
 
     @staticmethod
     def wait(
-        workers: List['EnvWorker'],
-        wait_num: int,
-        timeout: Optional[float] = None,
-    ) -> List['EnvWorker']:
+        workers: List["EnvWorker"], wait_num: int, timeout: Optional[float] = None
+    ) -> List["EnvWorker"]:
         """Given a list of workers, return those ready ones."""
         raise NotImplementedError
 
@@ -175,6 +163,7 @@ class EnvWorker(ABC):
     @abstractmethod
     def render(self, **kwargs: Any) -> Any:
         """Render the environment."""
+        pass
 
     @abstractmethod
     def close_env(self) -> None:
@@ -182,7 +171,7 @@ class EnvWorker(ABC):
 
     def close(self) -> None:
         if self.is_closed:
-            return
+            return None
         self.is_closed = True
         self.close_env()
 
@@ -198,7 +187,9 @@ class ShArray:
     def save(self, ndarray: np.ndarray) -> None:
         assert isinstance(ndarray, np.ndarray)
         dst = self.arr.get_obj()
-        dst_np = np.frombuffer(dst, dtype=self.dtype).reshape(self.shape)  # type: ignore
+        dst_np = np.frombuffer(dst, dtype=self.dtype).reshape(
+            self.shape
+        )  # type: ignore
         np.copyto(dst_np, ndarray)
 
     def get(self) -> np.ndarray:
@@ -210,10 +201,11 @@ def _setup_buf(space: gym.Space) -> Union[dict, tuple, ShArray]:
     if isinstance(space, gym.spaces.Dict):
         assert isinstance(space.spaces, OrderedDict)
         return {k: _setup_buf(v) for k, v in space.spaces.items()}
-    if isinstance(space, gym.spaces.Tuple):
+    elif isinstance(space, gym.spaces.Tuple):
         assert isinstance(space.spaces, tuple)
         return tuple([_setup_buf(t) for t in space.spaces])
-    return ShArray(space.dtype, space.shape)  # type: ignore
+    else:
+        return ShArray(space.dtype, space.shape)  # type: ignore
 
 
 def _worker(
@@ -223,8 +215,7 @@ def _worker(
     obs_bufs: Optional[Union[dict, tuple, ShArray]] = None,
 ) -> None:
     def _encode_obs(
-        obs: Union[dict, tuple, np.ndarray],
-        buffer: Union[dict, tuple, ShArray],
+        obs: Union[dict, tuple, np.ndarray], buffer: Union[dict, tuple, ShArray]
     ) -> None:
         if isinstance(obs, np.ndarray) and isinstance(buffer, ShArray):
             buffer.save(obs)
@@ -234,7 +225,7 @@ def _worker(
         elif isinstance(obs, dict) and isinstance(buffer, dict):
             for k in obs.keys():
                 _encode_obs(obs[k], buffer[k])
-        return
+        return None
 
     parent.close()
     env = env_fn_wrapper.data()
@@ -245,13 +236,13 @@ def _worker(
             except EOFError:  # the pipe has been closed
                 p.close()
                 break
-            if cmd == 'step':
+            if cmd == "step":
                 env_return = env.step(data)
                 if obs_bufs is not None:
                     _encode_obs(env_return[0], obs_bufs)
                     env_return = (None, *env_return[1:])
                 p.send(env_return)
-            elif cmd == 'reset':
+            elif cmd == "reset":
                 retval = env.reset(**data)
                 reset_returns_info = (
                     isinstance(retval, (tuple, list))
@@ -269,29 +260,29 @@ def _worker(
                     p.send((obs, info))
                 else:
                     p.send(obs)
-            elif cmd == 'close':
+            elif cmd == "close":
                 p.send(env.close())
                 p.close()
                 break
-            elif cmd == 'render':
-                p.send(env.render(**data) if hasattr(env, 'render') else None)
-            elif cmd == 'seed':
-                if hasattr(env, 'seed'):
+            elif cmd == "render":
+                p.send(env.render(**data) if hasattr(env, "render") else None)
+            elif cmd == "seed":
+                if hasattr(env, "seed"):
                     p.send(env.seed(data))
                 else:
                     env.reset(seed=data)
                     p.send(None)
-            elif cmd == 'getattr':
+            elif cmd == "getattr":
                 p.send(getattr(env, data) if hasattr(env, data) else None)
-            elif cmd == 'setattr':
-                setattr(env.unwrapped, data['key'], data['value'])
-            elif cmd == 'check_success':
+            elif cmd == "setattr":
+                setattr(env.unwrapped, data["key"], data["value"])
+            elif cmd == "check_success":
                 p.send(env.check_success())
-            elif cmd == 'get_segmentation_of_interest':
+            elif cmd == "get_segmentation_of_interest":
                 p.send(env.get_segmentation_of_interest(data))
-            elif cmd == 'get_sim_state':
+            elif cmd == "get_sim_state":
                 p.send(env.get_sim_state())
-            elif cmd == 'set_init_state':
+            elif cmd == "set_init_state":
                 obs = env.set_init_state(data)
                 p.send(obs)
             else:
@@ -315,16 +306,14 @@ class DummyEnvWorker(EnvWorker):
         setattr(self.env.unwrapped, key, value)
 
     def reset(self, **kwargs: Any) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
-        if 'seed' in kwargs:
-            super().seed(kwargs['seed'])
+        if "seed" in kwargs:
+            super().seed(kwargs["seed"])
         return self.env.reset(**kwargs)
 
     @staticmethod
     def wait(  # type: ignore
-        workers: List['DummyEnvWorker'],
-        wait_num: int,
-        timeout: Optional[float] = None,
-    ) -> List['DummyEnvWorker']:
+        workers: List["DummyEnvWorker"], wait_num: int, timeout: Optional[float] = None
+    ) -> List["DummyEnvWorker"]:
         # Sequential EnvWorker objects are always ready
         return workers
 
@@ -364,7 +353,9 @@ class DummyEnvWorker(EnvWorker):
 class SubprocEnvWorker(EnvWorker):
     """Subprocess worker used in SubprocVectorEnv and ShmemVectorEnv."""
 
-    def __init__(self, env_fn: Callable[[], gym.Env], share_memory: bool = False) -> None:
+    def __init__(
+        self, env_fn: Callable[[], gym.Env], share_memory: bool = False
+    ) -> None:
         self.parent_remote, self.child_remote = Pipe()
         self.share_memory = share_memory
         self.buffer: Optional[Union[dict, tuple, ShArray]] = None
@@ -386,32 +377,33 @@ class SubprocEnvWorker(EnvWorker):
         super().__init__(env_fn)
 
     def get_env_attr(self, key: str) -> Any:
-        self.parent_remote.send(['getattr', key])
+        self.parent_remote.send(["getattr", key])
         return self.parent_remote.recv()
 
     def set_env_attr(self, key: str, value: Any) -> None:
-        self.parent_remote.send(['setattr', {'key': key, 'value': value}])
+        self.parent_remote.send(["setattr", {"key": key, "value": value}])
 
     def _decode_obs(self) -> Union[dict, tuple, np.ndarray]:
         def decode_obs(
-            buffer: Optional[Union[dict, tuple, ShArray]],
+            buffer: Optional[Union[dict, tuple, ShArray]]
         ) -> Union[dict, tuple, np.ndarray]:
             if isinstance(buffer, ShArray):
                 return buffer.get()
-            if isinstance(buffer, tuple):
+            elif isinstance(buffer, tuple):
                 return tuple([decode_obs(b) for b in buffer])
-            if isinstance(buffer, dict):
+            elif isinstance(buffer, dict):
                 return {k: decode_obs(v) for k, v in buffer.items()}
-            raise NotImplementedError
+            else:
+                raise NotImplementedError
 
         return decode_obs(self.buffer)
 
     @staticmethod
     def wait(  # type: ignore
-        workers: List['SubprocEnvWorker'],
+        workers: List["SubprocEnvWorker"],
         wait_num: int,
         timeout: Optional[float] = None,
-    ) -> List['SubprocEnvWorker']:
+    ) -> List["SubprocEnvWorker"]:
         remain_conns = conns = [x.parent_remote for x in workers]
         ready_conns: List[connection.Connection] = []
         remain_time, t1 = timeout, time.time()
@@ -428,11 +420,11 @@ class SubprocEnvWorker(EnvWorker):
 
     def send(self, action: Optional[np.ndarray], **kwargs: Any) -> None:
         if action is None:
-            if 'seed' in kwargs:
-                super().seed(kwargs['seed'])
-            self.parent_remote.send(['reset', kwargs])
+            if "seed" in kwargs:
+                super().seed(kwargs["seed"])
+            self.parent_remote.send(["reset", kwargs])
         else:
-            self.parent_remote.send(['step', action])
+            self.parent_remote.send(["step", action])
 
     def recv(
         self,
@@ -441,7 +433,7 @@ class SubprocEnvWorker(EnvWorker):
         gym_new_venv_step_type,
         Tuple[np.ndarray, dict],
         np.ndarray,
-    ]:
+    ]:  # noqa:E125
         result = self.parent_remote.recv()
         if isinstance(result, tuple):
             if len(result) == 2:
@@ -453,15 +445,16 @@ class SubprocEnvWorker(EnvWorker):
             if self.share_memory:
                 obs = self._decode_obs()
             return (obs, *result[1:])  # type: ignore
-        obs = result
-        if self.share_memory:
-            obs = self._decode_obs()
-        return obs
+        else:
+            obs = result
+            if self.share_memory:
+                obs = self._decode_obs()
+            return obs
 
     def reset(self, **kwargs: Any) -> Union[np.ndarray, Tuple[np.ndarray, dict]]:
-        if 'seed' in kwargs:
-            super().seed(kwargs['seed'])
-        self.parent_remote.send(['reset', kwargs])
+        if "seed" in kwargs:
+            super().seed(kwargs["seed"])
+        self.parent_remote.send(["reset", kwargs])
 
         result = self.parent_remote.recv()
         if isinstance(result, tuple):
@@ -469,24 +462,25 @@ class SubprocEnvWorker(EnvWorker):
             if self.share_memory:
                 obs = self._decode_obs()
             return obs, info
-        obs = result
-        if self.share_memory:
-            obs = self._decode_obs()
-        return obs
+        else:
+            obs = result
+            if self.share_memory:
+                obs = self._decode_obs()
+            return obs
 
     def seed(self, seed: Optional[int] = None) -> Optional[List[int]]:
         super().seed(seed)
-        self.parent_remote.send(['seed', seed])
+        self.parent_remote.send(["seed", seed])
         ret = self.parent_remote.recv()
         return ret
 
     def render(self, **kwargs: Any) -> Any:
-        self.parent_remote.send(['render', kwargs])
+        self.parent_remote.send(["render", kwargs])
         return self.parent_remote.recv()
 
     def close_env(self) -> None:
         try:
-            self.parent_remote.send(['close', None])
+            self.parent_remote.send(["close", None])
             # mp may be deleted so it may raise AttributeError
             self.parent_remote.recv()
             self.process.join()
@@ -496,19 +490,19 @@ class SubprocEnvWorker(EnvWorker):
         self.process.terminate()
 
     def check_success(self):
-        self.parent_remote.send(['check_success', None])
+        self.parent_remote.send(["check_success", None])
         return self.parent_remote.recv()
 
     def get_segmentation_of_interest(self, segmentation_image):
-        self.parent_remote.send(['get_segmentation_of_interest', segmentation_image])
+        self.parent_remote.send(["get_segmentation_of_interest", segmentation_image])
         return self.parent_remote.recv()
 
     def get_sim_state(self):
-        self.parent_remote.send(['get_sim_state', None])
+        self.parent_remote.send(["get_sim_state", None])
         return self.parent_remote.recv()
 
     def set_init_state(self, init_state):
-        self.parent_remote.send(['set_init_state', init_state])
+        self.parent_remote.send(["set_init_state", init_state])
         obs = self.parent_remote.recv()
         if self.share_memory:
             obs = self._decode_obs()
@@ -522,7 +516,7 @@ class SubprocEnvWorker(EnvWorker):
 ################################################################################
 
 
-class BaseVectorEnv:
+class BaseVectorEnv(object):
     """Base class for vectorized environments.
 
     Usage:
@@ -592,11 +586,11 @@ class BaseVectorEnv:
         self.wait_num = wait_num or len(env_fns)
         assert (
             1 <= self.wait_num <= len(env_fns)
-        ), f'wait_num should be in [1, {len(env_fns)}], but got {wait_num}'
+        ), f"wait_num should be in [1, {len(env_fns)}], but got {wait_num}"
         self.timeout = timeout
         assert (
             self.timeout is None or self.timeout > 0
-        ), f'timeout is {timeout}, it should be positive if provided!'
+        ), f"timeout is {timeout}, it should be positive if provided!"
         self.is_async = self.wait_num != len(env_fns) or timeout is not None
         self.waiting_conn: List[EnvWorker] = []
         # environments in self.ready_id is actually ready
@@ -611,7 +605,7 @@ class BaseVectorEnv:
     def _assert_is_not_closed(self) -> None:
         assert (
             not self.is_closed
-        ), f'Methods of {self.__class__.__name__} cannot be called after close.'
+        ), f"Methods of {self.__class__.__name__} cannot be called after close."
 
     def __len__(self) -> int:
         """Return len(self), which is the number of environments."""
@@ -626,7 +620,8 @@ class BaseVectorEnv:
         """
         if key in GYM_RESERVED_KEYS:  # reserved keys in gym.Env
             return self.get_env_attr(key)
-        return super().__getattribute__(key)
+        else:
+            return super().__getattribute__(key)
 
     def get_env_attr(
         self,
@@ -687,8 +682,10 @@ class BaseVectorEnv:
         for i in id:
             assert (
                 i not in self.waiting_id
-            ), f'Cannot interact with environment {i} which is stepping now.'
-            assert i in self.ready_id, f'Can only interact with ready environments {self.ready_id}.'
+            ), f"Cannot interact with environment {i} which is stepping now."
+            assert (
+                i in self.ready_id
+            ), f"Can only interact with ready environments {self.ready_id}."
 
     def reset(
         self,
@@ -723,8 +720,8 @@ class BaseVectorEnv:
 
         if isinstance(obs_list[0], tuple):
             raise TypeError(
-                'Tuple observation space is not supported. ',
-                'Please change it to array or dict space',
+                "Tuple observation space is not supported. ",
+                "Please change it to array or dict space",
             )
         try:
             obs = np.stack(obs_list)
@@ -734,7 +731,8 @@ class BaseVectorEnv:
         if reset_returns_info:
             infos = [r[1] for r in ret_list]
             return obs, infos  # type: ignore
-        return obs
+        else:
+            return obs
 
     def step(
         self,
@@ -794,7 +792,7 @@ class BaseVectorEnv:
             result = []
             for j in id:
                 env_return = self.workers[j].recv()
-                env_return[-1]['env_id'] = j
+                env_return[-1]["env_id"] = j
                 result.append(env_return)
         else:
             if action is not None:
@@ -807,7 +805,9 @@ class BaseVectorEnv:
                 self.ready_id = [x for x in self.ready_id if x not in id]
             ready_conns: List[EnvWorker] = []
             while not ready_conns:
-                ready_conns = self.worker_class.wait(self.waiting_conn, self.wait_num, self.timeout)
+                ready_conns = self.worker_class.wait(
+                    self.waiting_conn, self.wait_num, self.timeout
+                )
             result = []
             for conn in ready_conns:
                 waiting_index = self.waiting_conn.index(conn)
@@ -816,7 +816,7 @@ class BaseVectorEnv:
                 # env_return can be (obs, reward, done, info) or
                 # (obs, reward, terminated, truncated, info)
                 env_return = conn.recv()
-                env_return[-1]['env_id'] = env_id  # Add `env_id` to info
+                env_return[-1]["env_id"] = env_id  # Add `env_id` to info
                 result.append(env_return)
                 self.ready_id.append(env_id)
         return_lists = tuple(zip(*result))
@@ -856,7 +856,8 @@ class BaseVectorEnv:
         self._assert_is_not_closed()
         if self.is_async and len(self.waiting_id) > 0:
             raise RuntimeError(
-                f'Environments {self.waiting_id} are still stepping, cannot ' 'render them now.',
+                f"Environments {self.waiting_id} are still stepping, cannot "
+                "render them now."
             )
         return [w.render(**kwargs) for w in self.workers]
 
@@ -888,7 +889,8 @@ class DummyVectorEnv(BaseVectorEnv):
 
     def get_segmentation_of_interest(self, segmentation_images):
         return [
-            w.get_segmentation_of_interest(img) for w, img in zip(self.workers, segmentation_images)
+            w.get_segmentation_of_interest(img)
+            for w, img in zip(self.workers, segmentation_images)
         ]
 
     def get_sim_state(self):
@@ -938,7 +940,8 @@ class SubprocVectorEnv(BaseVectorEnv):
 
     def get_segmentation_of_interest(self, segmentation_images):
         return [
-            w.get_segmentation_of_interest(img) for w, img in zip(self.workers, segmentation_images)
+            w.get_segmentation_of_interest(img)
+            for w, img in zip(self.workers, segmentation_images)
         ]
 
     def get_sim_state(self):

@@ -1,66 +1,48 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
 import argparse
-
 import h5py
 
 
 def print_dataset_info(name, obj):
-    """回调函数，用于打印HDF5对象的信息。"""
+    """Callback function to print information about HDF5 objects."""
     indent_level = name.count('/')
     indent = '  ' * indent_level
 
     if isinstance(obj, h5py.Dataset):
-        # 打印数据集信息
+        # Print dataset information
         shape = obj.shape
         dtype = obj.dtype
-        print(f'{indent}- 数据集: {name} | 形状: {shape} | 类型: {dtype}')
+        print(f"{indent}- Dataset: {name} | Shape: {shape} | Type: {dtype}")
 
-        # 尝试展示前几个数据
+        # Try to show first few data points
         try:
             data_preview = obj[...]
             if data_preview.size > 0:
-                # 限制显示数量，避免输出过多数据
+                # Limit display count to avoid excessive output
                 preview_flat = data_preview.flatten()
                 preview_size = min(5, preview_flat.size)
                 preview_str = ', '.join(str(x) for x in preview_flat[:preview_size])
-                print(
-                    f"{indent}    示例数据: {preview_str}{' ...' if preview_flat.size > preview_size else ''}",
-                )
+                print(f"{indent}    Sample data: {preview_str}{' ...' if preview_flat.size > preview_size else ''}")
         except Exception:
-            print(f'{indent}    (无法读取数据示例)')
+            print(f"{indent}    (Unable to read data sample)" )
 
-        # 打印属性
+        # Print attributes
         if obj.attrs:
-            print(f'{indent}    属性:')
+            print(f"{indent}    Attributes:")
             for key, value in obj.attrs.items():
-                print(f'{indent}      - {key}: {value}')
+                print(f"{indent}      - {key}: {value}")
 
     elif isinstance(obj, h5py.Group):
-        # 打印组信息
-        print(f"{indent}+ 组: {name if name else '/'}")
+        # Print group information
+        print(f"{indent}+ Group: {name if name else '/'}")
         if obj.attrs:
-            print(f'{indent}    属性:')
+            print(f"{indent}    Attributes:")
             for key, value in obj.attrs.items():
-                print(f'{indent}      - {key}: {value}')
+                print(f"{indent}      - {key}: {value}")
 
 
 def inspect_hdf5(file_path, dataset_path=None):
-    """检查HDF5文件的结构及内容示例。"""
-    print(f'正在检查文件: {file_path}')
+    """Inspect HDF5 file structure and content samples."""
+    print(f"Checking file: {file_path}")
 
     with h5py.File(file_path, 'r') as h5_file:
         if dataset_path:
@@ -68,26 +50,26 @@ def inspect_hdf5(file_path, dataset_path=None):
                 obj = h5_file[dataset_path]
                 print_dataset_info(dataset_path, obj)
             else:
-                print(f'路径 {dataset_path} 不存在。可用的键包括:')
+                print(f"Path {dataset_path} does not exist. Available keys include:")
                 for key in h5_file.keys():
-                    print(f'- {key}')
+                    print(f"- {key}")
         else:
             h5_file.visititems(print_dataset_info)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='打印HDF5文件中的键和值示例')
-    parser.add_argument('file', type=str, help='HDF5 文件路径')
+    parser = argparse.ArgumentParser(description="Print keys and value samples from HDF5 file")
+    parser.add_argument("file", type=str, help="HDF5 file path")
     parser.add_argument(
-        '--path',
+        "--path",
         type=str,
         default=None,
-        help='指定要查看的数据集路径，默认打印整个文件结构',
+        help="Specify dataset path to view, default prints entire file structure"
     )
 
     args = parser.parse_args()
     inspect_hdf5(args.file, args.path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

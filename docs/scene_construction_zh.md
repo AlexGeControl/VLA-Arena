@@ -256,6 +256,12 @@ python scripts/visualize_bddl.py --bddl_file "your_bddl_file_path"
 然后在`rollouts`目录中查看生成的视频：
 <p align="center"><img src="image/build_scene_1.png" width="300" height="300"/></p>
 
+### 故障排除
+如果在可视化过程中遇到错误 AttributeError: "'MjRenderContextOffscreen' object has no attribute 'con'"，请尝试安装以下软件包：
+```bash
+conda install -c conda-forge libegl-devel
+```
+
 ## 3. 资产
 BDDL 文件中的固定对象和可操作对象必须是`vla_arena/vla_arena/assets`目录中已存在的资产。该目录是场景中所有可用资产的仓库。
 

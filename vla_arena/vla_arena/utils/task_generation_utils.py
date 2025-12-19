@@ -1,28 +1,14 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
 import os
 from collections import namedtuple
 
-from vla_arena.vla_arena.utils.bddl_generation_utils import *
 from vla_arena.vla_arena.utils.mu_utils import get_scene_class
-
+from vla_arena.vla_arena.utils.bddl_generation_utils import *
 
 TASK_INFO = {}
 
-TaskInfoTuple = namedtuple('TaskInfoTuple', 'scene_name language objects_of_interest goal_states')
+TaskInfoTuple = namedtuple(
+    "TaskInfoTuple", "scene_name language objects_of_interest goal_states"
+)
 
 
 def register_task_info(language, scene_name, objects_of_interest=[], goal_states=[]):
@@ -34,36 +20,38 @@ def register_task_info(language, scene_name, objects_of_interest=[], goal_states
     possible_objects_of_interest = scene.possible_objects_of_interest
     for object_name in objects_of_interest:
         if object_name not in possible_objects_of_interest:
-            print(f'Error!! {scene_name} not having valid objects: {object_name}')
+            print(f"Error!! {scene_name} not having valid objects: {object_name}")
             print(possible_objects_of_interest)
             raise ValueError
-    task_goal = [('And', *goal_states)]
+    task_goal = [("And", *goal_states)]
     TASK_INFO[scene_name].append(
-        TaskInfoTuple(scene_name, language, objects_of_interest, task_goal),
+        TaskInfoTuple(scene_name, language, objects_of_interest, task_goal)
     )
 
 
 def get_task_info(scene_name=None):
     if scene_name is None:
         return TASK_INFO
-    return TASK_INFO[scene_name]
+    else:
+        return TASK_INFO[scene_name]
 
 
 def get_suite_generator_func(workspace_name):
-    if workspace_name == 'main_table':
+    if workspace_name == "main_table":
         return tabletop_task_suites_generator
-    if workspace_name == 'kitchen_table':
+    elif workspace_name == "kitchen_table":
         return kitchen_table_task_suites_generator
-    if workspace_name == 'living_room_table':
+    elif workspace_name == "living_room_table":
         return living_room_table_task_suites_generator
-    if workspace_name == 'study_table':
+    elif workspace_name == "study_table":
         return study_table_task_suites_generator
-    if workspace_name == 'coffee_table':
+    elif workspace_name == "coffee_table":
         return coffee_table_task_suites_generator
-    return floor_task_suites_generator
+    else:
+        return floor_task_suites_generator
 
 
-def generate_bddl_from_task_info(folder='/tmp/pddl'):
+def generate_bddl_from_task_info(folder="/tmp/pddl"):
     results = []
     failures = []
     bddl_file_names = []
@@ -91,10 +79,7 @@ def generate_bddl_from_task_info(folder='/tmp/pddl'):
                 )
                 result = get_result(result)
                 bddl_file_name = save_to_file(
-                    result,
-                    scene_name=scene_name,
-                    language=language,
-                    folder=folder,
+                    result, scene_name=scene_name, language=language, folder=folder
                 )
                 if bddl_file_name in bddl_file_names:
                     print(bddl_file_name)
@@ -102,5 +87,5 @@ def generate_bddl_from_task_info(folder='/tmp/pddl'):
                 results.append(result)
             except:
                 failures.append((scene_name, language))
-    print(f'Succefully generated: {len(results)}')
+    print(f"Succefully generated: {len(results)}")
     return bddl_file_names, failures

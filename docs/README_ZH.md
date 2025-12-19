@@ -22,6 +22,12 @@
    - 过滤空动作以确保轨迹连续性
    - 数据集优化和验证
    - 质量保证程序
+4. [将数据集转换为rlds格式](#4-将数据集转换为rlds格式)
+   - RLDS 格式转换
+   - 数据集标准化
+5. [将rlds数据集转换为lerobot格式](#5-将rlds数据集转换为lerobot格式)
+   - LeRobot 格式转换
+   - 兼容性处理
 
 ---
 
@@ -63,81 +69,25 @@
 
 ---
 
-### 3. 模型微调指南
-**文件：** `finetune_zh.md`
+### 3. 模型微调与评估指南
+**文件：** `finetuning_and_evaluation_zh.md`
 
-使用 VLA-Arena 生成的数据集微调 VLA 模型的综合指南。
-
-#### 目录结构：
-1. [快速开始](#快速开始)
-   - 环境设置
-   - 基本微调命令
-2. [微调 OpenVLA](#微调OpenVLA)
-   - OpenVLA 库安装
-   - 一键微调脚本
-   - 参数配置
-   - 数据集配置选项
-3. [微调 OpenVLA OFT](#微调OpenVLA-OFT)
-   - OFT 微调介绍
-   - 高级训练选项
-   - 架构增强
-   - 多 GPU 支持
-4. [故障排除](#故障排除)
-   - 常见问题和解决方案
-   - 调试技巧
-5. [模型评估](#模型评估)
-   - 评估程序
-   - 性能指标
-6. [添加自定义模型](#添加自定义模型)
-   - 自定义模型集成
-   - 配置要求
-7. [配置说明](#配置说明)
-   - 详细配置选项
-   - 最佳实践
-
----
-
-### 4. 模型评估指南
-**文件：** `evaluation_zh.md`
-
-评估 VLA 模型和向 VLA-Arena 添加自定义模型的完整指南。
+使用 VLA-Arena 生成的数据集微调和评估 VLA 模型的综合指南。支持 OpenVLA、OpenVLA-OFT、Openpi、UniVLA、SmolVLA 等模型。
 
 #### 目录结构：
-1. [快速开始](#快速开始)
-   - 环境准备
-   - 基本评估命令
-2. [模型评估](#模型评估)
-   - 支持的模型
-   - 评估程序
-   - 性能指标
-   - 结果解释
-3. [添加自定义模型](#添加自定义模型)
-   - 自定义模型集成
-   - 配置要求
-   - 实现指南
-4. [配置说明](#配置说明)
-   - 详细配置选项
-   - 参数描述
-   - 最佳实践
-5. [故障排除](#故障排除)
-   - 常见问题和解决方案
-   - 调试技巧
-   - 性能优化
-
----
-
-## 🔧 脚本文件
-
-### 微调脚本
-- **`finetune_openvla.sh`**: 标准 OpenVLA 微调脚本
-- **`finetune_openvla_oft.sh`**: 具有高级选项的 OpenVLA OFT 微调脚本
-
-### 主要功能：
-- 自动化数据集配置
-- 参数验证
-- 多 GPU 支持
-- 全面的错误处理
-- 灵活的训练选项
+1. [通用模型（OpenVLA、OpenVLA-OFT、UniVLA、SmolVLA）](#通用模型)
+   - 依赖安装
+   - 模型微调
+   - 模型评估
+2. [Openpi 模型](#openpi)
+   - 环境配置（使用 uv）
+   - 训练配置和运行
+   - 策略服务器启动
+   - 模型评估
+3. [配置文件说明](#配置文件说明)
+   - 数据集路径配置
+   - 模型参数设置
+   - 训练超参数配置
 
 ---
 
@@ -145,16 +95,15 @@
 
 ```
 docs/
-├── data_collection.md          # 数据收集指南（英文）
-├── data_collection_zh.md       # 数据收集指南（中文）
-├── scene_construction.md      # 场景构建指南（英文）
-├── scene_construction_zh.md   # 场景构建指南（中文）
-├── finetune_zh.md             # 模型微调指南（中文）
-├── evaluation.md              # 模型评估指南（英文）
-├── evaluation_zh.md           # 模型评估指南（中文）
-├── finetune_openvla.sh        # OpenVLA 微调脚本
-├── finetune_openvla_oft.sh    # OpenVLA OFT 微调脚本
-└── image/                     # 文档图片和 GIF
+├── data_collection.md                    # 数据收集指南（英文）
+├── data_collection_zh.md                 # 数据收集指南（中文）
+├── scene_construction.md                 # 场景构建指南（英文）
+├── scene_construction_zh.md             # 场景构建指南（中文）
+├── finetuning_and_evaluation.md         # 模型微调与评估指南（英文）
+├── finetuning_and_evaluation_zh.md      # 模型微调与评估指南（中文）
+├── README_EN.md                          # 文档目录（英文）
+├── README_ZH.md                          # 文档目录（中文）
+└── image/                                # 文档图片和 GIF
 ```
 
 ---
@@ -171,14 +120,12 @@ docs/
 2. 使用 `scripts/collect_demonstration.py` 进行交互式数据收集
 3. 使用 `scripts/group_create_dataset.py` 转换数据格式
 
-### 3. 模型训练
-1. 使用 `finetune_openvla.sh` 或 `finetune_openvla_oft.sh` 进行模型微调
-2. 根据您的需求配置训练参数
-3. 通过 WandB 监控训练进度
-
-### 4. 模型评估
-1. 按照 `evaluation_zh.md` 进行模型评估程序
-2. 使用 `scripts/evaluate_policy.py` 进行全面评估
-3. 分析结果并迭代改进模型
+### 3. 模型训练与评估
+1. 按照 `finetuning_and_evaluation_zh.md` 安装模型依赖
+2. 使用 `vla-arena train` 命令进行模型微调
+3. 根据您的需求配置训练参数
+4. 使用 `vla-arena eval` 命令评估模型性能
+5. 通过 WandB 监控训练进度
+6. 分析结果并迭代改进模型
 
 

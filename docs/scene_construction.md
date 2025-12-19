@@ -256,6 +256,12 @@ Here is an example:
 Then view the generated video in the `rollouts` directory:
 <p align="center"><img src="image/build_scene_1.png" width="300" height="300"/></p>
 
+### Trouble Shooting
+If you encounter error AttributeError: "'MjRenderContextOffscreen' object has no attribute 'con'" during visualization, please try installing the following package:
+```bash
+conda install -c conda-forge libegl-devel
+```
+
 ## 3. Assets
 Both fixtures and objects in the BDDL file must be existing assets in the `vla_arena/vla_arena/assets` directory. This directory serves as the central repository for all usable assets within the scene.
 

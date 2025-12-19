@@ -242,6 +242,9 @@ pip install -r conversion_requirements.txt
 # 设置RLDS数据集路径
 DATA_DIR="/path/to/your/rlds/dataset"
 
+# 设置模型类型 ("openpi" 或 "smolvla")
+MODEL_TYPE="your/model/type"
+
 # 设置LeRobot输出路径，默认为 "./lerobot_dataset"
 HF_LEROBOT_HOME="/path/to/lerobot/datasets"
 
@@ -251,8 +254,9 @@ PUSH_TO_HUB="false"
 
 ### 5.3 数据集特征映射
 
-转换脚本会将RLDS数据映射到LeRobot格式：
+转换脚本会根据模型类型的不同将RLDS数据映射到两种不同的LeRobot格式：
 
+#### OpenPi
 - **图像数据**：
   - `image`: 主摄像头RGB图像 (256×256×3)
   - `wrist_image`: 手腕摄像头RGB图像 (256×256×3)
@@ -262,6 +266,20 @@ PUSH_TO_HUB="false"
 
 - **动作数据**：
   - `actions`: 机器人动作 (7维)
+
+- **任务信息**：
+  - `task`: 语言指令（从RLDS的language_instruction提取）
+  
+#### SmolVLA
+- **图像数据**：
+  - `observations.images.image`: 主摄像头RGB图像 (256×256×3)
+  - `observations.images.wrist_image`: 手腕摄像头RGB图像 (256×256×3)
+
+- **状态数据**：
+  - `observations.state`: 机器人末端执行器状态 (8维：6D位姿 + 2D夹爪状态)
+
+- **动作数据**：
+  - `action`: 机器人动作 (7维)
 
 - **任务信息**：
   - `task`: 语言指令（从RLDS的language_instruction提取）
@@ -275,10 +293,10 @@ PUSH_TO_HUB="false"
 ./scripts/convert.sh
 
 # 方法2：指定数据路径
-./scripts/convert.sh /path/to/your/rlds/dataset
+./scripts/convert.sh /path/to/your/rlds/dataset your/model/type
 
 # 方法3：使用环境变量
-DATA_DIR=/path/to/your/rlds/dataset ./scripts/convert.sh
+DATA_DIR=/path/to/your/rlds/dataset MODEL_TYPE=your/model/type ./scripts/convert.sh
 ```
 
 转换过程会：
@@ -291,7 +309,7 @@ DATA_DIR=/path/to/your/rlds/dataset ./scripts/convert.sh
 
 ### 5.5 转换参数说明
 
-在 `convert_data_to_lerobot.py` 中可以调整以下参数：
+在 `convert_data_to_lerobot_{model_type}.py` 中可以调整以下参数：
 
 ```python
 # 机器人配置

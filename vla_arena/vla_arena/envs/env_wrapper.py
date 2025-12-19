@@ -1,42 +1,27 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
 import os
-
-import cv2
-import matplotlib.cm as cm
 import numpy as np
 import robosuite as suite
+import matplotlib.cm as cm
+
 from robosuite.utils.errors import RandomizationError
 
 import vla_arena.vla_arena.envs.bddl_utils as BDDLUtils
 from vla_arena.vla_arena.envs import *
+import cv2
 
 
 class ControlEnv:
     def __init__(
         self,
         bddl_file_name,
-        robots=['Panda'],
-        controller='default_panda',
-        gripper_types='default',
+        robots=["Panda"],
+        controller="default_panda",
+        gripper_types="default",
         initialization_noise=None,
         use_camera_obs=True,
         has_renderer=False,
         has_offscreen_renderer=True,
-        render_camera='frontview',
+        render_camera="frontview",
         render_collision_mesh=False,
         render_visual_mesh=True,
         render_gpu_device_id=-1,
@@ -45,14 +30,14 @@ class ControlEnv:
         ignore_done=False,
         hard_reset=True,
         camera_names=[
-            'agentview',
-            'robot0_eye_in_hand',
+            "agentview",
+            "robot0_eye_in_hand",
         ],
         camera_heights=128,
         camera_widths=128,
         camera_depths=False,
         camera_segmentations=None,
-        renderer='mujoco',
+        renderer="mujoco",
         renderer_config=None,
         camera_offset=False,
         color_randomize=False,
@@ -60,7 +45,9 @@ class ControlEnv:
         light_adjustment=False,
         **kwargs,
     ):
-        assert os.path.exists(bddl_file_name), f'[error] {bddl_file_name} does not exist!'
+        assert os.path.exists(
+            bddl_file_name
+        ), f"[error] {bddl_file_name} does not exist!"
 
         controller_configs = suite.load_composite_controller_config(robot=robots[0])
 
@@ -68,9 +55,9 @@ class ControlEnv:
         # Check if we're using a multi-armed environment and use env_configuration argument if so
 
         # Create environment
-        self.problem_name = problem_info['problem_name']
-        self.domain_name = problem_info['domain_name']
-        self.language_instruction = problem_info['language_instruction']
+        self.problem_name = problem_info["problem_name"]
+        self.domain_name = problem_info["domain_name"]
+        self.language_instruction = problem_info["language_instruction"]
         self.env = TASK_MAPPING[self.problem_name](
             bddl_file_name,
             robots=robots,
@@ -169,10 +156,13 @@ class ControlEnv:
     def close(self):
         self.env.close()
         del self.env
-
+    
     def get_state(self):
         sim_state = self.env.sim.get_state()
-        return {'qpos': sim_state.qpos.copy(), 'qvel': sim_state.qvel.copy()}
+        return {
+            "qpos": sim_state.qpos.copy(),
+            "qvel": sim_state.qvel.copy()
+        }
 
 
 class OffScreenRenderEnv(ControlEnv):
@@ -180,23 +170,22 @@ class OffScreenRenderEnv(ControlEnv):
     For visualization and evaluation.
     """
 
-    def __init__(
-        self,
+    def __init__(self,
         camera_offset=False,
         color_randomize=False,
         add_noise=False,
         light_adjustment=False,
-        **kwargs,
-    ):
+        **kwargs
+        ):
         # This shouldn't be customized
-        kwargs['has_renderer'] = False
-        kwargs['has_offscreen_renderer'] = True
+        kwargs["has_renderer"] = False
+        kwargs["has_offscreen_renderer"] = True
         super().__init__(
             camera_offset=camera_offset,
             color_randomize=color_randomize,
             add_noise=add_noise,
             light_adjustment=light_adjustment,
-            **kwargs,
+            **kwargs
         )
 
 
@@ -208,15 +197,15 @@ class SegmentationRenderEnv(OffScreenRenderEnv):
 
     def __init__(
         self,
-        camera_segmentations='instance',
+        camera_segmentations="instance",
         camera_heights=128,
         camera_widths=128,
         **kwargs,
     ):
         assert camera_segmentations is not None
-        kwargs['camera_segmentations'] = camera_segmentations
-        kwargs['camera_heights'] = camera_heights
-        kwargs['camera_widths'] = camera_widths
+        kwargs["camera_segmentations"] = camera_segmentations
+        kwargs["camera_heights"] = camera_heights
+        kwargs["camera_widths"] = camera_widths
         self.segmentation_id_mapping = {}
         self.instance_to_id = {}
         self.segmentation_robot_id = None
@@ -230,14 +219,16 @@ class SegmentationRenderEnv(OffScreenRenderEnv):
         self.segmentation_id_mapping = {}
 
         for i, instance_name in enumerate(list(self.env.model.instances_to_ids.keys())):
-            if instance_name == 'Panda0':
+            if instance_name == "Panda0":
                 self.segmentation_robot_id = i
 
         for i, instance_name in enumerate(list(self.env.model.instances_to_ids.keys())):
-            if instance_name not in ['Panda0', 'RethinkMount0', 'PandaGripper0']:
+            if instance_name not in ["Panda0", "RethinkMount0", "PandaGripper0"]:
                 self.segmentation_id_mapping[i] = instance_name
 
-        self.instance_to_id = {v: k + 1 for k, v in self.segmentation_id_mapping.items()}
+        self.instance_to_id = {
+            v: k + 1 for k, v in self.segmentation_id_mapping.items()
+        }
         return obs
 
     def get_segmentation_instances(self, segmentation_image):
@@ -246,12 +237,14 @@ class SegmentationRenderEnv(OffScreenRenderEnv):
         segmentation_image[segmentation_image > self.segmentation_robot_id] = (
             self.segmentation_robot_id + 1
         )
-        seg_img_dict['robot'] = segmentation_image * (
+        seg_img_dict["robot"] = segmentation_image * (
             segmentation_image == self.segmentation_robot_id + 1
         )
 
         for seg_id, instance_name in self.segmentation_id_mapping.items():
-            seg_img_dict[instance_name] = segmentation_image * (segmentation_image == seg_id + 1)
+            seg_img_dict[instance_name] = segmentation_image * (
+                segmentation_image == seg_id + 1
+            )
         return seg_img_dict
 
     def get_segmentation_of_interest(self, segmentation_image):
@@ -278,21 +271,22 @@ class SegmentationRenderEnv(OffScreenRenderEnv):
         if random_colors:
             colors = randomize_colors(N=256, bright=True)
             return (255.0 * colors[seg_im]).astype(np.uint8)
-        # deterministic shuffling of values to map each geom ID to a random int in [0, 255]
-        rstate = np.random.RandomState(seed=2)
-        inds = np.arange(256)
-        rstate.shuffle(inds)
-        seg_img = (
-            np.array(255.0 * cm.rainbow(inds[seg_im], 10))
-            .astype(np.uint8)[..., :3]
-            .astype(np.uint8)
-            .squeeze(-2)
-        )
-        print(seg_img.shape)
-        cv2.imshow('Seg Image', seg_img[::-1])
-        cv2.waitKey(1)
-        # use @inds to map each geom ID to a color
-        return seg_img
+        else:
+            # deterministic shuffling of values to map each geom ID to a random int in [0, 255]
+            rstate = np.random.RandomState(seed=2)
+            inds = np.arange(256)
+            rstate.shuffle(inds)
+            seg_img = (
+                np.array(255.0 * cm.rainbow(inds[seg_im], 10))
+                .astype(np.uint8)[..., :3]
+                .astype(np.uint8)
+                .squeeze(-2)
+            )
+            print(seg_img.shape)
+            cv2.imshow("Seg Image", seg_img[::-1])
+            cv2.waitKey(1)
+            # use @inds to map each geom ID to a color
+            return seg_img
 
 
 class DemoRenderEnv(ControlEnv):
@@ -302,9 +296,9 @@ class DemoRenderEnv(ControlEnv):
 
     def __init__(self, **kwargs):
         # This shouldn't be customized
-        kwargs['has_renderer'] = False
-        kwargs['has_offscreen_renderer'] = True
-        kwargs['render_camera'] = 'frontview'
+        kwargs["has_renderer"] = False
+        kwargs["has_offscreen_renderer"] = True
+        kwargs["render_camera"] = "frontview"
 
         super().__init__(**kwargs)
 
