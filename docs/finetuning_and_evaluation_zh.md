@@ -12,7 +12,7 @@ VLA-Arena提供了完整的搜集数据、转换数据格式、评估语言-视�
 首先安装对应模型的依赖：
 
 ```bash
-conda create -n <Model_Name_Vla_Arena> python==3.10 -y
+conda create -n [model_name]_vla_arena python==3.10 -y
 pip install -e .
 pip install vla-arena[模型名称]
 ```

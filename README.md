@@ -13,6 +13,7 @@
 <p align="center">
   <img src="image/structure.png" width="100%">
 </p>
+
 VLA-Arena is an open-source benchmark for systematic evaluation of Vision-Language-Action (VLA) models. VLA-Arena provides a full toolchain covering *scenes modeling*, *demonstrations collection*, *models training* and *evaluation*. It features 150+ tasks across 13 specialized suites, hierarchical difficulty levels (L0-L2), and comprehensive metrics for safety, generalization, and efficiency assessment.
 
 VLA-Arena focuses on four key domains: 
@@ -29,7 +30,7 @@ VLA-Arena focuses on four key domains:
 
 - **🚀 End-to-End & Out-of-the-Box**: We provide a complete and unified toolchain covering everything from scene modeling and behavior collection to model training and evaluation. Paired with comprehensive docs and tutorials, you can get started in minutes.
 - **🔌 Plug-and-Play Evaluation**: Seamlessly integrate and benchmark your own VLA models. Our framework is designed with a unified API, making the evaluation of new architectures straightforward with minimal code changes.
-- **🛠️ Effortless Task Customization**: Leverage the Behavior Domain Definition Language (BDDL) to rapidly define entirely new tasks and safety constraints. Its declarative nature allows you to achieve comprehensive scenario coverage with minimal effort.
+- **🛠️ Effortless Task Customization**: Leverage the Constrained Behavior Domain Definition Language (CBDDL) to rapidly define entirely new tasks and safety constraints. Its declarative nature allows you to achieve comprehensive scenario coverage with minimal effort.
 - **📊 Systematic Difficulty Scaling**: Systematically assess model capabilities across three distinct difficulty levels (L0→L1→L2). Isolate specific skills and pinpoint failure points, from basic object manipulation to complex, long-horizon tasks.
 
 If you find VLA-Arena useful, please cite it in your publications.
@@ -93,8 +94,8 @@ This will open an interactive simulation environment where you can control the r
 
 ```bash
 # Create a dedicated environment for the model
-conda create -n model_name_vla_arena python=3.11 -y
-conda activate model_name_vla_arena
+conda create -n [model_name]_vla_arena python=3.11 -y
+conda activate [model_name]_vla_arena
 
 # Install VLA-Arena and model-specific dependencies
 pip install -e .
@@ -205,8 +206,8 @@ VLA-Arena provides comprehensive documentation for all aspects of the framework.
 ### 📖 Core Guides
 
 #### 🏗️ [Scene Construction Guide](docs/scene_construction.md) | [中文版](docs/scene_construction_zh.md)
-Build custom task scenarios using BDDL (Behavior Domain Definition Language).
-- BDDL file structure and syntax
+Build custom task scenarios using CBDDL (Constrained Behavior Domain Definition Language).
+- CBDDL file structure and syntax
 - Region, fixture, and object definitions
 - Moving objects with various motion types (linear, circular, waypoint, parabolic)
 - Initial and goal state specifications
@@ -315,11 +316,6 @@ We compare six models across four dimensions: **Safety**, **Distractor**, **Extr
 | L2 | 0.00 | 0.00 | **0.00** | 0.00 | 0.00 | 0.00 |
 
 ---
-
-### OpenVLA-OFT Results (150,000 Training Steps and finetuned on VLA-Arena L0 datasets)
-
-#### Overall Performance Summary
-
 
 ## License
 

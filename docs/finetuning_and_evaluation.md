@@ -11,7 +11,7 @@ For models other than Openpi (OpenVLA, OpenVLA-OFT, UniVLA, SmolVLA), the usage 
 First, install the dependencies for the corresponding model:
 
 ```bash
-conda create -n model_name_vla_arena python==3.10 -y
+conda create -n [model_name]_vla_arena python==3.10 -y
 pip install -e .
 pip install vla-arena[model_name]
 ```
