@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,32 +28,30 @@
 
 # ruff: noqa: N802
 
-from lerobot.motors.motors_bus import (
-    Motor,
-    MotorsBus,
-)
+from lerobot.motors.motors_bus import Motor, MotorsBus
+
 
 DUMMY_CTRL_TABLE_1 = {
-    "Firmware_Version": (0, 1),
-    "Model_Number": (1, 2),
-    "Present_Position": (3, 4),
-    "Goal_Position": (11, 2),
+    'Firmware_Version': (0, 1),
+    'Model_Number': (1, 2),
+    'Present_Position': (3, 4),
+    'Goal_Position': (11, 2),
 }
 
 DUMMY_CTRL_TABLE_2 = {
-    "Model_Number": (0, 2),
-    "Firmware_Version": (2, 1),
-    "Present_Position": (3, 4),
-    "Present_Velocity": (7, 4),
-    "Goal_Position": (11, 4),
-    "Goal_Velocity": (15, 4),
-    "Lock": (19, 1),
+    'Model_Number': (0, 2),
+    'Firmware_Version': (2, 1),
+    'Present_Position': (3, 4),
+    'Present_Velocity': (7, 4),
+    'Goal_Position': (11, 4),
+    'Goal_Velocity': (15, 4),
+    'Lock': (19, 1),
 }
 
 DUMMY_MODEL_CTRL_TABLE = {
-    "model_1": DUMMY_CTRL_TABLE_1,
-    "model_2": DUMMY_CTRL_TABLE_2,
-    "model_3": DUMMY_CTRL_TABLE_2,
+    'model_1': DUMMY_CTRL_TABLE_1,
+    'model_2': DUMMY_CTRL_TABLE_2,
+    'model_3': DUMMY_CTRL_TABLE_2,
 }
 
 DUMMY_BAUDRATE_TABLE = {
@@ -49,32 +61,32 @@ DUMMY_BAUDRATE_TABLE = {
 }
 
 DUMMY_MODEL_BAUDRATE_TABLE = {
-    "model_1": DUMMY_BAUDRATE_TABLE,
-    "model_2": DUMMY_BAUDRATE_TABLE,
-    "model_3": DUMMY_BAUDRATE_TABLE,
+    'model_1': DUMMY_BAUDRATE_TABLE,
+    'model_2': DUMMY_BAUDRATE_TABLE,
+    'model_3': DUMMY_BAUDRATE_TABLE,
 }
 
 DUMMY_ENCODING_TABLE = {
-    "Present_Position": 8,
-    "Goal_Position": 10,
+    'Present_Position': 8,
+    'Goal_Position': 10,
 }
 
 DUMMY_MODEL_ENCODING_TABLE = {
-    "model_1": DUMMY_ENCODING_TABLE,
-    "model_2": DUMMY_ENCODING_TABLE,
-    "model_3": DUMMY_ENCODING_TABLE,
+    'model_1': DUMMY_ENCODING_TABLE,
+    'model_2': DUMMY_ENCODING_TABLE,
+    'model_3': DUMMY_ENCODING_TABLE,
 }
 
 DUMMY_MODEL_NUMBER_TABLE = {
-    "model_1": 1234,
-    "model_2": 5678,
-    "model_3": 5799,
+    'model_1': 1234,
+    'model_2': 5678,
+    'model_3': 5799,
 }
 
 DUMMY_MODEL_RESOLUTION_TABLE = {
-    "model_1": 4096,
-    "model_2": 1024,
-    "model_3": 4096,
+    'model_1': 4096,
+    'model_2': 1024,
+    'model_3': 4096,
 }
 
 
@@ -129,7 +141,7 @@ class MockMotorsBus(MotorsBus):
     model_encoding_table = DUMMY_MODEL_ENCODING_TABLE
     model_number_table = DUMMY_MODEL_NUMBER_TABLE
     model_resolution_table = DUMMY_MODEL_RESOLUTION_TABLE
-    normalized_data = ["Present_Position", "Goal_Position"]
+    normalized_data = ['Present_Position', 'Goal_Position']
 
     def __init__(self, port: str, motors: dict[str, Motor]):
         super().__init__(port, motors)

@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +60,6 @@ from pathlib import Path
 from pprint import pformat
 
 import draccus
-
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.robots import (  # noqa: F401
     Robot,
@@ -59,10 +72,7 @@ from lerobot.robots import (  # noqa: F401
     so101_follower,
 )
 from lerobot.utils.robot_utils import busy_wait
-from lerobot.utils.utils import (
-    init_logging,
-    log_say,
-)
+from lerobot.utils.utils import init_logging, log_say
 
 
 @dataclass
@@ -91,17 +101,19 @@ def replay(cfg: ReplayConfig):
     logging.info(pformat(asdict(cfg)))
 
     robot = make_robot_from_config(cfg.robot)
-    dataset = LeRobotDataset(cfg.dataset.repo_id, root=cfg.dataset.root, episodes=[cfg.dataset.episode])
-    actions = dataset.hf_dataset.select_columns("action")
+    dataset = LeRobotDataset(
+        cfg.dataset.repo_id, root=cfg.dataset.root, episodes=[cfg.dataset.episode]
+    )
+    actions = dataset.hf_dataset.select_columns('action')
     robot.connect()
 
-    log_say("Replaying episode", cfg.play_sounds, blocking=True)
+    log_say('Replaying episode', cfg.play_sounds, blocking=True)
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
 
-        action_array = actions[idx]["action"]
+        action_array = actions[idx]['action']
         action = {}
-        for i, name in enumerate(dataset.features["action"]["names"]):
+        for i, name in enumerate(dataset.features['action']['names']):
             action[name] = action_array[i]
 
         robot.send_action(action)
@@ -116,5 +128,5 @@ def main():
     replay()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

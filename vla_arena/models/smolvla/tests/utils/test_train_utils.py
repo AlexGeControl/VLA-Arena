@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,15 +51,15 @@ from lerobot.utils.train_utils import (
 
 
 def test_get_step_identifier():
-    assert get_step_identifier(5, 1000) == "000005"
-    assert get_step_identifier(123, 100_000) == "000123"
-    assert get_step_identifier(456789, 1_000_000) == "0456789"
+    assert get_step_identifier(5, 1000) == '000005'
+    assert get_step_identifier(123, 100_000) == '000123'
+    assert get_step_identifier(456789, 1_000_000) == '0456789'
 
 
 def test_get_step_checkpoint_dir():
-    output_dir = Path("/checkpoints")
+    output_dir = Path('/checkpoints')
     step_dir = get_step_checkpoint_dir(output_dir, 1000, 5)
-    assert step_dir == output_dir / CHECKPOINTS_DIR / "000005"
+    assert step_dir == output_dir / CHECKPOINTS_DIR / '000005'
 
 
 def test_save_load_training_step(tmp_path):
@@ -61,7 +75,7 @@ def test_load_training_step(tmp_path):
 
 
 def test_update_last_checkpoint(tmp_path):
-    checkpoint = tmp_path / "0005"
+    checkpoint = tmp_path / '0005'
     checkpoint.mkdir()
     update_last_checkpoint(checkpoint)
     last_checkpoint = tmp_path / LAST_CHECKPOINT_LINK
@@ -69,7 +83,7 @@ def test_update_last_checkpoint(tmp_path):
     assert last_checkpoint.resolve() == checkpoint
 
 
-@patch("lerobot.utils.train_utils.save_training_state")
+@patch('lerobot.utils.train_utils.save_training_state')
 def test_save_checkpoint(mock_save_training_state, tmp_path, optimizer):
     policy = Mock()
     cfg = Mock()
@@ -91,7 +105,9 @@ def test_save_training_state(tmp_path, optimizer, scheduler):
 
 def test_save_load_training_state(tmp_path, optimizer, scheduler):
     save_training_state(tmp_path, 10, optimizer, scheduler)
-    loaded_step, loaded_optimizer, loaded_scheduler = load_training_state(tmp_path, optimizer, scheduler)
+    loaded_step, loaded_optimizer, loaded_scheduler = load_training_state(
+        tmp_path, optimizer, scheduler
+    )
     assert loaded_step == 10
     assert loaded_optimizer is optimizer
     assert loaded_scheduler is scheduler

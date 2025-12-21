@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utils for evaluating robot policies in various environments."""
 
 import os
@@ -8,29 +22,27 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from vla_arena.models.openvla_oft.experiments.robot.openvla_utils import (
-    get_vla,
-    get_vla_action,
-)
+from vla_arena.models.openvla_oft.experiments.robot.openvla_utils import get_vla, get_vla_action
+
 
 # Initialize important constants
 ACTION_DIM = 7
-DATE = time.strftime("%Y_%m_%d")
-DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+DATE = time.strftime('%Y_%m_%d')
+DATE_TIME = time.strftime('%Y_%m_%d-%H_%M_%S')
+DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
 # Configure NumPy print settings
-np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
+np.set_printoptions(formatter={'float': lambda x: f'{x:0.3f}'})
 
 # Initialize system prompt for OpenVLA v0.1
 OPENVLA_V01_SYSTEM_PROMPT = (
-    "A chat between a curious user and an artificial intelligence assistant. "
+    'A chat between a curious user and an artificial intelligence assistant. '
     "The assistant gives helpful, detailed, and polite answers to the user's questions."
 )
 
 # Model image size configuration
 MODEL_IMAGE_SIZES = {
-    "openvla": 224,
+    'openvla': 224,
     # Add other models as needed
 }
 
@@ -48,7 +60,7 @@ def set_seed_everywhere(seed: int) -> None:
     random.seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def get_model(cfg: Any, wrap_diffusion_policy_for_droid: bool = False) -> torch.nn.Module:
@@ -65,16 +77,16 @@ def get_model(cfg: Any, wrap_diffusion_policy_for_droid: bool = False) -> torch.
     Raises:
         ValueError: If model family is not supported
     """
-    if cfg.model_family == "openvla":
+    if cfg.model_family == 'openvla':
         model = get_vla(cfg)
     else:
-        raise ValueError(f"Unsupported model family: {cfg.model_family}")
+        raise ValueError(f'Unsupported model family: {cfg.model_family}')
 
-    print(f"Loaded model: {type(model)}")
+    print(f'Loaded model: {type(model)}')
     return model
 
 
-def get_image_resize_size(cfg: Any) -> Union[int, tuple]:
+def get_image_resize_size(cfg: Any) -> int | tuple:
     """
     Get image resize dimensions for a specific model.
 
@@ -91,7 +103,7 @@ def get_image_resize_size(cfg: Any) -> Union[int, tuple]:
         ValueError: If model family is not supported
     """
     if cfg.model_family not in MODEL_IMAGE_SIZES:
-        raise ValueError(f"Unsupported model family: {cfg.model_family}")
+        raise ValueError(f'Unsupported model family: {cfg.model_family}')
 
     return MODEL_IMAGE_SIZES[cfg.model_family]
 
@@ -99,14 +111,14 @@ def get_image_resize_size(cfg: Any) -> Union[int, tuple]:
 def get_action(
     cfg: Any,
     model: torch.nn.Module,
-    obs: Dict[str, Any],
+    obs: dict[str, Any],
     task_label: str,
-    processor: Optional[Any] = None,
-    action_head: Optional[torch.nn.Module] = None,
-    proprio_projector: Optional[torch.nn.Module] = None,
-    noisy_action_projector: Optional[torch.nn.Module] = None,
+    processor: Any | None = None,
+    action_head: torch.nn.Module | None = None,
+    proprio_projector: torch.nn.Module | None = None,
+    noisy_action_projector: torch.nn.Module | None = None,
     use_film: bool = False,
-) -> Union[List[np.ndarray], np.ndarray]:
+) -> list[np.ndarray] | np.ndarray:
     """
     Query the model to get action predictions.
 
@@ -128,7 +140,7 @@ def get_action(
         ValueError: If model family is not supported
     """
     with torch.no_grad():
-        if cfg.model_family == "openvla":
+        if cfg.model_family == 'openvla':
             action = get_vla_action(
                 cfg=cfg,
                 vla=model,
@@ -141,7 +153,7 @@ def get_action(
                 use_film=use_film,
             )
         else:
-            raise ValueError(f"Unsupported model family: {cfg.model_family}")
+            raise ValueError(f'Unsupported model family: {cfg.model_family}')
 
     return action
 
@@ -168,7 +180,9 @@ def normalize_gripper_action(action: np.ndarray, binarize: bool = True) -> np.nd
 
     # Normalize the last action dimension to [-1,+1]
     orig_low, orig_high = 0.0, 1.0
-    normalized_action[..., -1] = 2 * (normalized_action[..., -1] - orig_low) / (orig_high - orig_low) - 1
+    normalized_action[..., -1] = (
+        2 * (normalized_action[..., -1] - orig_low) / (orig_high - orig_low) - 1
+    )
 
     if binarize:
         # Binarize to -1 or +1

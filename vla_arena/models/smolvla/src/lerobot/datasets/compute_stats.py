@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +28,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-
 from lerobot.datasets.utils import load_image_as_numpy
 
 
@@ -43,7 +56,9 @@ def sample_indices(data_len: int) -> list[int]:
     return np.round(np.linspace(0, data_len - 1, num_samples)).astype(int).tolist()
 
 
-def auto_downsample_height_width(img: np.ndarray, target_size: int = 150, max_size_threshold: int = 300):
+def auto_downsample_height_width(
+    img: np.ndarray, target_size: int = 150, max_size_threshold: int = 300
+):
     _, height, width = img.shape
 
     if max(width, height) < max_size_threshold:
@@ -74,20 +89,20 @@ def sample_images(image_paths: list[str]) -> np.ndarray:
 
 def get_feature_stats(array: np.ndarray, axis: tuple, keepdims: bool) -> dict[str, np.ndarray]:
     return {
-        "min": np.min(array, axis=axis, keepdims=keepdims),
-        "max": np.max(array, axis=axis, keepdims=keepdims),
-        "mean": np.mean(array, axis=axis, keepdims=keepdims),
-        "std": np.std(array, axis=axis, keepdims=keepdims),
-        "count": np.array([len(array)]),
+        'min': np.min(array, axis=axis, keepdims=keepdims),
+        'max': np.max(array, axis=axis, keepdims=keepdims),
+        'mean': np.mean(array, axis=axis, keepdims=keepdims),
+        'std': np.std(array, axis=axis, keepdims=keepdims),
+        'count': np.array([len(array)]),
     }
 
 
 def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], features: dict) -> dict:
     ep_stats = {}
     for key, data in episode_data.items():
-        if features[key]["dtype"] == "string":
+        if features[key]['dtype'] == 'string':
             continue  # HACK: we should receive np.arrays of strings
-        elif features[key]["dtype"] in ["image", "video"]:
+        elif features[key]['dtype'] in ['image', 'video']:
             ep_ft_array = sample_images(data)  # data is a list of image paths
             axes_to_reduce = (0, 2, 3)  # keep channel dim
             keepdims = True
@@ -99,9 +114,10 @@ def compute_episode_stats(episode_data: dict[str, list[str] | np.ndarray], featu
         ep_stats[key] = get_feature_stats(ep_ft_array, axis=axes_to_reduce, keepdims=keepdims)
 
         # finally, we normalize and remove batch dim for images
-        if features[key]["dtype"] in ["image", "video"]:
+        if features[key]['dtype'] in ['image', 'video']:
             ep_stats[key] = {
-                k: v if k == "count" else np.squeeze(v / 255.0, axis=0) for k, v in ep_stats[key].items()
+                k: v if k == 'count' else np.squeeze(v / 255.0, axis=0)
+                for k, v in ep_stats[key].items()
             }
 
     return ep_stats
@@ -116,18 +132,20 @@ def _assert_type_and_shape(stats_list: list[dict[str, dict]]):
                         f"Stats must be composed of numpy array, but key '{k}' of feature '{fkey}' is of type '{type(v)}' instead."
                     )
                 if v.ndim == 0:
-                    raise ValueError("Number of dimensions must be at least 1, and is 0 instead.")
-                if k == "count" and v.shape != (1,):
+                    raise ValueError('Number of dimensions must be at least 1, and is 0 instead.')
+                if k == 'count' and v.shape != (1,):
                     raise ValueError(f"Shape of 'count' must be (1), but is {v.shape} instead.")
-                if "image" in fkey and k != "count" and v.shape != (3, 1, 1):
+                if 'image' in fkey and k != 'count' and v.shape != (3, 1, 1):
                     raise ValueError(f"Shape of '{k}' must be (3,1,1), but is {v.shape} instead.")
 
 
-def aggregate_feature_stats(stats_ft_list: list[dict[str, dict]]) -> dict[str, dict[str, np.ndarray]]:
+def aggregate_feature_stats(
+    stats_ft_list: list[dict[str, dict]]
+) -> dict[str, dict[str, np.ndarray]]:
     """Aggregates stats for a single feature."""
-    means = np.stack([s["mean"] for s in stats_ft_list])
-    variances = np.stack([s["std"] ** 2 for s in stats_ft_list])
-    counts = np.stack([s["count"] for s in stats_ft_list])
+    means = np.stack([s['mean'] for s in stats_ft_list])
+    variances = np.stack([s['std'] ** 2 for s in stats_ft_list])
+    counts = np.stack([s['count'] for s in stats_ft_list])
     total_count = counts.sum(axis=0)
 
     # Prepare weighted mean by matching number of dimensions
@@ -144,11 +162,11 @@ def aggregate_feature_stats(stats_ft_list: list[dict[str, dict]]) -> dict[str, d
     total_variance = weighted_variances.sum(axis=0) / total_count
 
     return {
-        "min": np.min(np.stack([s["min"] for s in stats_ft_list]), axis=0),
-        "max": np.max(np.stack([s["max"] for s in stats_ft_list]), axis=0),
-        "mean": total_mean,
-        "std": np.sqrt(total_variance),
-        "count": total_count,
+        'min': np.min(np.stack([s['min'] for s in stats_ft_list]), axis=0),
+        'max': np.max(np.stack([s['max'] for s in stats_ft_list]), axis=0),
+        'mean': total_mean,
+        'std': np.sqrt(total_variance),
+        'count': total_count,
     }
 
 

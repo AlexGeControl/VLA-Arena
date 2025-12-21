@@ -9,7 +9,7 @@
 FileNotFoundError: Could not find module '...\robosuite\utils\mujoco.dll'
 ```
 
-**原因**: 
+**原因**:
 - Windows 上 robosuite 需要 `mujoco.dll` 文件
 - 该文件可能未正确安装或路径不正确
 
@@ -42,7 +42,7 @@ pytest tests/test_cli.py tests/test_vla_arena_init.py -v
 NameError: name 'ProjectDefaultLogger' is not defined
 ```
 
-**原因**: 
+**原因**:
 - `vla_arena/vla_arena/utils/log_utils.py` 第34行有错误的代码
 - 该行调用了未定义的函数和变量
 
@@ -66,7 +66,7 @@ pytest tests/ --ignore=tests/test_log_utils.py
 WARNING: ignoring pytest config in pyproject.toml!
 ```
 
-**原因**: 
+**原因**:
 - 同时存在 `pytest.ini` 和 `pyproject.toml` 中的 pytest 配置
 - pytest 优先使用 `pytest.ini`
 
@@ -157,4 +157,3 @@ pytest tests/ -v --tb=short
 2. 检查依赖安装: `pip list | grep -E "pytest|robosuite|numpy"`
 3. 查看详细错误: `pytest tests/ -v --tb=long`
 4. 检查环境变量: `echo $PYTHONPATH`
-

@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,11 +35,11 @@ from functools import wraps
 from pathlib import Path
 
 import draccus
-
 from lerobot.utils.utils import has_method
 
-PATH_KEY = "path"
-PLUGIN_DISCOVERY_SUFFIX = "discover_packages_path"
+
+PATH_KEY = 'path'
+PLUGIN_DISCOVERY_SUFFIX = 'discover_packages_path'
 
 
 def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> list[str] | None:
@@ -40,11 +54,11 @@ def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> lis
     if args is None:
         args = sys.argv[1:]
     attr_level_args = []
-    detect_string = f"--{field_name}."
-    exclude_strings = (f"--{field_name}.{draccus.CHOICE_TYPE_KEY}=", f"--{field_name}.{PATH_KEY}=")
+    detect_string = f'--{field_name}.'
+    exclude_strings = (f'--{field_name}.{draccus.CHOICE_TYPE_KEY}=', f'--{field_name}.{PATH_KEY}=')
     for arg in args:
         if arg.startswith(detect_string) and not arg.startswith(exclude_strings):
-            denested_arg = f"--{arg.removeprefix(detect_string)}"
+            denested_arg = f'--{arg.removeprefix(detect_string)}'
             attr_level_args.append(denested_arg)
 
     return attr_level_args
@@ -53,7 +67,7 @@ def get_cli_overrides(field_name: str, args: Sequence[str] | None = None) -> lis
 def parse_arg(arg_name: str, args: Sequence[str] | None = None) -> str | None:
     if args is None:
         args = sys.argv[1:]
-    prefix = f"--{arg_name}="
+    prefix = f'--{arg_name}='
     for arg in args:
         if arg.startswith(prefix):
             return arg[len(prefix) :]
@@ -82,10 +96,10 @@ def parse_plugin_args(plugin_arg_suffix: str, args: Sequence[str]) -> dict:
     """
     plugin_args = {}
     for arg in args:
-        if "=" in arg and plugin_arg_suffix in arg:
-            key, value = arg.split("=", 1)
+        if '=' in arg and plugin_arg_suffix in arg:
+            key, value = arg.split('=', 1)
             # Remove leading '--' if present
-            if key.startswith("--"):
+            if key.startswith('--'):
                 key = key[2:]
             plugin_args[key] = value
     return plugin_args
@@ -128,7 +142,7 @@ def load_plugin(plugin_path: str) -> None:
         ) from e
 
     def iter_namespace(ns_pkg):
-        return pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + ".")
+        return pkgutil.iter_modules(ns_pkg.__path__, ns_pkg.__name__ + '.')
 
     try:
         for _finder, pkg_name, _ispkg in iter_namespace(package_module):
@@ -140,18 +154,20 @@ def load_plugin(plugin_path: str) -> None:
 
 
 def get_path_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
-    return parse_arg(f"{field_name}.{PATH_KEY}", args)
+    return parse_arg(f'{field_name}.{PATH_KEY}', args)
 
 
 def get_type_arg(field_name: str, args: Sequence[str] | None = None) -> str | None:
-    return parse_arg(f"{field_name}.{draccus.CHOICE_TYPE_KEY}", args)
+    return parse_arg(f'{field_name}.{draccus.CHOICE_TYPE_KEY}', args)
 
 
 def filter_arg(field_to_filter: str, args: Sequence[str] | None = None) -> list[str]:
-    return [arg for arg in args if not arg.startswith(f"--{field_to_filter}=")]
+    return [arg for arg in args if not arg.startswith(f'--{field_to_filter}=')]
 
 
-def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | None = None) -> list[str]:
+def filter_path_args(
+    fields_to_filter: str | list[str], args: Sequence[str] | None = None
+) -> list[str]:
     """
     Filters command-line arguments related to fields with specific path arguments.
 
@@ -177,9 +193,9 @@ def filter_path_args(fields_to_filter: str | list[str], args: Sequence[str] | No
             if get_type_arg(field, args):
                 raise ArgumentError(
                     argument=None,
-                    message=f"Cannot specify both --{field}.{PATH_KEY} and --{field}.{draccus.CHOICE_TYPE_KEY}",
+                    message=f'Cannot specify both --{field}.{PATH_KEY} and --{field}.{draccus.CHOICE_TYPE_KEY}',
                 )
-            filtered_args = [arg for arg in filtered_args if not arg.startswith(f"--{field}.")]
+            filtered_args = [arg for arg in filtered_args if not arg.startswith(f'--{field}.')]
 
     return filtered_args
 
@@ -211,17 +227,21 @@ def wrap(config_path: Path | None = None):
                         load_plugin(plugin_path)
                     except PluginLoadError as e:
                         # add the relevant CLI arg to the error message
-                        raise PluginLoadError(f"{e}\nFailed plugin CLI Arg: {plugin_cli_arg}") from e
+                        raise PluginLoadError(
+                            f'{e}\nFailed plugin CLI Arg: {plugin_cli_arg}'
+                        ) from e
                     cli_args = filter_arg(plugin_cli_arg, cli_args)
-                config_path_cli = parse_arg("config_path", cli_args)
-                if has_method(argtype, "__get_path_fields__"):
+                config_path_cli = parse_arg('config_path', cli_args)
+                if has_method(argtype, '__get_path_fields__'):
                     path_fields = argtype.__get_path_fields__()
                     cli_args = filter_path_args(path_fields, cli_args)
-                if has_method(argtype, "from_pretrained") and config_path_cli:
-                    cli_args = filter_arg("config_path", cli_args)
+                if has_method(argtype, 'from_pretrained') and config_path_cli:
+                    cli_args = filter_arg('config_path', cli_args)
                     cfg = argtype.from_pretrained(config_path_cli, cli_args=cli_args)
                 else:
-                    cfg = draccus.parse(config_class=argtype, config_path=config_path, args=cli_args)
+                    cfg = draccus.parse(
+                        config_class=argtype, config_path=config_path, args=cli_args
+                    )
             response = fn(cfg, *args, **kwargs)
             return response
 

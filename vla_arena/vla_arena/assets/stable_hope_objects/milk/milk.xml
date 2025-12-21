@@ -77,4 +77,3 @@
     <weld body1="milk_1_main" body2="milk_mocap" solimp="0.9 0.95 0.001" solref="0.02 1"/>
   </equality>
 </mujoco>
-

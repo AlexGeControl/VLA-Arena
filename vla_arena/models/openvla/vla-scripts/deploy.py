@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 deploy.py
 
@@ -32,6 +46,7 @@ import os.path
 # ruff: noqa: E402
 import json_numpy
 
+
 json_numpy.patch()
 import json
 import logging
@@ -48,30 +63,33 @@ from fastapi.responses import JSONResponse
 from PIL import Image
 from transformers import AutoModelForVision2Seq, AutoProcessor
 
+
 # === Utilities ===
 SYSTEM_PROMPT = (
-    "A chat between a curious user and an artificial intelligence assistant. "
+    'A chat between a curious user and an artificial intelligence assistant. '
     "The assistant gives helpful, detailed, and polite answers to the user's questions."
 )
 
 
-def get_openvla_prompt(instruction: str, openvla_path: Union[str, Path]) -> str:
-    if "v01" in openvla_path:
-        return f"{SYSTEM_PROMPT} USER: What action should the robot take to {instruction.lower()}? ASSISTANT:"
+def get_openvla_prompt(instruction: str, openvla_path: str | Path) -> str:
+    if 'v01' in openvla_path:
+        return f'{SYSTEM_PROMPT} USER: What action should the robot take to {instruction.lower()}? ASSISTANT:'
     else:
-        return f"In: What action should the robot take to {instruction.lower()}?\nOut:"
+        return f'In: What action should the robot take to {instruction.lower()}?\nOut:'
 
 
 # === Server Interface ===
 class OpenVLAServer:
-    def __init__(self, openvla_path: Union[str, Path], attn_implementation: Optional[str] = "flash_attention_2") -> Path:
+    def __init__(
+        self, openvla_path: str | Path, attn_implementation: str | None = 'flash_attention_2'
+    ) -> Path:
         """
         A simple server for OpenVLA models; exposes `/act` to predict an action for a given image + instruction.
             => Takes in {"image": np.ndarray, "instruction": str, "unnorm_key": Optional[str]}
             => Returns  {"action": np.ndarray}
         """
         self.openvla_path, self.attn_implementation = openvla_path, attn_implementation
-        self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+        self.device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
         # Load VLA Model using HF AutoClasses
         self.processor = AutoProcessor.from_pretrained(self.openvla_path, trust_remote_code=True)
@@ -85,23 +103,25 @@ class OpenVLAServer:
 
         # [Hacky] Load Dataset Statistics from Disk (if passing a path to a fine-tuned model)
         if os.path.isdir(self.openvla_path):
-            with open(Path(self.openvla_path) / "dataset_statistics.json", "r") as f:
+            with open(Path(self.openvla_path) / 'dataset_statistics.json') as f:
                 self.vla.norm_stats = json.load(f)
 
-    def predict_action(self, payload: Dict[str, Any]) -> str:
+    def predict_action(self, payload: dict[str, Any]) -> str:
         try:
-            if double_encode := "encoded" in payload:
+            if double_encode := 'encoded' in payload:
                 # Support cases where `json_numpy` is hard to install, and numpy arrays are "double-encoded" as strings
-                assert len(payload.keys()) == 1, "Only uses encoded payload!"
-                payload = json.loads(payload["encoded"])
+                assert len(payload.keys()) == 1, 'Only uses encoded payload!'
+                payload = json.loads(payload['encoded'])
 
             # Parse payload components
-            image, instruction = payload["image"], payload["instruction"]
-            unnorm_key = payload.get("unnorm_key", None)
+            image, instruction = payload['image'], payload['instruction']
+            unnorm_key = payload.get('unnorm_key', None)
 
             # Run VLA Inference
             prompt = get_openvla_prompt(instruction, self.openvla_path)
-            inputs = self.processor(prompt, Image.fromarray(image).convert("RGB")).to(self.device, dtype=torch.bfloat16)
+            inputs = self.processor(prompt, Image.fromarray(image).convert('RGB')).to(
+                self.device, dtype=torch.bfloat16
+            )
             action = self.vla.predict_action(**inputs, unnorm_key=unnorm_key, do_sample=False)
             if double_encode:
                 return JSONResponse(json_numpy.dumps(action))
@@ -110,26 +130,26 @@ class OpenVLAServer:
         except:  # noqa: E722
             logging.error(traceback.format_exc())
             logging.warning(
-                "Your request threw an error; make sure your request complies with the expected format:\n"
+                'Your request threw an error; make sure your request complies with the expected format:\n'
                 "{'image': np.ndarray, 'instruction': str}\n"
-                "You can optionally an `unnorm_key: str` to specific the dataset statistics you want to use for "
-                "de-normalizing the output actions."
+                'You can optionally an `unnorm_key: str` to specific the dataset statistics you want to use for '
+                'de-normalizing the output actions.'
             )
-            return "error"
+            return 'error'
 
-    def run(self, host: str = "0.0.0.0", port: int = 8000) -> None:
+    def run(self, host: str = '0.0.0.0', port: int = 8000) -> None:
         self.app = FastAPI()
-        self.app.post("/act")(self.predict_action)
+        self.app.post('/act')(self.predict_action)
         uvicorn.run(self.app, host=host, port=port)
 
 
 @dataclass
 class DeployConfig:
     # fmt: off
-    openvla_path: Union[str, Path] = "openvla/openvla-7b"               # HF Hub Path (or path to local run directory)
+    openvla_path: str | Path = 'openvla/openvla-7b'               # HF Hub Path (or path to local run directory)
 
     # Server Configuration
-    host: str = "0.0.0.0"                                               # Host IP Address
+    host: str = '0.0.0.0'                                               # Host IP Address
     port: int = 8000                                                    # Host Port
 
     # fmt: on
@@ -141,5 +161,5 @@ def deploy(cfg: DeployConfig) -> None:
     server.run(cfg.host, port=cfg.port)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     deploy()

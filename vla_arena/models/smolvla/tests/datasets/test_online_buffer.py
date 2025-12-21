@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,11 +33,11 @@ from uuid import uuid4
 import numpy as np
 import pytest
 import torch
-
 from lerobot.datasets.online_buffer import OnlineBuffer, compute_sampler_weights
 
+
 # Some constants for OnlineBuffer tests.
-data_key = "data"
+data_key = 'data'
 data_shape = (2, 3)  # just some arbitrary > 1D shape
 buffer_capacity = 100
 fps = 10
@@ -33,10 +47,10 @@ def make_new_buffer(
     write_dir: str | None = None, delta_timestamps: dict[str, list[float]] | None = None
 ) -> tuple[OnlineBuffer, str]:
     if write_dir is None:
-        write_dir = f"/tmp/online_buffer_{uuid4().hex}"
+        write_dir = f'/tmp/online_buffer_{uuid4().hex}'
     buffer = OnlineBuffer(
         write_dir,
-        data_spec={data_key: {"shape": data_shape, "dtype": np.dtype("float32")}},
+        data_spec={data_key: {'shape': data_shape, 'dtype': np.dtype('float32')}},
         buffer_capacity=buffer_capacity,
         fps=fps,
         delta_timestamps=delta_timestamps,
@@ -46,7 +60,9 @@ def make_new_buffer(
 
 def make_spoof_data_frames(n_episodes: int, n_frames_per_episode: int) -> dict[str, np.ndarray]:
     new_data = {
-        data_key: np.arange(n_frames_per_episode * n_episodes * np.prod(data_shape)).reshape(-1, *data_shape),
+        data_key: np.arange(n_frames_per_episode * n_episodes * np.prod(data_shape)).reshape(
+            -1, *data_shape
+        ),
         OnlineBuffer.INDEX_KEY: np.arange(n_frames_per_episode * n_episodes),
         OnlineBuffer.EPISODE_INDEX_KEY: np.repeat(np.arange(n_episodes), n_frames_per_episode),
         OnlineBuffer.FRAME_INDEX_KEY: np.tile(np.arange(n_frames_per_episode), n_episodes),
@@ -88,7 +104,7 @@ def test_index_error_with_data():
         buffer[-n_frames - 1]
 
 
-@pytest.mark.parametrize("do_reload", [False, True])
+@pytest.mark.parametrize('do_reload', [False, True])
 def test_write_read(do_reload: bool):
     """Checks that data can be added to the buffer and read back.
 
@@ -132,12 +148,12 @@ def test_fifo():
     buffer.add_data(new_data)
     n_more_episodes = 2
     # Developer sanity check (in case someone changes the global `buffer_capacity`).
-    assert (n_episodes + n_more_episodes) * n_frames_per_episode > buffer_capacity, (
-        "Something went wrong with the test code."
-    )
+    assert (
+        n_episodes + n_more_episodes
+    ) * n_frames_per_episode > buffer_capacity, 'Something went wrong with the test code.'
     more_new_data = make_spoof_data_frames(n_more_episodes, n_frames_per_episode)
     buffer.add_data(more_new_data)
-    assert len(buffer) == buffer_capacity, "The buffer should be full."
+    assert len(buffer) == buffer_capacity, 'The buffer should be full.'
 
     expected_data = {}
     for k in new_data:
@@ -159,15 +175,17 @@ def test_delta_timestamps_within_tolerance():
     Note: Copied from `test_datasets.py::test_load_previous_and_future_frames_within_tolerance`.
     """
     # Sanity check on global fps as we are assuming it is 10 here.
-    assert fps == 10, "This test assumes fps==10"
-    buffer, _ = make_new_buffer(delta_timestamps={"index": [-0.2, 0, 0.139]})
+    assert fps == 10, 'This test assumes fps==10'
+    buffer, _ = make_new_buffer(delta_timestamps={'index': [-0.2, 0, 0.139]})
     new_data = make_spoof_data_frames(n_episodes=1, n_frames_per_episode=5)
     buffer.add_data(new_data)
     buffer.tolerance_s = 0.04
     item = buffer[2]
-    data, is_pad = item["index"], item[f"index{OnlineBuffer.IS_PAD_POSTFIX}"]
-    torch.testing.assert_close(data, torch.tensor([0, 2, 3]), msg="Data does not match expected values")
-    assert not is_pad.any(), "Unexpected padding detected"
+    data, is_pad = item['index'], item[f'index{OnlineBuffer.IS_PAD_POSTFIX}']
+    torch.testing.assert_close(
+        data, torch.tensor([0, 2, 3]), msg='Data does not match expected values'
+    )
+    assert not is_pad.any(), 'Unexpected padding detected'
 
 
 def test_delta_timestamps_outside_tolerance_inside_episode_range():
@@ -179,8 +197,8 @@ def test_delta_timestamps_outside_tolerance_inside_episode_range():
     `test_datasets.py::test_load_previous_and_future_frames_outside_tolerance_inside_episode_range`
     """
     # Sanity check on global fps as we are assuming it is 10 here.
-    assert fps == 10, "This test assumes fps==10"
-    buffer, _ = make_new_buffer(delta_timestamps={"index": [-0.2, 0, 0.141]})
+    assert fps == 10, 'This test assumes fps==10'
+    buffer, _ = make_new_buffer(delta_timestamps={'index': [-0.2, 0, 0.141]})
     new_data = make_spoof_data_frames(n_episodes=1, n_frames_per_episode=5)
     buffer.add_data(new_data)
     buffer.tolerance_s = 0.04
@@ -195,23 +213,23 @@ def test_delta_timestamps_outside_tolerance_outside_episode_range():
     `test_datasets.py::test_load_previous_and_future_frames_outside_tolerance_outside_episode_range`
     """
     # Sanity check on global fps as we are assuming it is 10 here.
-    assert fps == 10, "This test assumes fps==10"
-    buffer, _ = make_new_buffer(delta_timestamps={"index": [-0.3, -0.24, 0, 0.26, 0.3]})
+    assert fps == 10, 'This test assumes fps==10'
+    buffer, _ = make_new_buffer(delta_timestamps={'index': [-0.3, -0.24, 0, 0.26, 0.3]})
     new_data = make_spoof_data_frames(n_episodes=1, n_frames_per_episode=5)
     buffer.add_data(new_data)
     buffer.tolerance_s = 0.04
     item = buffer[2]
-    data, is_pad = item["index"], item["index_is_pad"]
-    assert torch.equal(data, torch.tensor([0, 0, 2, 4, 4])), "Data does not match expected values"
-    assert torch.equal(is_pad, torch.tensor([True, False, False, True, True])), (
-        "Padding does not match expected values"
-    )
+    data, is_pad = item['index'], item['index_is_pad']
+    assert torch.equal(data, torch.tensor([0, 0, 2, 4, 4])), 'Data does not match expected values'
+    assert torch.equal(
+        is_pad, torch.tensor([True, False, False, True, True])
+    ), 'Padding does not match expected values'
 
 
 # Arbitrarily set small dataset sizes, making sure to have uneven sizes.
-@pytest.mark.parametrize("offline_dataset_size", [1, 6])
-@pytest.mark.parametrize("online_dataset_size", [0, 4])
-@pytest.mark.parametrize("online_sampling_ratio", [0.0, 1.0])
+@pytest.mark.parametrize('offline_dataset_size', [1, 6])
+@pytest.mark.parametrize('online_dataset_size', [0, 4])
+@pytest.mark.parametrize('online_sampling_ratio', [0.0, 1.0])
 def test_compute_sampler_weights_trivial(
     lerobot_dataset_factory,
     tmp_path,
@@ -219,7 +237,9 @@ def test_compute_sampler_weights_trivial(
     online_dataset_size: int,
     online_sampling_ratio: float,
 ):
-    offline_dataset = lerobot_dataset_factory(tmp_path, total_episodes=1, total_frames=offline_dataset_size)
+    offline_dataset = lerobot_dataset_factory(
+        tmp_path, total_episodes=1, total_frames=offline_dataset_size
+    )
     online_dataset, _ = make_new_buffer()
     if online_dataset_size > 0:
         online_dataset.add_data(
@@ -232,9 +252,13 @@ def test_compute_sampler_weights_trivial(
     if offline_dataset_size == 0 or online_dataset_size == 0:
         expected_weights = torch.ones(offline_dataset_size + online_dataset_size)
     elif online_sampling_ratio == 0:
-        expected_weights = torch.cat([torch.ones(offline_dataset_size), torch.zeros(online_dataset_size)])
+        expected_weights = torch.cat(
+            [torch.ones(offline_dataset_size), torch.zeros(online_dataset_size)]
+        )
     elif online_sampling_ratio == 1:
-        expected_weights = torch.cat([torch.zeros(offline_dataset_size), torch.ones(online_dataset_size)])
+        expected_weights = torch.cat(
+            [torch.zeros(offline_dataset_size), torch.ones(online_dataset_size)]
+        )
     expected_weights /= expected_weights.sum()
     torch.testing.assert_close(weights, expected_weights)
 
@@ -253,13 +277,18 @@ def test_compute_sampler_weights_nontrivial_ratio(lerobot_dataset_factory, tmp_p
     )
 
 
-def test_compute_sampler_weights_nontrivial_ratio_and_drop_last_n(lerobot_dataset_factory, tmp_path):
+def test_compute_sampler_weights_nontrivial_ratio_and_drop_last_n(
+    lerobot_dataset_factory, tmp_path
+):
     # Arbitrarily set small dataset sizes, making sure to have uneven sizes.
     offline_dataset = lerobot_dataset_factory(tmp_path, total_episodes=1, total_frames=4)
     online_dataset, _ = make_new_buffer()
     online_dataset.add_data(make_spoof_data_frames(n_episodes=4, n_frames_per_episode=2))
     weights = compute_sampler_weights(
-        offline_dataset, online_dataset=online_dataset, online_sampling_ratio=0.8, online_drop_n_last_frames=1
+        offline_dataset,
+        online_dataset=online_dataset,
+        online_sampling_ratio=0.8,
+        online_drop_n_last_frames=1,
     )
     torch.testing.assert_close(
         weights, torch.tensor([0.05, 0.05, 0.05, 0.05, 0.2, 0.0, 0.2, 0.0, 0.2, 0.0, 0.2, 0.0])
@@ -279,4 +308,6 @@ def test_compute_sampler_weights_drop_n_last_frames(lerobot_dataset_factory, tmp
         online_sampling_ratio=0.5,
         online_drop_n_last_frames=1,
     )
-    torch.testing.assert_close(weights, torch.tensor([0.5, 0, 0.125, 0, 0.125, 0, 0.125, 0, 0.125, 0]))
+    torch.testing.assert_close(
+        weights, torch.tensor([0.5, 0, 0.125, 0, 0.125, 0, 0.125, 0, 0.125, 0])
+    )

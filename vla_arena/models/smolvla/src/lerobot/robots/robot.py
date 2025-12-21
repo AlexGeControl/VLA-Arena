@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +32,6 @@ from pathlib import Path
 from typing import Any
 
 import draccus
-
 from lerobot.constants import HF_LEROBOT_CALIBRATION, ROBOTS
 from lerobot.motors import MotorCalibration
 
@@ -47,16 +60,18 @@ class Robot(abc.ABC):
         self.robot_type = self.name
         self.id = config.id
         self.calibration_dir = (
-            config.calibration_dir if config.calibration_dir else HF_LEROBOT_CALIBRATION / ROBOTS / self.name
+            config.calibration_dir
+            if config.calibration_dir
+            else HF_LEROBOT_CALIBRATION / ROBOTS / self.name
         )
         self.calibration_dir.mkdir(parents=True, exist_ok=True)
-        self.calibration_fpath = self.calibration_dir / f"{self.id}.json"
+        self.calibration_fpath = self.calibration_dir / f'{self.id}.json'
         self.calibration: dict[str, MotorCalibration] = {}
         if self.calibration_fpath.is_file():
             self._load_calibration()
 
     def __str__(self) -> str:
-        return f"{self.id} {self.__class__.__name__}"
+        return f'{self.id} {self.__class__.__name__}'
 
     # TODO(aliberts): create a proper Feature class for this that links with datasets
     @property
@@ -130,7 +145,7 @@ class Robot(abc.ABC):
             fpath (Path | None): Optional path to the calibration file. Defaults to `self.calibration_fpath`.
         """
         fpath = self.calibration_fpath if fpath is None else fpath
-        with open(fpath) as f, draccus.config_type("json"):
+        with open(fpath) as f, draccus.config_type('json'):
             self.calibration = draccus.load(dict[str, MotorCalibration], f)
 
     def _save_calibration(self, fpath: Path | None = None) -> None:
@@ -141,7 +156,7 @@ class Robot(abc.ABC):
             fpath (Path | None): Optional path to save the calibration file. Defaults to `self.calibration_fpath`.
         """
         fpath = self.calibration_fpath if fpath is None else fpath
-        with open(fpath, "w") as f, draccus.config_type("json"):
+        with open(fpath, 'w') as f, draccus.config_type('json'):
             draccus.dump(self.calibration, f, indent=4)
 
     @abc.abstractmethod

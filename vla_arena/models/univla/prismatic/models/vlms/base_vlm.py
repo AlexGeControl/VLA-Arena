@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 base_vlm.py
 
@@ -14,8 +28,9 @@ prefer Protocol definitions instead.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
@@ -47,7 +62,7 @@ class VLM(nn.Module, GenerationMixin, ABC):
 
         # === GenerationMixin Expected Attributes =>> *DO NOT MODIFY* ===
         self.generation_config = self.llm_backbone.llm.generation_config
-        self.main_input_name = "input_ids"
+        self.main_input_name = 'input_ids'
 
     @property
     def device(self) -> torch.device:
@@ -67,13 +82,15 @@ class VLM(nn.Module, GenerationMixin, ABC):
     ) -> VLM: ...
 
     @abstractmethod
-    def get_prompt_builder(self, system_prompt: Optional[str] = None) -> PromptBuilder: ...
+    def get_prompt_builder(self, system_prompt: str | None = None) -> PromptBuilder: ...
 
     @abstractmethod
     def freeze_backbones(self, stage: str) -> None: ...
 
     @abstractmethod
-    def load_from_checkpoint(self, stage: str, run_dir: Path, pretrained_checkpoint: Optional[Path] = None) -> None: ...
+    def load_from_checkpoint(
+        self, stage: str, run_dir: Path, pretrained_checkpoint: Path | None = None
+    ) -> None: ...
 
     @abstractmethod
     def get_fsdp_wrapping_policy(self) -> Callable: ...
@@ -81,17 +98,17 @@ class VLM(nn.Module, GenerationMixin, ABC):
     @abstractmethod
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        pixel_values: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        past_key_values: Optional[List[torch.FloatTensor]] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-        multimodal_indices: Optional[torch.LongTensor] = None,
+        input_ids: torch.LongTensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        pixel_values: torch.FloatTensor | None = None,
+        labels: torch.LongTensor | None = None,
+        inputs_embeds: torch.FloatTensor | None = None,
+        past_key_values: list[torch.FloatTensor] | None = None,
+        use_cache: bool | None = None,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        return_dict: bool | None = None,
+        multimodal_indices: torch.LongTensor | None = None,
     ) -> CausalLMOutputWithPast: ...
 
     # === GenerationMixin Expected Properties & Methods (DO NOT MODIFY) ===

@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,11 +75,11 @@ def get_intermediate_size(hidden_dim, ffn_dim_multiplier=4, multiple_of=256):
 class SmolVLMWithExpertModel(nn.Module):
     def __init__(
         self,
-        model_id: str = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct",
+        model_id: str = 'HuggingFaceTB/SmolVLM2-500M-Video-Instruct',
         load_vlm_weights: bool = True,
         train_expert_only: bool = True,
         freeze_vision_encoder: bool = False,
-        attention_mode: str = "self_attn",
+        attention_mode: str = 'self_attn',
         num_expert_layers: int = -1,
         num_vlm_layers: int = -1,
         self_attn_every_n_layers: int = -1,
@@ -73,11 +87,11 @@ class SmolVLMWithExpertModel(nn.Module):
     ):
         super().__init__()
         if load_vlm_weights:
-            print(f"Loading  {model_id} weights ...")
+            print(f'Loading  {model_id} weights ...')
             self.vlm = AutoModelForImageTextToText.from_pretrained(
                 model_id,
-                device_map="auto",
-                torch_dtype="bfloat16",
+                device_map='auto',
+                torch_dtype='bfloat16',
                 low_cpu_mem_usage=True,
             )
             config = self.vlm.config
@@ -86,29 +100,38 @@ class SmolVLMWithExpertModel(nn.Module):
             self.vlm = SmolVLMForConditionalGeneration(config=config)
         self.processor = AutoProcessor.from_pretrained(model_id)
         if num_vlm_layers > 0:
-            print(f"Reducing the number of VLM layers to {num_vlm_layers} ...")
-            self.get_vlm_model().text_model.layers = self.get_vlm_model().text_model.layers[:num_vlm_layers]
+            print(f'Reducing the number of VLM layers to {num_vlm_layers} ...')
+            self.get_vlm_model().text_model.layers = self.get_vlm_model().text_model.layers[
+                :num_vlm_layers
+            ]
         self.num_vlm_layers = len(self.get_vlm_model().text_model.layers)
         self.config = config
         # Smaller lm expert
         lm_expert_config = copy.deepcopy(config.text_config)
         hidden_size = lm_expert_config.hidden_size
-        lm_expert_config.hidden_size = int(hidden_size * expert_width_multiplier)  # hidden_size // 2
-        lm_expert_config.intermediate_size = get_intermediate_size(int(hidden_size * expert_width_multiplier))
+        lm_expert_config.hidden_size = int(
+            hidden_size * expert_width_multiplier
+        )  # hidden_size // 2
+        lm_expert_config.intermediate_size = get_intermediate_size(
+            int(hidden_size * expert_width_multiplier)
+        )
         lm_expert_config.num_hidden_layers = self.num_vlm_layers
         if num_expert_layers > 0:
-            assert len(self.get_vlm_model().text_model.layers) % num_expert_layers == 0, (
-                f"Number of layers in the VLM {len(self.get_vlm_model().text_model.layers)} are not multiple of num_expert_layers {num_expert_layers}"
-            )
+            assert (
+                len(self.get_vlm_model().text_model.layers) % num_expert_layers == 0
+            ), f'Number of layers in the VLM {len(self.get_vlm_model().text_model.layers)} are not multiple of num_expert_layers {num_expert_layers}'
             lm_expert_config.num_hidden_layers = num_expert_layers
         self.lm_expert = AutoModel.from_config(lm_expert_config)
 
         self.num_expert_layers = len(self.lm_expert.layers)
         self.self_attn_every_n_layers = self_attn_every_n_layers
-        if "cross" in attention_mode:
+        if 'cross' in attention_mode:
             # Reshape qkv projections to have the same input dimension as the vlm
             for layer_idx in range(len(self.lm_expert.layers)):
-                if self.self_attn_every_n_layers > 0 and layer_idx % self.self_attn_every_n_layers == 0:
+                if (
+                    self.self_attn_every_n_layers > 0
+                    and layer_idx % self.self_attn_every_n_layers == 0
+                ):
                     continue
                 self.lm_expert.layers[layer_idx].self_attn.k_proj = nn.Linear(
                     config.text_config.num_key_value_heads * config.text_config.head_dim,
@@ -153,18 +176,18 @@ class SmolVLMWithExpertModel(nn.Module):
             ):
                 last_layers.append(self.num_vlm_layers - 2)
             frozen_layers = [
-                "lm_head",
-                "text_model.model.norm.weight",
+                'lm_head',
+                'text_model.model.norm.weight',
             ]
             for layer in last_layers:
-                frozen_layers.append(f"text_model.model.layers.{layer}.")
+                frozen_layers.append(f'text_model.model.layers.{layer}.')
 
             for name, params in self.vlm.named_parameters():
                 if any(k in name for k in frozen_layers):
                     params.requires_grad = False
         # To avoid unused params issue with distributed training
         for name, params in self.lm_expert.named_parameters():
-            if "lm_head" in name:
+            if 'lm_head' in name:
                 params.requires_grad = False
 
     def train(self, mode: bool = True):
@@ -253,16 +276,20 @@ class SmolVLMWithExpertModel(nn.Module):
         if use_cache:
             if fill_kv_cache:
                 past_key_values[layer_idx] = {
-                    "key_states": key_states,
-                    "value_states": value_states,
+                    'key_states': key_states,
+                    'value_states': value_states,
                 }
             else:
                 # TODO here, some optimization can be done - similar to a `StaticCache` we can declare the `max_len` before.
                 # so we create an empty cache, with just one cuda malloc, and if (in autoregressive case) we reach
                 # the max len, then we (for instance) double the cache size. This implementation already exists
                 # in `transformers`. (molbap)
-                key_states = torch.cat([past_key_values[layer_idx]["key_states"], key_states], dim=1)
-                value_states = torch.cat([past_key_values[layer_idx]["value_states"], value_states], dim=1)
+                key_states = torch.cat(
+                    [past_key_values[layer_idx]['key_states'], key_states], dim=1
+                )
+                value_states = torch.cat(
+                    [past_key_values[layer_idx]['value_states'], value_states], dim=1
+                )
 
         attention_interface = self.get_attention_interface()
 
@@ -287,9 +314,9 @@ class SmolVLMWithExpertModel(nn.Module):
         attention_interface = self.get_attention_interface()
 
         att_outputs = []
-        assert len(inputs_embeds) == 2 or (use_cache and past_key_values is not None and not fill_kv_cache), (
-            f"Both len(inputs_embeds) == {len(inputs_embeds)} and past_key_values is {past_key_values}"
-        )
+        assert len(inputs_embeds) == 2 or (
+            use_cache and past_key_values is not None and not fill_kv_cache
+        ), f'Both len(inputs_embeds) == {len(inputs_embeds)} and past_key_values is {past_key_values}'
 
         if len(inputs_embeds) == 2 and not past_key_values:
             # Prefix attention
@@ -326,16 +353,16 @@ class SmolVLMWithExpertModel(nn.Module):
         if use_cache:
             if fill_kv_cache:
                 past_key_values[layer_idx] = {
-                    "key_states": key_states,
-                    "value_states": value_states,
+                    'key_states': key_states,
+                    'value_states': value_states,
                 }
             else:
                 # TODO here, some optimization can be done - similar to a `StaticCache` we can declare the `max_len` before.
                 # so we create an empty cache, with just one cuda malloc, and if (in autoregressive case) we reach
                 # the max len, then we (for instance) double the cache size. This implementation already exists
                 # in `transformers`. (molbap)
-                key_states = past_key_values[layer_idx]["key_states"]
-                value_states = past_key_values[layer_idx]["value_states"]
+                key_states = past_key_values[layer_idx]['key_states']
+                value_states = past_key_values[layer_idx]['value_states']
 
         # Expert
         expert_layer = model_layers[1][layer_idx]
@@ -345,8 +372,12 @@ class SmolVLMWithExpertModel(nn.Module):
             expert_input_shape = expert_hidden_states.shape[:-1]
             expert_hidden_shape = (*expert_input_shape, -1, expert_layer.self_attn.head_dim)
 
-            expert_hidden_states = expert_hidden_states.to(dtype=expert_layer.self_attn.q_proj.weight.dtype)
-            expert_query_state = expert_layer.self_attn.q_proj(expert_hidden_states).view(expert_hidden_shape)
+            expert_hidden_states = expert_hidden_states.to(
+                dtype=expert_layer.self_attn.q_proj.weight.dtype
+            )
+            expert_query_state = expert_layer.self_attn.q_proj(expert_hidden_states).view(
+                expert_hidden_shape
+            )
 
             _key_states = key_states.to(dtype=expert_layer.self_attn.k_proj.weight.dtype).view(
                 *key_states.shape[:2], -1
@@ -425,8 +456,11 @@ class SmolVLMWithExpertModel(nn.Module):
         for layer_idx in range(num_layers):
             if (
                 fill_kv_cache
-                or "cross" not in self.attention_mode
-                or (self.self_attn_every_n_layers > 0 and layer_idx % self.self_attn_every_n_layers == 0)
+                or 'cross' not in self.attention_mode
+                or (
+                    self.self_attn_every_n_layers > 0
+                    and layer_idx % self.self_attn_every_n_layers == 0
+                )
             ):
                 att_outputs, past_key_values = self.forward_attn_layer(
                     model_layers,
@@ -544,6 +578,8 @@ class SmolVLMWithExpertModel(nn.Module):
 
         att_output = att_output.permute(0, 2, 1, 3)
         # we use -1 because sequence length can change
-        att_output = att_output.reshape(batch_size, -1, num_key_value_heads * num_key_value_groups * head_dim)
+        att_output = att_output.reshape(
+            batch_size, -1, num_key_value_heads * num_key_value_groups * head_dim
+        )
 
         return att_output

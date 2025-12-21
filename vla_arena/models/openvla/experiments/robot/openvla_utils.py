@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utils for evaluating the OpenVLA policy."""
 
 import json
@@ -11,19 +25,25 @@ from PIL import Image
 from transformers import AutoConfig, AutoImageProcessor, AutoModelForVision2Seq, AutoProcessor
 
 from vla_arena.models.openvla.prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
-from vla_arena.models.openvla.prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
-from vla_arena.models.openvla.prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
+from vla_arena.models.openvla.prismatic.extern.hf.modeling_prismatic import (
+    OpenVLAForActionPrediction,
+)
+from vla_arena.models.openvla.prismatic.extern.hf.processing_prismatic import (
+    PrismaticImageProcessor,
+    PrismaticProcessor,
+)
+
 
 # Initialize important constants and pretty-printing mode in NumPy.
 ACTION_DIM = 7
-DATE = time.strftime("%Y_%m_%d")
-DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
+DATE = time.strftime('%Y_%m_%d')
+DATE_TIME = time.strftime('%Y_%m_%d-%H_%M_%S')
+DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+np.set_printoptions(formatter={'float': lambda x: f'{x:0.3f}'})
 
 # Initialize system prompt for OpenVLA v0.1.
 OPENVLA_V01_SYSTEM_PROMPT = (
-    "A chat between a curious user and an artificial intelligence assistant. "
+    'A chat between a curious user and an artificial intelligence assistant. '
     "The assistant gives helpful, detailed, and polite answers to the user's questions."
 )
 
@@ -31,18 +51,18 @@ OPENVLA_V01_SYSTEM_PROMPT = (
 def get_vla(cfg):
     """Loads and returns a VLA model from checkpoint."""
     # Load VLA checkpoint.
-    print("[*] Instantiating Pretrained VLA model")
-    print("[*] Loading in BF16 with Flash-Attention Enabled")
+    print('[*] Instantiating Pretrained VLA model')
+    print('[*] Loading in BF16 with Flash-Attention Enabled')
 
     # Register OpenVLA model to HF Auto Classes (not needed if the model is on HF Hub)
-    AutoConfig.register("openvla", OpenVLAConfig)
+    AutoConfig.register('openvla', OpenVLAConfig)
     AutoImageProcessor.register(OpenVLAConfig, PrismaticImageProcessor)
     AutoProcessor.register(OpenVLAConfig, PrismaticProcessor)
     AutoModelForVision2Seq.register(OpenVLAConfig, OpenVLAForActionPrediction)
 
     vla = OpenVLAForActionPrediction.from_pretrained(
         cfg.pretrained_checkpoint,
-        attn_implementation="eager",
+        attn_implementation='eager',
         torch_dtype=torch.bfloat16,
         load_in_8bit=cfg.load_in_8bit,
         load_in_4bit=cfg.load_in_4bit,
@@ -57,16 +77,16 @@ def get_vla(cfg):
         vla = vla.to(DEVICE)
 
     # Load dataset stats used during finetuning (for action un-normalization).
-    dataset_statistics_path = os.path.join(cfg.pretrained_checkpoint, "dataset_statistics.json")
+    dataset_statistics_path = os.path.join(cfg.pretrained_checkpoint, 'dataset_statistics.json')
     if os.path.isfile(dataset_statistics_path):
-        with open(dataset_statistics_path, "r") as f:
+        with open(dataset_statistics_path) as f:
             norm_stats = json.load(f)
         vla.norm_stats = norm_stats
     else:
         print(
-            "WARNING: No local dataset_statistics.json file found for current checkpoint.\n"
-            "You can ignore this if you are loading the base VLA (i.e. not fine-tuned) checkpoint."
-            "Otherwise, you may run into errors when trying to call `predict_action()` due to an absent `unnorm_key`."
+            'WARNING: No local dataset_statistics.json file found for current checkpoint.\n'
+            'You can ignore this if you are loading the base VLA (i.e. not fine-tuned) checkpoint.'
+            'Otherwise, you may run into errors when trying to call `predict_action()` due to an absent `unnorm_key`.'
         )
 
     return vla
@@ -126,8 +146,8 @@ def crop_and_resize(image, crop_scale, batch_size):
 
 def get_vla_action(vla, processor, base_vla_name, obs, task_label, unnorm_key, center_crop=False):
     """Generates an action with the VLA policy."""
-    image = Image.fromarray(obs["full_image"])
-    image = image.convert("RGB")
+    image = Image.fromarray(obs['full_image'])
+    image = image.convert('RGB')
 
     # (If trained with image augmentations) Center crop image and then resize back up to original size.
     # IMPORTANT: Let's say crop scale == 0.9. To get the new height and width (post-crop), multiply
@@ -152,15 +172,13 @@ def get_vla_action(vla, processor, base_vla_name, obs, task_label, unnorm_key, c
 
         # Convert back to PIL Image
         image = Image.fromarray(image.numpy())
-        image = image.convert("RGB")
+        image = image.convert('RGB')
 
     # Build VLA prompt
-    if "openvla-v01" in base_vla_name:  # OpenVLA v0.1
-        prompt = (
-            f"{OPENVLA_V01_SYSTEM_PROMPT} USER: What action should the robot take to {task_label.lower()}? ASSISTANT:"
-        )
+    if 'openvla-v01' in base_vla_name:  # OpenVLA v0.1
+        prompt = f'{OPENVLA_V01_SYSTEM_PROMPT} USER: What action should the robot take to {task_label.lower()}? ASSISTANT:'
     else:  # OpenVLA
-        prompt = f"In: What action should the robot take to {task_label.lower()}?\nOut:"
+        prompt = f'In: What action should the robot take to {task_label.lower()}?\nOut:'
 
     # Process inputs.
     inputs = processor(prompt, image).to(DEVICE, dtype=torch.bfloat16)

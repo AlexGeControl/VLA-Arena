@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 torch_utils.py
 
@@ -19,20 +33,24 @@ Terminology
 
 import os
 import random
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 import numpy as np
 import torch
 
+
 # === Randomness ===
 
 
-def set_global_seed(seed: int, get_worker_init_fn: bool = False) -> Optional[Callable[[int], None]]:
+def set_global_seed(seed: int, get_worker_init_fn: bool = False) -> Callable[[int], None] | None:
     """Sets seed for all randomness libraries (mostly random, numpy, torch) and produces a `worker_init_fn`"""
-    assert np.iinfo(np.uint32).min < seed < np.iinfo(np.uint32).max, "Seed outside the np.uint32 bounds!"
+    assert (
+        np.iinfo(np.uint32).min < seed < np.iinfo(np.uint32).max
+    ), 'Seed outside the np.uint32 bounds!'
 
     # Set Seed as an Environment Variable
-    os.environ["EXPERIMENT_GLOBAL_SEED"] = str(seed)
+    os.environ['EXPERIMENT_GLOBAL_SEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -51,7 +69,7 @@ def worker_init_function(worker_id: int) -> None:
     :param worker_id: Identifier for the given worker [0, num_workers) for the Dataloader in question.
     """
     # Get current `rank` (if running distributed) and `process_seed`
-    global_rank, process_seed = int(os.environ["LOCAL_RANK"]), torch.initial_seed()
+    global_rank, process_seed = int(os.environ['LOCAL_RANK']), torch.initial_seed()
 
     # Back out the "base" (original) seed - the per-worker seed is set in PyTorch:
     #   > https://pytorch.org/docs/stable/data.html#data-loading-randomness
@@ -70,7 +88,9 @@ def worker_init_function(worker_id: int) -> None:
     torch.manual_seed(torch_seed_seq.generate_state(1, dtype=np.uint64)[0])
 
     # Use 128 Bits for `random`, but express as integer instead of as an array
-    random_seed = (random_seed_seq.generate_state(2, dtype=np.uint64).astype(list) * [1 << 64, 1]).sum()
+    random_seed = (
+        random_seed_seq.generate_state(2, dtype=np.uint64).astype(list) * [1 << 64, 1]
+    ).sum()
     random.seed(random_seed)
 
 

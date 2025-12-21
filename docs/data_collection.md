@@ -59,22 +59,22 @@ This script will display an interactive simulation environment window, where you
   <tr>
     <td><code>[</code> / <code>]</code></td>
     <td colspan='2'>Switch to the previous/next view</td>
-    
+
   </tr>
   <tr>
     <td><code>B</code></td>
     <td colspan='2'>Toggle arm/base mode (if applicable)</td>
-    
+
   </tr>
   <tr>
     <td><code>S</code></td>
     <td colspan='2'>Switch active arm (if multi-armed robot)</td>
-    
+
   </tr>
   <tr>
     <td><code>=</code></td>
     <td colspan='2'>Switch active robot (if multi-robot environment)</td>
-    
+
   </tr>
   </tbody>
 </table>
@@ -156,7 +156,7 @@ The dataset builder is already configured with the following features:
 
 - **Observation Data**:
   - `image`: Main camera RGB image (256×256×3)
-  - `wrist_image`: Wrist camera RGB image (256×256×3)  
+  - `wrist_image`: Wrist camera RGB image (256×256×3)
   - `state`: Robot end-effector state (8D: 6D pose + 2D gripper state)
   - `joint_state`: Robot joint angles (7D)
 

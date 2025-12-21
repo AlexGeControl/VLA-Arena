@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,20 +28,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from datasets import Dataset
-
 from lerobot.datasets.push_dataset_to_hub.utils import calculate_episode_data_index
 from lerobot.datasets.sampler import EpisodeAwareSampler
-from lerobot.datasets.utils import (
-    hf_transform_to_torch,
-)
+from lerobot.datasets.utils import hf_transform_to_torch
 
 
 def test_drop_n_first_frames():
     dataset = Dataset.from_dict(
         {
-            "timestamp": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "index": [0, 1, 2, 3, 4, 5],
-            "episode_index": [0, 0, 1, 2, 2, 2],
+            'timestamp': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            'index': [0, 1, 2, 3, 4, 5],
+            'episode_index': [0, 0, 1, 2, 2, 2],
         },
     )
     dataset.set_transform(hf_transform_to_torch)
@@ -41,9 +52,9 @@ def test_drop_n_first_frames():
 def test_drop_n_last_frames():
     dataset = Dataset.from_dict(
         {
-            "timestamp": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "index": [0, 1, 2, 3, 4, 5],
-            "episode_index": [0, 0, 1, 2, 2, 2],
+            'timestamp': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            'index': [0, 1, 2, 3, 4, 5],
+            'episode_index': [0, 0, 1, 2, 2, 2],
         },
     )
     dataset.set_transform(hf_transform_to_torch)
@@ -57,9 +68,9 @@ def test_drop_n_last_frames():
 def test_episode_indices_to_use():
     dataset = Dataset.from_dict(
         {
-            "timestamp": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "index": [0, 1, 2, 3, 4, 5],
-            "episode_index": [0, 0, 1, 2, 2, 2],
+            'timestamp': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            'index': [0, 1, 2, 3, 4, 5],
+            'episode_index': [0, 0, 1, 2, 2, 2],
         },
     )
     dataset.set_transform(hf_transform_to_torch)
@@ -73,9 +84,9 @@ def test_episode_indices_to_use():
 def test_shuffle():
     dataset = Dataset.from_dict(
         {
-            "timestamp": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-            "index": [0, 1, 2, 3, 4, 5],
-            "episode_index": [0, 0, 1, 2, 2, 2],
+            'timestamp': [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            'index': [0, 1, 2, 3, 4, 5],
+            'episode_index': [0, 0, 1, 2, 2, 2],
         },
     )
     dataset.set_transform(hf_transform_to_torch)

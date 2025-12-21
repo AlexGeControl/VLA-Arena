@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 action_tokenizer.py
 
@@ -12,7 +26,11 @@ from transformers import PreTrainedTokenizerBase
 
 class ActionTokenizer:
     def __init__(
-        self, tokenizer: PreTrainedTokenizerBase, bins: int = 256, min_action: int = -1, max_action: int = 1
+        self,
+        tokenizer: PreTrainedTokenizerBase,
+        bins: int = 256,
+        min_action: int = -1,
+        max_action: int = 1,
     ) -> None:
         """
         Discretizes continuous robot actions into N bins per dimension and maps to the least used tokens.
@@ -25,7 +43,12 @@ class ActionTokenizer:
         :param min_action: Minimum action value (for clipping, setting lower bound on bin interval).
         :param max_action: Maximum action value (for clipping, setting upper bound on bin interval).
         """
-        self.tokenizer, self.n_bins, self.min_action, self.max_action = tokenizer, bins, min_action, max_action
+        self.tokenizer, self.n_bins, self.min_action, self.max_action = (
+            tokenizer,
+            bins,
+            min_action,
+            max_action,
+        )
 
         # Create Uniform Bins + Compute Bin Centers
         self.bins = np.linspace(min_action, max_action, self.n_bins)
@@ -35,7 +58,7 @@ class ActionTokenizer:
         #   =>> Assumes we're always overwriting the final `n_bins` tokens of the vocabulary!
         self.action_token_begin_idx: int = int(self.tokenizer.vocab_size - (self.n_bins + 1))
 
-    def __call__(self, action: np.ndarray) -> Union[str, List[str]]:
+    def __call__(self, action: np.ndarray) -> str | list[str]:
         """Clip & bin actions to *the last `n_bins` tokens* of the vocabulary (e.g., tokenizer.vocab[-256:])."""
         action = np.clip(action, a_min=float(self.min_action), a_max=float(self.max_action))
         discretized_action = np.digitize(action, self.bins)
@@ -44,7 +67,9 @@ class ActionTokenizer:
         if len(discretized_action.shape) == 1:
             return self.tokenizer.decode(list(self.tokenizer.vocab_size - discretized_action))
         else:
-            return self.tokenizer.batch_decode((self.tokenizer.vocab_size - discretized_action).tolist())
+            return self.tokenizer.batch_decode(
+                (self.tokenizer.vocab_size - discretized_action).tolist()
+            )
 
     def decode_token_ids_to_actions(self, action_token_ids: np.ndarray) -> np.ndarray:
         """
@@ -63,7 +88,9 @@ class ActionTokenizer:
                     the last bin center. We implement this simply via clipping between [0, 255 - 1].
         """
         discretized_actions = self.tokenizer.vocab_size - action_token_ids
-        discretized_actions = np.clip(discretized_actions - 1, a_min=0, a_max=self.bin_centers.shape[0] - 1)
+        discretized_actions = np.clip(
+            discretized_actions - 1, a_min=0, a_max=self.bin_centers.shape[0] - 1
+        )
 
         return self.bin_centers[discretized_actions]
 

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +38,7 @@ class AverageMeter:
     Adapted from https://github.com/pytorch/examples/blob/main/imagenet/main.py
     """
 
-    def __init__(self, name: str, fmt: str = ":f"):
+    def __init__(self, name: str, fmt: str = ':f'):
         self.name = name
         self.fmt = fmt
         self.reset()
@@ -42,7 +56,7 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
     def __str__(self):
-        fmtstr = "{name}:{avg" + self.fmt + "}"
+        fmtstr = '{name}:{avg' + self.fmt + '}'
         return fmtstr.format(**self.__dict__)
 
 
@@ -76,14 +90,14 @@ class MetricsTracker:
     """
 
     __keys__ = [
-        "_batch_size",
-        "_num_frames",
-        "_avg_samples_per_ep",
-        "metrics",
-        "steps",
-        "samples",
-        "episodes",
-        "epochs",
+        '_batch_size',
+        '_num_frames',
+        '_avg_samples_per_ep',
+        'metrics',
+        'steps',
+        'samples',
+        'episodes',
+        'epochs',
     ]
 
     def __init__(
@@ -134,26 +148,26 @@ class MetricsTracker:
 
     def __str__(self) -> str:
         display_list = [
-            f"step:{format_big_number(self.steps)}",
+            f'step:{format_big_number(self.steps)}',
             # number of samples seen during training
-            f"smpl:{format_big_number(self.samples)}",
+            f'smpl:{format_big_number(self.samples)}',
             # number of episodes seen during training
-            f"ep:{format_big_number(self.episodes)}",
+            f'ep:{format_big_number(self.episodes)}',
             # number of time all unique samples are seen
-            f"epch:{self.epochs:.2f}",
+            f'epch:{self.epochs:.2f}',
             *[str(m) for m in self.metrics.values()],
         ]
-        return " ".join(display_list)
+        return ' '.join(display_list)
 
     def to_dict(self, use_avg: bool = True) -> dict[str, int | float]:
         """
         Returns the current metric values (or averages if `use_avg=True`) as a dict.
         """
         return {
-            "steps": self.steps,
-            "samples": self.samples,
-            "episodes": self.episodes,
-            "epochs": self.epochs,
+            'steps': self.steps,
+            'samples': self.samples,
+            'episodes': self.episodes,
+            'epochs': self.epochs,
             **{k: m.avg if use_avg else m.val for k, m in self.metrics.items()},
         }
 

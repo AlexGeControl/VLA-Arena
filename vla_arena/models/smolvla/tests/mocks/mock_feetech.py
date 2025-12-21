@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,9 +33,8 @@ from collections.abc import Callable
 
 import scservo_sdk as scs
 import serial
-from mock_serial import MockSerial
-
 from lerobot.motors.feetech.feetech import _split_into_byte_chunks, patch_setPacketTimeout
+from mock_serial import MockSerial
 
 from .mock_serial_patch import WaitableStub
 
@@ -305,11 +318,13 @@ class MockMotors(MockSerial):
         self._MockSerial__stubs[name or new_stub.receive_bytes] = new_stub
         return new_stub
 
-    def build_broadcast_ping_stub(self, ids: list[int] | None = None, num_invalid_try: int = 0) -> str:
+    def build_broadcast_ping_stub(
+        self, ids: list[int] | None = None, num_invalid_try: int = 0
+    ) -> str:
         ping_request = MockInstructionPacket.ping(scs.BROADCAST_ID)
-        return_packets = b"".join(MockStatusPacket.ping(id_) for id_ in ids)
+        return_packets = b''.join(MockStatusPacket.ping(id_) for id_ in ids)
         ping_response = self._build_send_fn(return_packets, num_invalid_try)
-        stub_name = "Ping_" + "_".join([str(id_) for id_ in ids])
+        stub_name = 'Ping_' + '_'.join([str(id_) for id_ in ids])
         self.stub(
             name=stub_name,
             receive_bytes=ping_request,
@@ -321,7 +336,7 @@ class MockMotors(MockSerial):
         ping_request = MockInstructionPacket.ping(scs_id)
         return_packet = MockStatusPacket.ping(scs_id, error)
         ping_response = self._build_send_fn(return_packet, num_invalid_try)
-        stub_name = f"Ping_{scs_id}_{error}"
+        stub_name = f'Ping_{scs_id}_{error}'
         self.stub(
             name=stub_name,
             receive_bytes=ping_request,
@@ -340,9 +355,9 @@ class MockMotors(MockSerial):
         num_invalid_try: int = 0,
     ) -> str:
         read_request = MockInstructionPacket.read(scs_id, address, length)
-        return_packet = MockStatusPacket.read(scs_id, value, length, error) if reply else b""
+        return_packet = MockStatusPacket.read(scs_id, value, length, error) if reply else b''
         read_response = self._build_send_fn(return_packet, num_invalid_try)
-        stub_name = f"Read_{address}_{length}_{scs_id}_{value}_{error}"
+        stub_name = f'Read_{address}_{length}_{scs_id}_{value}_{error}'
         self.stub(
             name=stub_name,
             receive_bytes=read_request,
@@ -361,8 +376,10 @@ class MockMotors(MockSerial):
         num_invalid_try: int = 0,
     ) -> str:
         sync_read_request = MockInstructionPacket.write(scs_id, value, address, length)
-        return_packet = MockStatusPacket.build(scs_id, params=[], length=2, error=error) if reply else b""
-        stub_name = f"Write_{address}_{length}_{scs_id}"
+        return_packet = (
+            MockStatusPacket.build(scs_id, params=[], length=2, error=error) if reply else b''
+        )
+        stub_name = f'Write_{address}_{length}_{scs_id}'
         self.stub(
             name=stub_name,
             receive_bytes=sync_read_request,
@@ -380,12 +397,12 @@ class MockMotors(MockSerial):
     ) -> str:
         sync_read_request = MockInstructionPacket.sync_read(list(ids_values), address, length)
         return_packets = (
-            b"".join(MockStatusPacket.read(id_, pos, length) for id_, pos in ids_values.items())
+            b''.join(MockStatusPacket.read(id_, pos, length) for id_, pos in ids_values.items())
             if reply
-            else b""
+            else b''
         )
         sync_read_response = self._build_send_fn(return_packets, num_invalid_try)
-        stub_name = f"Sync_Read_{address}_{length}_" + "_".join([str(id_) for id_ in ids_values])
+        stub_name = f'Sync_Read_{address}_{length}_' + '_'.join([str(id_) for id_ in ids_values])
         self.stub(
             name=stub_name,
             receive_bytes=sync_read_request,
@@ -401,13 +418,16 @@ class MockMotors(MockSerial):
         sync_read_request = MockInstructionPacket.sync_read(list(ids_values), address, length)
         sequential_packets = []
         for count in range(sequence_length):
-            return_packets = b"".join(
-                MockStatusPacket.read(id_, positions[count], length) for id_, positions in ids_values.items()
+            return_packets = b''.join(
+                MockStatusPacket.read(id_, positions[count], length)
+                for id_, positions in ids_values.items()
             )
             sequential_packets.append(return_packets)
 
         sync_read_response = self._build_sequential_send_fn(sequential_packets)
-        stub_name = f"Seq_Sync_Read_{address}_{length}_" + "_".join([str(id_) for id_ in ids_values])
+        stub_name = f'Seq_Sync_Read_{address}_{length}_' + '_'.join(
+            [str(id_) for id_ in ids_values]
+        )
         self.stub(
             name=stub_name,
             receive_bytes=sync_read_request,
@@ -419,11 +439,11 @@ class MockMotors(MockSerial):
         self, address: int, length: int, ids_values: dict[int, int], num_invalid_try: int = 0
     ) -> str:
         sync_read_request = MockInstructionPacket.sync_write(ids_values, address, length)
-        stub_name = f"Sync_Write_{address}_{length}_" + "_".join([str(id_) for id_ in ids_values])
+        stub_name = f'Sync_Write_{address}_{length}_' + '_'.join([str(id_) for id_ in ids_values])
         self.stub(
             name=stub_name,
             receive_bytes=sync_read_request,
-            send_fn=self._build_send_fn(b"", num_invalid_try),
+            send_fn=self._build_send_fn(b'', num_invalid_try),
         )
         return stub_name
 
@@ -431,7 +451,7 @@ class MockMotors(MockSerial):
     def _build_send_fn(packet: bytes, num_invalid_try: int = 0) -> Callable[[int], bytes]:
         def send_fn(_call_count: int) -> bytes:
             if num_invalid_try >= _call_count:
-                return b""
+                return b''
             return packet
 
         return send_fn

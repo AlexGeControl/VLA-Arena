@@ -1,10 +1,23 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import dataclasses
 from typing import Protocol, runtime_checkable
 
 import jax.numpy as jnp
-import optax
-
 import openpi.shared.array_typing as at
+import optax
 
 
 @runtime_checkable
@@ -79,7 +92,12 @@ class AdamW(OptimizerConfig):
         weight_decay_mask: at.PyTree | None = None,
     ) -> optax.GradientTransformation:
         tx = optax.adamw(
-            lr, b1=self.b1, b2=self.b2, eps=self.eps, weight_decay=self.weight_decay, mask=weight_decay_mask
+            lr,
+            b1=self.b1,
+            b2=self.b2,
+            eps=self.eps,
+            weight_decay=self.weight_decay,
+            mask=weight_decay_mask,
         )
 
         return optax.chain(optax.clip_by_global_norm(self.clip_gradient_norm), tx)
@@ -98,12 +116,14 @@ class SGD(OptimizerConfig):
         lr: optax.ScalarOrSchedule,
         weight_decay_mask: at.PyTree | None = None,
     ) -> optax.GradientTransformation:
-        assert weight_decay_mask is None, "Weight decay is not supported for SGD"
+        assert weight_decay_mask is None, 'Weight decay is not supported for SGD'
         return optax.sgd(lr, momentum=self.momentum, nesterov=self.nesterov)
 
 
 def create_optimizer(
-    optimizer: OptimizerConfig, lr_schedule: LRScheduleConfig, weight_decay_mask: at.PyTree | None = None
+    optimizer: OptimizerConfig,
+    lr_schedule: LRScheduleConfig,
+    weight_decay_mask: at.PyTree | None = None,
 ) -> optax.GradientTransformation:
     lr = lr_schedule.create()
     return optimizer.create(lr, weight_decay_mask=weight_decay_mask)

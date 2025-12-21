@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team.
 # All rights reserved.
 #
@@ -29,7 +43,7 @@ class ProcessSignalHandler:
     caught. On the second signal the process exits with status 1.
     """
 
-    _SUPPORTED_SIGNALS = ("SIGINT", "SIGTERM", "SIGHUP", "SIGQUIT")
+    _SUPPORTED_SIGNALS = ('SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT')
 
     def __init__(self, use_threads: bool, display_pid: bool = False):
         # TODO: Check if we can use Event from threading since Event from
@@ -55,10 +69,10 @@ class ProcessSignalHandler:
         """Attach the internal _signal_handler to a subset of POSIX signals."""
 
         def _signal_handler(signum, frame):
-            pid_str = ""
+            pid_str = ''
             if self._display_pid:
-                pid_str = f"[PID: {os.getpid()}]"
-            logging.info(f"{pid_str} Shutdown signal {signum} received. Cleaning up…")
+                pid_str = f'[PID: {os.getpid()}]'
+            logging.info(f'{pid_str} Shutdown signal {signum} received. Cleaning up…')
             self.shutdown_event.set()
             self._counter += 1
 
@@ -67,7 +81,7 @@ class ProcessSignalHandler:
             # shutdown gracefully.
             # TODO: Investigate if we need it later
             if self._counter > 1:
-                logging.info("Force shutdown")
+                logging.info('Force shutdown')
                 sys.exit(1)
 
         for sig_name in self._SUPPORTED_SIGNALS:

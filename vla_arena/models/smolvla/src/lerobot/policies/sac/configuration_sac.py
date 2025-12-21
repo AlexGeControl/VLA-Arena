@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # !/usr/bin/env python
 
 # Copyright 2025 The HuggingFace Inc. team.
@@ -43,13 +57,13 @@ class ConcurrencyConfig:
     - "processes": Use processes for the actor and learner.
     """
 
-    actor: str = "threads"
-    learner: str = "threads"
+    actor: str = 'threads'
+    learner: str = 'threads'
 
 
 @dataclass
 class ActorLearnerConfig:
-    learner_host: str = "127.0.0.1"
+    learner_host: str = '127.0.0.1'
     learner_port: int = 50051
     policy_parameters_push_frequency: int = 4
     queue_get_timeout: float = 2
@@ -76,7 +90,7 @@ class PolicyConfig:
     init_final: float = 0.05
 
 
-@PreTrainedConfig.register_subclass("sac")
+@PreTrainedConfig.register_subclass('sac')
 @dataclass
 class SACConfig(PreTrainedConfig):
     """Soft Actor-Critic (SAC) configuration.
@@ -93,10 +107,10 @@ class SACConfig(PreTrainedConfig):
     # Mapping of feature types to normalization modes
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
-            "VISUAL": NormalizationMode.MEAN_STD,
-            "STATE": NormalizationMode.MIN_MAX,
-            "ENV": NormalizationMode.MIN_MAX,
-            "ACTION": NormalizationMode.MIN_MAX,
+            'VISUAL': NormalizationMode.MEAN_STD,
+            'STATE': NormalizationMode.MIN_MAX,
+            'ENV': NormalizationMode.MIN_MAX,
+            'ACTION': NormalizationMode.MIN_MAX,
         }
     )
 
@@ -104,25 +118,25 @@ class SACConfig(PreTrainedConfig):
     dataset_stats: dict[str, dict[str, list[float]]] | None = field(
         default_factory=lambda: {
             OBS_IMAGE: {
-                "mean": [0.485, 0.456, 0.406],
-                "std": [0.229, 0.224, 0.225],
+                'mean': [0.485, 0.456, 0.406],
+                'std': [0.229, 0.224, 0.225],
             },
             OBS_STATE: {
-                "min": [0.0, 0.0],
-                "max": [1.0, 1.0],
+                'min': [0.0, 0.0],
+                'max': [1.0, 1.0],
             },
             ACTION: {
-                "min": [0.0, 0.0, 0.0],
-                "max": [1.0, 1.0, 1.0],
+                'min': [0.0, 0.0, 0.0],
+                'max': [1.0, 1.0, 1.0],
             },
         }
     )
 
     # Architecture specifics
     # Device to run the model on (e.g., "cuda", "cpu")
-    device: str = "cpu"
+    device: str = 'cpu'
     # Device to store the model on
-    storage_device: str = "cpu"
+    storage_device: str = 'cpu'
     # Name of the vision encoder model (Set to "helper2424/resnet10" for hil serl resnet10)
     vision_encoder_name: str | None = None
     # Whether to freeze the vision encoder during training
@@ -207,9 +221,9 @@ class SACConfig(PreTrainedConfig):
         return MultiAdamConfig(
             weight_decay=0.0,
             optimizer_groups={
-                "actor": {"lr": self.actor_lr},
-                "critic": {"lr": self.critic_lr},
-                "temperature": {"lr": self.temperature_lr},
+                'actor': {'lr': self.actor_lr},
+                'critic': {'lr': self.critic_lr},
+                'temperature': {'lr': self.temperature_lr},
             },
         )
 
@@ -225,7 +239,7 @@ class SACConfig(PreTrainedConfig):
                 "You must provide either 'observation.state' or an image observation (key starting with 'observation.image') in the input features"
             )
 
-        if "action" not in self.output_features:
+        if 'action' not in self.output_features:
             raise ValueError("You must provide 'action' in the output features")
 
     @property

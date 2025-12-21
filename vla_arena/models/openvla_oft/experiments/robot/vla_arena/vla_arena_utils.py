@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utils for evaluating policies in VLA-Arena simulation environments."""
 
 import math
@@ -6,22 +20,37 @@ import os
 import imageio
 import numpy as np
 import tensorflow as tf
+
+from vla_arena.models.openvla_oft.experiments.robot.robot_utils import DATE, DATE_TIME
 from vla_arena.vla_arena import get_vla_arena_path
 from vla_arena.vla_arena.envs import OffScreenRenderEnv
 
-from vla_arena.models.openvla_oft.experiments.robot.robot_utils import (
-    DATE,
-    DATE_TIME,
-)
 
-
-def get_vla_arena_env(task, model_family, resolution=256,add_noise=False,randomize_color=False,adjust_light=False,camera_offset=False):
+def get_vla_arena_env(
+    task,
+    model_family,
+    resolution=256,
+    add_noise=False,
+    randomize_color=False,
+    adjust_light=False,
+    camera_offset=False,
+):
     """Initializes and returns the VLA-Arena environment, along with the task description."""
     task_description = task.language
-    task_bddl_file = os.path.join(get_vla_arena_path("bddl_files"), task.problem_folder, f'level_{task.level}', task.bddl_file)
-    env_args = {"bddl_file_name": task_bddl_file, "camera_heights": resolution, "camera_widths": resolution, "camera_offset": camera_offset,"color_randomize": randomize_color,"add_noise": add_noise, "light_adjustment":adjust_light}
+    task_bddl_file = os.path.join(
+        get_vla_arena_path('bddl_files'), task.problem_folder, f'level_{task.level}', task.bddl_file
+    )
+    env_args = {
+        'bddl_file_name': task_bddl_file,
+        'camera_heights': resolution,
+        'camera_widths': resolution,
+        'camera_offset': camera_offset,
+        'color_randomize': randomize_color,
+        'add_noise': add_noise,
+        'light_adjustment': adjust_light,
+    }
     env = OffScreenRenderEnv(**env_args)
-    #env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
+    # env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
     return env, task_description
 
 
@@ -32,31 +61,33 @@ def get_vla_arena_dummy_action(model_family: str):
 
 def get_vla_arena_image(obs):
     """Extracts third-person image from observations and preprocesses it."""
-    img = obs["agentview_image"]
+    img = obs['agentview_image']
     img = img[::-1, ::-1]  # IMPORTANT: rotate 180 degrees to match train preprocessing
     return img
 
 
 def get_vla_arena_wrist_image(obs):
     """Extracts wrist camera image from observations and preprocesses it."""
-    img = obs["robot0_eye_in_hand_image"]
+    img = obs['robot0_eye_in_hand_image']
     img = img[::-1, ::-1]  # IMPORTANT: rotate 180 degrees to match train preprocessing
     return img
 
 
 def save_rollout_video(rollout_images, idx, success, task_description, log_file=None, task_level=0):
     """Saves an MP4 replay of an episode."""
-    rollout_dir = f"./rollouts/{DATE}"
+    rollout_dir = f'./rollouts/{DATE}'
     os.makedirs(rollout_dir, exist_ok=True)
-    processed_task_description = task_description.lower().replace(" ", "_").replace("\n", "_").replace(".", "_")[:50]
-    mp4_path = f"{rollout_dir}/{DATE_TIME}--openvla_oft--episode={idx}--success={success}--level={task_level}--task={processed_task_description}.mp4"
+    processed_task_description = (
+        task_description.lower().replace(' ', '_').replace('\n', '_').replace('.', '_')[:50]
+    )
+    mp4_path = f'{rollout_dir}/{DATE_TIME}--openvla_oft--episode={idx}--success={success}--level={task_level}--task={processed_task_description}.mp4'
     video_writer = imageio.get_writer(mp4_path, fps=30)
     for img in rollout_images:
         video_writer.append_data(img)
     video_writer.close()
-    print(f"Saved rollout MP4 at path {mp4_path}")
+    print(f'Saved rollout MP4 at path {mp4_path}')
     if log_file is not None:
-        log_file.write(f"Saved rollout MP4 at path {mp4_path}\n")
+        log_file.write(f'Saved rollout MP4 at path {mp4_path}\n')
     return mp4_path
 
 

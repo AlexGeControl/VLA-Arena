@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 Seungjae Lee and Yibin Wang and Haritheja Etukuru
 # and H. Jin Kim and Nur Muhammad Mahi Shafiullah and Lerrel Pinto
 # and The HuggingFace Inc. team. All rights reserved.
@@ -24,7 +38,7 @@ from lerobot.optim.optimizers import AdamConfig
 from lerobot.optim.schedulers import VQBeTSchedulerConfig
 
 
-@PreTrainedConfig.register_subclass("vqbet")
+@PreTrainedConfig.register_subclass('vqbet')
 @dataclass
 class VQBeTConfig(PreTrainedConfig):
     """Configuration class for VQ-BeT.
@@ -98,15 +112,15 @@ class VQBeTConfig(PreTrainedConfig):
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
-            "VISUAL": NormalizationMode.IDENTITY,
-            "STATE": NormalizationMode.MIN_MAX,
-            "ACTION": NormalizationMode.MIN_MAX,
+            'VISUAL': NormalizationMode.IDENTITY,
+            'STATE': NormalizationMode.MIN_MAX,
+            'ACTION': NormalizationMode.MIN_MAX,
         }
     )
 
     # Architecture / modeling.
     # Vision backbone.
-    vision_backbone: str = "resnet18"
+    vision_backbone: str = 'resnet18'
     crop_shape: tuple[int, int] | None = (84, 84)
     crop_is_random: bool = True
     pretrained_backbone_weights: str | None = None
@@ -145,9 +159,9 @@ class VQBeTConfig(PreTrainedConfig):
         super().__post_init__()
 
         """Input validation (not exhaustive)."""
-        if not self.vision_backbone.startswith("resnet"):
+        if not self.vision_backbone.startswith('resnet'):
             raise ValueError(
-                f"`vision_backbone` must be one of the ResNet variants. Got {self.vision_backbone}."
+                f'`vision_backbone` must be one of the ResNet variants. Got {self.vision_backbone}.'
             )
 
     def get_optimizer_preset(self) -> AdamConfig:
@@ -168,15 +182,15 @@ class VQBeTConfig(PreTrainedConfig):
         # Note: this check was previously performed inside VQBeTRgbEncoder in the form of
         # assert len(image_keys) == 1
         if not len(self.image_features) == 1:
-            raise ValueError("You must provide only one image among the inputs.")
+            raise ValueError('You must provide only one image among the inputs.')
 
         if self.crop_shape is not None:
             for key, image_ft in self.image_features.items():
                 if self.crop_shape[0] > image_ft.shape[1] or self.crop_shape[1] > image_ft.shape[2]:
                     raise ValueError(
-                        f"`crop_shape` should fit within the images shapes. Got {self.crop_shape} "
-                        f"for `crop_shape` and {image_ft.shape} for "
-                        f"`{key}`."
+                        f'`crop_shape` should fit within the images shapes. Got {self.crop_shape} '
+                        f'for `crop_shape` and {image_ft.shape} for '
+                        f'`{key}`.'
                     )
 
         # Check that all input images have the same shape.
@@ -184,7 +198,7 @@ class VQBeTConfig(PreTrainedConfig):
         for key, image_ft in self.image_features.items():
             if image_ft.shape != first_image_ft.shape:
                 raise ValueError(
-                    f"`{key}` does not match `{first_image_key}`, but we expect all image shapes to match."
+                    f'`{key}` does not match `{first_image_key}`, but we expect all image shapes to match.'
                 )
 
     @property
@@ -193,7 +207,9 @@ class VQBeTConfig(PreTrainedConfig):
 
     @property
     def action_delta_indices(self) -> list:
-        return list(range(1 - self.n_obs_steps, self.n_action_pred_token + self.action_chunk_size - 1))
+        return list(
+            range(1 - self.n_obs_steps, self.n_action_pred_token + self.action_chunk_size - 1)
+        )
 
     @property
     def reward_delta_indices(self) -> None:

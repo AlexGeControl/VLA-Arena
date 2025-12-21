@@ -1,34 +1,53 @@
-from typing import Tuple, Any, Dict, Union, Callable, Iterable
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import itertools
+from collections.abc import Callable, Iterable
+from functools import partial
+from multiprocessing import Pool
+from typing import Any, Dict, Tuple, Union
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-
-import itertools
-from multiprocessing import Pool
-from functools import partial
-from tensorflow_datasets.core import download
+from tensorflow_datasets.core import (
+    dataset_builder,
+    download,
+    example_serializer,
+    file_adapters,
+    naming,
+)
 from tensorflow_datasets.core import split_builder as split_builder_lib
-from tensorflow_datasets.core import naming
 from tensorflow_datasets.core import splits as splits_lib
 from tensorflow_datasets.core import utils
 from tensorflow_datasets.core import writer as writer_lib
-from tensorflow_datasets.core import example_serializer
-from tensorflow_datasets.core import dataset_builder
-from tensorflow_datasets.core import file_adapters
+
 
 Key = Union[str, int]
 # The nested example dict passed to `features.encode_example`
-Example = Dict[str, Any]
-KeyExample = Tuple[Key, Example]
+Example = dict[str, Any]
+KeyExample = tuple[Key, Example]
 
 
 class MultiThreadedDatasetBuilder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for example dataset."""
-    N_WORKERS = 10                  # number of parallel workers for data conversion
-    MAX_PATHS_IN_MEMORY = 100       # number of paths converted & stored in memory before writing to disk
-                                    # -> the higher the faster / more parallel conversion, adjust based on avilable RAM
-                                    # note that one path may yield multiple episodes and adjust accordingly
-    PARSE_FCN = None                # needs to be filled with path-to-record-episode parse function
+
+    N_WORKERS = 10  # number of parallel workers for data conversion
+    MAX_PATHS_IN_MEMORY = 100  # number of paths converted & stored in memory before writing to disk
+    # -> the higher the faster / more parallel conversion, adjust based on avilable RAM
+    # note that one path may yield multiple episodes and adjust accordingly
+    PARSE_FCN = None  # needs to be filled with path-to-record-episode parse function
 
     def _split_generators(self, dl_manager: tfds.download.DownloadManager):
         """Define data splits."""
@@ -39,12 +58,12 @@ class MultiThreadedDatasetBuilder(tfds.core.GeneratorBasedBuilder):
         pass  # this is implemented in global method to enable multiprocessing
 
     def _download_and_prepare(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
-            self,
-            dl_manager: download.DownloadManager,
-            download_config: download.DownloadConfig,
+        self,
+        dl_manager: download.DownloadManager,
+        download_config: download.DownloadConfig,
     ) -> None:
         """Generate all splits and returns the computed split infos."""
-        assert self.PARSE_FCN is not None       # need to overwrite parse function
+        assert self.PARSE_FCN is not None  # need to overwrite parse function
         split_builder = ParallelSplitBuilder(
             split_dict=self.info.splits,
             features=self.info.features,
@@ -68,16 +87,14 @@ class MultiThreadedDatasetBuilder(tfds.core.GeneratorBasedBuilder):
         dataset_builder._check_split_names(split_generators.keys())
 
         # Start generating data for all splits
-        path_suffix = file_adapters.ADAPTER_FOR_FORMAT[
-            self.info.file_format
-        ].FILE_SUFFIX
+        path_suffix = file_adapters.ADAPTER_FOR_FORMAT[self.info.file_format].FILE_SUFFIX
 
         split_info_futures = []
         for split_name, generator in utils.tqdm(
-                split_generators.items(),
-                desc="Generating splits...",
-                unit=" splits",
-                leave=False,
+            split_generators.items(),
+            desc='Generating splits...',
+            unit=' splits',
+            leave=False,
         ):
             filename_template = naming.ShardedFileTemplate(
                 split=split_name,
@@ -115,14 +132,15 @@ def parse_examples_from_generator(paths, fcn, split_name, total_num_examples, fe
     generator = fcn(paths)
     outputs = []
     for sample in utils.tqdm(
-            generator,
-            desc=f'Generating {split_name} examples...',
-            unit=' examples',
-            total=total_num_examples,
-            leave=False,
-            mininterval=1.0,
+        generator,
+        desc=f'Generating {split_name} examples...',
+        unit=' examples',
+        total=total_num_examples,
+        leave=False,
+        mininterval=1.0,
     ):
-        if sample is None: continue
+        if sample is None:
+            continue
         key, example = sample
         try:
             example = features.encode_example(example)
@@ -133,7 +151,9 @@ def parse_examples_from_generator(paths, fcn, split_name, total_num_examples, fe
 
 
 class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
-    def __init__(self, *args, split_paths, parse_function, n_workers, max_paths_in_memory, **kwargs):
+    def __init__(
+        self, *args, split_paths, parse_function, n_workers, max_paths_in_memory, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self._split_paths = split_paths
         self._parse_function = parse_function
@@ -141,11 +161,11 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
         self._max_paths_in_memory = max_paths_in_memory
 
     def _build_from_generator(
-            self,
-            split_name: str,
-            generator: Iterable[KeyExample],
-            filename_template: naming.ShardedFileTemplate,
-            disable_shuffling: bool,
+        self,
+        split_name: str,
+        generator: Iterable[KeyExample],
+        filename_template: naming.ShardedFileTemplate,
+        disable_shuffling: bool,
     ) -> _SplitInfoFuture:
         """Split generator for example generators.
 
@@ -171,11 +191,13 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
 
         del generator  # use parallel generators instead
         paths = self._split_paths[split_name]
-        path_lists = chunk_max(paths, self._n_workers, self._max_paths_in_memory)  # generate N file lists
-        print(f"Generating with {self._n_workers} workers!")
+        path_lists = chunk_max(
+            paths, self._n_workers, self._max_paths_in_memory
+        )  # generate N file lists
+        print(f'Generating with {self._n_workers} workers!')
         pool = Pool(processes=self._n_workers)
         for i, paths in enumerate(path_lists):
-            print(f"Processing chunk {i + 1} of {len(path_lists)}.")
+            print(f'Processing chunk {i + 1} of {len(path_lists)}.')
             results = pool.map(
                 partial(
                     parse_examples_from_generator,
@@ -183,19 +205,19 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
                     split_name=split_name,
                     total_num_examples=total_num_examples,
                     serializer=writer._serializer,
-                    features=self._features
+                    features=self._features,
                 ),
-                paths
+                paths,
             )
             # write results to shuffler --> this will automatically offload to disk if necessary
-            print("Writing conversion results...")
+            print('Writing conversion results...')
             for result in itertools.chain(*results):
                 key, serialized_example = result
                 writer._shuffler.add(key, serialized_example)
                 writer._num_examples += 1
         pool.close()
 
-        print("Finishing split conversion...")
+        print('Finishing split conversion...')
         shard_lengths, total_size = writer.finalize()
 
         split_info = splits_lib.SplitInfo(
@@ -208,15 +230,17 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
 
 
 def dictlist2listdict(DL):
-    " Converts a dict of lists to a list of dicts "
+    'Converts a dict of lists to a list of dicts'
     return [dict(zip(DL, t)) for t in zip(*DL.values())]
+
 
 def chunks(l, n):
     """Yield n number of sequential chunks from l."""
     d, r = divmod(len(l), n)
     for i in range(n):
         si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
-        yield l[si:si + (d + 1 if i < r else d)]
+        yield l[si : si + (d + 1 if i < r else d)]
+
 
 def chunk_max(l, n, max_chunk_sum):
     out = []

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,15 +34,25 @@ from typing import TypeVar
 
 import imageio
 
-JsonLike = str | int | float | bool | None | list["JsonLike"] | dict[str, "JsonLike"] | tuple["JsonLike", ...]
-T = TypeVar("T", bound=JsonLike)
+
+JsonLike = (
+    str
+    | int
+    | float
+    | bool
+    | None
+    | list['JsonLike']
+    | dict[str, 'JsonLike']
+    | tuple['JsonLike', ...]
+)
+T = TypeVar('T', bound=JsonLike)
 
 
 def write_video(video_path, stacked_frames, fps):
     # Filter out DeprecationWarnings raised from pkg_resources
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            "ignore", "pkg_resources is deprecated as an API", category=DeprecationWarning
+            'ignore', 'pkg_resources is deprecated as an API', category=DeprecationWarning
         )
         imageio.mimsave(video_path, stacked_frames, fps=fps)
 
@@ -40,7 +64,7 @@ def deserialize_json_into_object(fpath: Path, obj: T) -> T:
     Tuples in `obj` are expected to be lists in the JSON data, which will be
     converted back into tuples.
     """
-    with open(fpath, encoding="utf-8") as f:
+    with open(fpath, encoding='utf-8') as f:
         data = json.load(f)
 
     def _deserialize(target, source):
@@ -53,12 +77,12 @@ def deserialize_json_into_object(fpath: Path, obj: T) -> T:
         # If the target is a dictionary, source must be a dictionary as well.
         if isinstance(target, dict):
             if not isinstance(source, dict):
-                raise TypeError(f"Type mismatch: expected dict, got {type(source)}")
+                raise TypeError(f'Type mismatch: expected dict, got {type(source)}')
 
             # Check that they have exactly the same set of keys.
             if target.keys() != source.keys():
                 raise ValueError(
-                    f"Dictionary keys do not match.\nExpected: {target.keys()}, got: {source.keys()}"
+                    f'Dictionary keys do not match.\nExpected: {target.keys()}, got: {source.keys()}'
                 )
 
             # Recursively update each key.
@@ -70,11 +94,11 @@ def deserialize_json_into_object(fpath: Path, obj: T) -> T:
         # If the target is a list, source must be a list as well.
         elif isinstance(target, list):
             if not isinstance(source, list):
-                raise TypeError(f"Type mismatch: expected list, got {type(source)}")
+                raise TypeError(f'Type mismatch: expected list, got {type(source)}')
 
             # Check length
             if len(target) != len(source):
-                raise ValueError(f"List length mismatch: expected {len(target)}, got {len(source)}")
+                raise ValueError(f'List length mismatch: expected {len(target)}, got {len(source)}')
 
             # Recursively update each element.
             for i in range(len(target)):
@@ -86,10 +110,12 @@ def deserialize_json_into_object(fpath: Path, obj: T) -> T:
         # which we'll convert back to a tuple.
         elif isinstance(target, tuple):
             if not isinstance(source, list):
-                raise TypeError(f"Type mismatch: expected list (for tuple), got {type(source)}")
+                raise TypeError(f'Type mismatch: expected list (for tuple), got {type(source)}')
 
             if len(target) != len(source):
-                raise ValueError(f"Tuple length mismatch: expected {len(target)}, got {len(source)}")
+                raise ValueError(
+                    f'Tuple length mismatch: expected {len(target)}, got {len(source)}'
+                )
 
             # Convert each element, forming a new tuple.
             converted_items = []
@@ -103,7 +129,7 @@ def deserialize_json_into_object(fpath: Path, obj: T) -> T:
         else:
             # Check the exact type.  If these must match 1:1, do:
             if type(target) is not type(source):
-                raise TypeError(f"Type mismatch: expected {type(target)}, got {type(source)}")
+                raise TypeError(f'Type mismatch: expected {type(target)}, got {type(source)}')
             return source
 
     # Perform the in-place/recursive deserialization

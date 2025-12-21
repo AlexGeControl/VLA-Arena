@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Compute normalization statistics for a config.
 
 This script is used to compute the normalization statistics for a given config. It
@@ -6,14 +20,13 @@ to the config assets directory.
 """
 
 import numpy as np
-import tqdm
-import tyro
-
 import openpi.models.model as _model
 import openpi.shared.normalize as normalize
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader
 import openpi.transforms as transforms
+import tqdm
+import tyro
 
 
 class RemoveStrings(transforms.DataTransformFn):
@@ -30,7 +43,7 @@ def create_torch_dataloader(
     max_frames: int | None = None,
 ) -> tuple[_data_loader.Dataset, int]:
     if data_config.repo_id is None:
-        raise ValueError("Data config must have a repo_id")
+        raise ValueError('Data config must have a repo_id')
     dataset = _data_loader.create_torch_dataset(data_config, action_horizon, model_config)
     dataset = _data_loader.TransformedDataset(
         dataset,
@@ -63,7 +76,9 @@ def create_rlds_dataloader(
     batch_size: int,
     max_frames: int | None = None,
 ) -> tuple[_data_loader.Dataset, int]:
-    dataset = _data_loader.create_rlds_dataset(data_config, action_horizon, batch_size, shuffle=False)
+    dataset = _data_loader.create_rlds_dataset(
+        data_config, action_horizon, batch_size, shuffle=False
+    )
     dataset = _data_loader.IterableTransformedDataset(
         dataset,
         [
@@ -96,22 +111,27 @@ def main(config_name: str, max_frames: int | None = None):
         )
     else:
         data_loader, num_batches = create_torch_dataloader(
-            data_config, config.model.action_horizon, config.batch_size, config.model, config.num_workers, max_frames
+            data_config,
+            config.model.action_horizon,
+            config.batch_size,
+            config.model,
+            config.num_workers,
+            max_frames,
         )
 
-    keys = ["state", "actions"]
+    keys = ['state', 'actions']
     stats = {key: normalize.RunningStats() for key in keys}
 
-    for batch in tqdm.tqdm(data_loader, total=num_batches, desc="Computing stats"):
+    for batch in tqdm.tqdm(data_loader, total=num_batches, desc='Computing stats'):
         for key in keys:
             stats[key].update(np.asarray(batch[key]))
 
     norm_stats = {key: stats.get_statistics() for key, stats in stats.items()}
 
     output_path = config.assets_dirs / data_config.repo_id
-    print(f"Writing stats to: {output_path}")
+    print(f'Writing stats to: {output_path}')
     normalize.save(output_path, norm_stats)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     tyro.cli(main)

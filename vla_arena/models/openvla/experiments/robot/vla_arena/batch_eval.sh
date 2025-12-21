@@ -249,18 +249,18 @@ print_error_details() {
     local log_file="$1"
     local suite="$2"
     local level="$3"
-    
+
     print_error "Failed to run $suite L$level"
-    
+
     if [[ "$VERBOSE_ERRORS" == true ]]; then
         print_error "Error details from log file:"
-        
+
         if [[ -f "$log_file" ]]; then
             echo "----------------------------------------"
             # Print the last 50 lines of the log file to show error details
             tail -50 "$log_file" | sed 's/^/  /'
             echo "----------------------------------------"
-            
+
             # Also check for specific error patterns and highlight them
             if grep -q "Traceback" "$log_file"; then
                 print_error "Python traceback found:"
@@ -268,7 +268,7 @@ print_error_details() {
                 grep -A 20 "Traceback" "$log_file" | sed 's/^/  /'
                 echo "----------------------------------------"
             fi
-            
+
             if grep -q "Error\|Exception\|Failed" "$log_file"; then
                 print_error "Error messages found:"
                 echo "----------------------------------------"
@@ -291,9 +291,9 @@ run_evaluation() {
     local level="$2"
     local run_id="EVAL-${suite}-${MODEL_FAMILY}-${TIMESTAMP}-L${level}"
     local log_file="$OUTPUT_DIR/${run_id}.txt"
-    
+
     print_info "Running evaluation: Suite=$suite, Level=$level"
-    
+
     # Check if we should skip existing results
     if [[ "$SKIP_EXISTING" == true && -f "$log_file" ]]; then
         local existing_success_rate=$(extract_success_rate "$log_file")
@@ -302,7 +302,7 @@ run_evaluation() {
             return 0
         fi
     fi
-    
+
     # Prepare command
     local cmd="python $PYTHON_SCRIPT \
         --pretrained_checkpoint \"$CHECKPOINT\" \
@@ -318,12 +318,12 @@ run_evaluation() {
         --randomize_color $COLOR \
         --camera_offset $CAMERA \
         --save_video_mode \"first_success_failure\""
-    
+
     if [[ "$DRY_RUN" == true ]]; then
         print_info "DRY RUN: $cmd"
         return 0
     fi
-    
+
     # Run the evaluation
     print_info "Executing: $cmd"
     if eval "$cmd" > "$log_file" 2>&1; then
@@ -333,12 +333,12 @@ run_evaluation() {
         local total_costs=$(extract_total_costs "$log_file")
         local success_costs=$(extract_success_costs "$log_file")
         local failure_costs=$(extract_failure_costs "$log_file")
-        
+
         print_success "Completed $suite L$level: Success rate = $success_rate ($total_successes/$total_episodes), Costs = $total_costs"
-        
+
         # Write to summary file
         echo "$suite,L$level,$success_rate,$total_successes,$total_episodes,$total_costs,$success_costs,$failure_costs,$log_file" >> "$SUMMARY_FILE"
-        
+
         return 0
     else
         print_error_details "$log_file" "$suite" "$level"
@@ -377,13 +377,13 @@ for suite in "${TASK_SUITES[@]}"; do
     for level in "${TASK_LEVELS[@]}"; do
         current_evaluation=$((current_evaluation + 1))
         print_info "Progress: $current_evaluation/$total_evaluations"
-        
+
         if run_evaluation "$suite" "$level"; then
             successful_evaluations=$((successful_evaluations + 1))
         else
             failed_evaluations=$((failed_evaluations + 1))
         fi
-        
+
         # Add a small delay between evaluations
         sleep 2
     done
@@ -430,7 +430,7 @@ if [[ "$successful_evaluations" -gt 0 ]]; then
     echo ""
     printf "%-25s %-8s %-12s %-10s %-10s %-12s %-12s %-12s\n" "Task Suite" "Level" "Success Rate" "Successes" "Total" "Total Costs" "Success Costs" "Failure Costs"
     printf "%-25s %-8s %-12s %-10s %-10s %-12s %-12s %-12s\n" "-------------------------" "--------" "------------" "----------" "----------" "------------" "------------" "------------"
-    
+
     while IFS=',' read -r suite level success_rate successes total total_costs success_costs failure_costs; do
         if [[ "$success_rate" != "Success Rate" && "$success_rate" != "FAILED" ]]; then
             printf "%-25s %-8s %-12s %-10s %-10s %-12s %-12s %-12s\n" "$suite" "$level" "$success_rate" "$successes" "$total" "$total_costs" "$success_costs" "$failure_costs"

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,61 +32,60 @@ import threading
 import time
 from queue import Queue
 
-from torch.multiprocessing import Queue as TorchMPQueue
-
 from lerobot.utils.queue import get_last_item_from_queue
+from torch.multiprocessing import Queue as TorchMPQueue
 
 
 def test_get_last_item_single_item():
     """Test getting the last item when queue has only one item."""
     queue = Queue()
-    queue.put("single_item")
+    queue.put('single_item')
 
     result = get_last_item_from_queue(queue)
 
-    assert result == "single_item"
+    assert result == 'single_item'
     assert queue.empty()
 
 
 def test_get_last_item_multiple_items():
     """Test getting the last item when queue has multiple items."""
     queue = Queue()
-    items = ["first", "second", "third", "fourth", "last"]
+    items = ['first', 'second', 'third', 'fourth', 'last']
 
     for item in items:
         queue.put(item)
 
     result = get_last_item_from_queue(queue)
 
-    assert result == "last"
+    assert result == 'last'
     assert queue.empty()
 
 
 def test_get_last_item_multiple_items_with_torch_queue():
     """Test getting the last item when queue has multiple items."""
     queue = TorchMPQueue()
-    items = ["first", "second", "third", "fourth", "last"]
+    items = ['first', 'second', 'third', 'fourth', 'last']
 
     for item in items:
         queue.put(item)
 
     result = get_last_item_from_queue(queue)
 
-    assert result == "last"
+    assert result == 'last'
     assert queue.empty()
 
 
 def test_get_last_item_different_types():
     """Test with different data types in the queue."""
     queue = Queue()
-    items = [1, 2.5, "string", {"key": "value"}, [1, 2, 3], ("tuple", "data")]
+    items = [1, 2.5, 'string', {'key': 'value'}, [1, 2, 3], ('tuple', 'data')]
 
     for item in items:
         queue.put(item)
 
     result = get_last_item_from_queue(queue)
 
-    assert result == ("tuple", "data")
+    assert result == ('tuple', 'data')
     assert queue.empty()
 
 
@@ -127,7 +140,7 @@ def test_get_last_item_non_blocking_empty():
 def test_get_last_item_non_blocking_success():
     """Test get_last_item_from_queue with block=False on a non-empty queue."""
     queue = Queue()
-    items = ["first", "second", "last"]
+    items = ['first', 'second', 'last']
     for item in items:
         queue.put(item)
 
@@ -135,7 +148,7 @@ def test_get_last_item_non_blocking_success():
     time.sleep(0.1)
 
     result = get_last_item_from_queue(queue, block=False)
-    assert result == "last"
+    assert result == 'last'
     assert queue.empty()
 
 
@@ -145,8 +158,8 @@ def test_get_last_item_blocking_waits_for_item():
     result = []
 
     def producer():
-        queue.put("item1")
-        queue.put("item2")
+        queue.put('item1')
+        queue.put('item2')
 
     def consumer():
         # This will block until the producer puts the first item
@@ -162,5 +175,5 @@ def test_get_last_item_blocking_waits_for_item():
     producer_thread.join()
     consumer_thread.join()
 
-    assert result == ["item2"]
+    assert result == ['item2']
     assert queue.empty()

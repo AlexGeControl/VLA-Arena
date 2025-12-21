@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -85,11 +99,11 @@ class InputController:
     def gripper_command(self):
         """Return the current gripper command."""
         if self.open_gripper_command == self.close_gripper_command:
-            return "stay"
+            return 'stay'
         elif self.open_gripper_command:
-            return "open"
+            return 'open'
         elif self.close_gripper_command:
-            return "close"
+            return 'close'
 
 
 class KeyboardController(InputController):
@@ -98,15 +112,15 @@ class KeyboardController(InputController):
     def __init__(self, x_step_size=1.0, y_step_size=1.0, z_step_size=1.0):
         super().__init__(x_step_size, y_step_size, z_step_size)
         self.key_states = {
-            "forward_x": False,
-            "backward_x": False,
-            "forward_y": False,
-            "backward_y": False,
-            "forward_z": False,
-            "backward_z": False,
-            "quit": False,
-            "success": False,
-            "failure": False,
+            'forward_x': False,
+            'backward_x': False,
+            'forward_y': False,
+            'backward_y': False,
+            'forward_z': False,
+            'backward_z': False,
+            'quit': False,
+            'success': False,
+            'failure': False,
         }
         self.listener = None
 
@@ -117,60 +131,60 @@ class KeyboardController(InputController):
         def on_press(key):
             try:
                 if key == keyboard.Key.up:
-                    self.key_states["forward_x"] = True
+                    self.key_states['forward_x'] = True
                 elif key == keyboard.Key.down:
-                    self.key_states["backward_x"] = True
+                    self.key_states['backward_x'] = True
                 elif key == keyboard.Key.left:
-                    self.key_states["forward_y"] = True
+                    self.key_states['forward_y'] = True
                 elif key == keyboard.Key.right:
-                    self.key_states["backward_y"] = True
+                    self.key_states['backward_y'] = True
                 elif key == keyboard.Key.shift:
-                    self.key_states["backward_z"] = True
+                    self.key_states['backward_z'] = True
                 elif key == keyboard.Key.shift_r:
-                    self.key_states["forward_z"] = True
+                    self.key_states['forward_z'] = True
                 elif key == keyboard.Key.esc:
-                    self.key_states["quit"] = True
+                    self.key_states['quit'] = True
                     self.running = False
                     return False
                 elif key == keyboard.Key.enter:
-                    self.key_states["success"] = True
-                    self.episode_end_status = "success"
+                    self.key_states['success'] = True
+                    self.episode_end_status = 'success'
                 elif key == keyboard.Key.backspace:
-                    self.key_states["failure"] = True
-                    self.episode_end_status = "failure"
+                    self.key_states['failure'] = True
+                    self.episode_end_status = 'failure'
             except AttributeError:
                 pass
 
         def on_release(key):
             try:
                 if key == keyboard.Key.up:
-                    self.key_states["forward_x"] = False
+                    self.key_states['forward_x'] = False
                 elif key == keyboard.Key.down:
-                    self.key_states["backward_x"] = False
+                    self.key_states['backward_x'] = False
                 elif key == keyboard.Key.left:
-                    self.key_states["forward_y"] = False
+                    self.key_states['forward_y'] = False
                 elif key == keyboard.Key.right:
-                    self.key_states["backward_y"] = False
+                    self.key_states['backward_y'] = False
                 elif key == keyboard.Key.shift:
-                    self.key_states["backward_z"] = False
+                    self.key_states['backward_z'] = False
                 elif key == keyboard.Key.shift_r:
-                    self.key_states["forward_z"] = False
+                    self.key_states['forward_z'] = False
                 elif key == keyboard.Key.enter:
-                    self.key_states["success"] = False
+                    self.key_states['success'] = False
                 elif key == keyboard.Key.backspace:
-                    self.key_states["failure"] = False
+                    self.key_states['failure'] = False
             except AttributeError:
                 pass
 
         self.listener = keyboard.Listener(on_press=on_press, on_release=on_release)
         self.listener.start()
 
-        print("Keyboard controls:")
-        print("  Arrow keys: Move in X-Y plane")
-        print("  Shift and Shift_R: Move in Z axis")
-        print("  Enter: End episode with SUCCESS")
-        print("  Backspace: End episode with FAILURE")
-        print("  ESC: Exit")
+        print('Keyboard controls:')
+        print('  Arrow keys: Move in X-Y plane')
+        print('  Shift and Shift_R: Move in Z axis')
+        print('  Enter: End episode with SUCCESS')
+        print('  Backspace: End episode with FAILURE')
+        print('  ESC: Exit')
 
     def stop(self):
         """Stop the keyboard listener."""
@@ -181,28 +195,28 @@ class KeyboardController(InputController):
         """Get the current movement deltas from keyboard state."""
         delta_x = delta_y = delta_z = 0.0
 
-        if self.key_states["forward_x"]:
+        if self.key_states['forward_x']:
             delta_x += self.x_step_size
-        if self.key_states["backward_x"]:
+        if self.key_states['backward_x']:
             delta_x -= self.x_step_size
-        if self.key_states["forward_y"]:
+        if self.key_states['forward_y']:
             delta_y += self.y_step_size
-        if self.key_states["backward_y"]:
+        if self.key_states['backward_y']:
             delta_y -= self.y_step_size
-        if self.key_states["forward_z"]:
+        if self.key_states['forward_z']:
             delta_z += self.z_step_size
-        if self.key_states["backward_z"]:
+        if self.key_states['backward_z']:
             delta_z -= self.z_step_size
 
         return delta_x, delta_y, delta_z
 
     def should_quit(self):
         """Return True if ESC was pressed."""
-        return self.key_states["quit"]
+        return self.key_states['quit']
 
     def should_save(self):
         """Return True if Enter was pressed (save episode)."""
-        return self.key_states["success"] or self.key_states["failure"]
+        return self.key_states['success'] or self.key_states['failure']
 
 
 class GamepadController(InputController):
@@ -222,21 +236,21 @@ class GamepadController(InputController):
         pygame.joystick.init()
 
         if pygame.joystick.get_count() == 0:
-            logging.error("No gamepad detected. Please connect a gamepad and try again.")
+            logging.error('No gamepad detected. Please connect a gamepad and try again.')
             self.running = False
             return
 
         self.joystick = pygame.joystick.Joystick(0)
         self.joystick.init()
-        logging.info(f"Initialized gamepad: {self.joystick.get_name()}")
+        logging.info(f'Initialized gamepad: {self.joystick.get_name()}')
 
-        print("Gamepad controls:")
-        print("  Left analog stick: Move in X-Y plane")
-        print("  Right analog stick (vertical): Move in Z axis")
-        print("  B/Circle button: Exit")
-        print("  Y/Triangle button: End episode with SUCCESS")
-        print("  A/Cross button: End episode with FAILURE")
-        print("  X/Square button: Rerecord episode")
+        print('Gamepad controls:')
+        print('  Left analog stick: Move in X-Y plane')
+        print('  Right analog stick (vertical): Move in Z axis')
+        print('  B/Circle button: Exit')
+        print('  Y/Triangle button: End episode with SUCCESS')
+        print('  A/Cross button: End episode with FAILURE')
+        print('  X/Square button: Rerecord episode')
 
     def stop(self):
         """Clean up pygame resources."""
@@ -255,13 +269,13 @@ class GamepadController(InputController):
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == 3:
-                    self.episode_end_status = "success"
+                    self.episode_end_status = 'success'
                 # A button (1) for failure
                 elif event.button == 1:
-                    self.episode_end_status = "failure"
+                    self.episode_end_status = 'failure'
                 # X button (0) for rerecord
                 elif event.button == 0:
-                    self.episode_end_status = "rerecord_episode"
+                    self.episode_end_status = 'rerecord_episode'
 
                 # RB button (6) for closing gripper
                 elif event.button == 6:
@@ -314,7 +328,7 @@ class GamepadController(InputController):
             return delta_x, delta_y, delta_z
 
         except pygame.error:
-            logging.error("Error reading gamepad. Is it still connected?")
+            logging.error('Error reading gamepad. Is it still connected?')
             return 0.0, 0.0, 0.0
 
 
@@ -358,12 +372,12 @@ class GamepadControllerHID(InputController):
 
         devices = hid.enumerate()
         for device in devices:
-            device_name = device["product_string"]
-            if any(controller in device_name for controller in ["Logitech", "Xbox", "PS4", "PS5"]):
+            device_name = device['product_string']
+            if any(controller in device_name for controller in ['Logitech', 'Xbox', 'PS4', 'PS5']):
                 return device
 
         logging.error(
-            "No gamepad found, check the connection and the product string in HID to add your gamepad"
+            'No gamepad found, check the connection and the product string in HID to add your gamepad'
         )
         return None
 
@@ -379,23 +393,23 @@ class GamepadControllerHID(InputController):
         try:
             logging.info(f"Connecting to gamepad at path: {self.device_info['path']}")
             self.device = hid.device()
-            self.device.open_path(self.device_info["path"])
+            self.device.open_path(self.device_info['path'])
             self.device.set_nonblocking(1)
 
             manufacturer = self.device.get_manufacturer_string()
             product = self.device.get_product_string()
-            logging.info(f"Connected to {manufacturer} {product}")
+            logging.info(f'Connected to {manufacturer} {product}')
 
-            logging.info("Gamepad controls (HID mode):")
-            logging.info("  Left analog stick: Move in X-Y plane")
-            logging.info("  Right analog stick: Move in Z axis (vertical)")
-            logging.info("  Button 1/B/Circle: Exit")
-            logging.info("  Button 2/A/Cross: End episode with SUCCESS")
-            logging.info("  Button 3/X/Square: End episode with FAILURE")
+            logging.info('Gamepad controls (HID mode):')
+            logging.info('  Left analog stick: Move in X-Y plane')
+            logging.info('  Right analog stick: Move in Z axis (vertical)')
+            logging.info('  Button 1/B/Circle: Exit')
+            logging.info('  Button 2/A/Cross: End episode with SUCCESS')
+            logging.info('  Button 3/X/Square: End episode with FAILURE')
 
         except OSError as e:
-            logging.error(f"Error opening gamepad: {e}")
-            logging.error("You might need to run this with sudo/admin privileges on some systems")
+            logging.error(f'Error opening gamepad: {e}')
+            logging.error('You might need to run this with sudo/admin privileges on some systems')
             self.running = False
 
     def stop(self):
@@ -451,16 +465,16 @@ class GamepadControllerHID(InputController):
                 # Check if X/Square button (bit 5) is pressed for failure
                 # Check if A/Cross button (bit 4) is pressed for rerecording
                 if buttons & 1 << 7:
-                    self.episode_end_status = "success"
+                    self.episode_end_status = 'success'
                 elif buttons & 1 << 5:
-                    self.episode_end_status = "failure"
+                    self.episode_end_status = 'failure'
                 elif buttons & 1 << 4:
-                    self.episode_end_status = "rerecord_episode"
+                    self.episode_end_status = 'rerecord_episode'
                 else:
                     self.episode_end_status = None
 
         except OSError as e:
-            logging.error(f"Error reading from gamepad: {e}")
+            logging.error(f'Error reading from gamepad: {e}')
 
     def get_deltas(self):
         """Get the current movement deltas from gamepad state."""

@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,15 +39,19 @@ import draccus
 from huggingface_hub import hf_hub_download
 from huggingface_hub.constants import CONFIG_NAME
 from huggingface_hub.errors import HfHubHTTPError
-
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.constants import ACTION, OBS_STATE
 from lerobot.optim.optimizers import OptimizerConfig
 from lerobot.optim.schedulers import LRSchedulerConfig
 from lerobot.utils.hub import HubMixin
-from lerobot.utils.utils import auto_select_torch_device, is_amp_available, is_torch_device_available
+from lerobot.utils.utils import (
+    auto_select_torch_device,
+    is_amp_available,
+    is_torch_device_available,
+)
 
-T = TypeVar("T", bound="PreTrainedConfig")
+
+T = TypeVar('T', bound='PreTrainedConfig')
 
 
 @dataclass
@@ -77,7 +95,9 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
     def __post_init__(self):
         if not self.device or not is_torch_device_available(self.device):
             auto_device = auto_select_torch_device()
-            logging.warning(f"Device '{self.device}' is not available. Switching to '{auto_device}'.")
+            logging.warning(
+                f"Device '{self.device}' is not available. Switching to '{auto_device}'."
+            )
             self.device = auto_device.type
 
         # Automatically deactivate AMP if necessary
@@ -144,7 +164,7 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
         return None
 
     def _save_pretrained(self, save_directory: Path) -> None:
-        with open(save_directory / CONFIG_NAME, "w") as f, draccus.config_type("json"):
+        with open(save_directory / CONFIG_NAME, 'w') as f, draccus.config_type('json'):
             draccus.dump(self, f, indent=4)
 
     @classmethod
@@ -167,7 +187,7 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
             if CONFIG_NAME in os.listdir(model_id):
                 config_file = os.path.join(model_id, CONFIG_NAME)
             else:
-                print(f"{CONFIG_NAME} not found in {Path(model_id).resolve()}")
+                print(f'{CONFIG_NAME} not found in {Path(model_id).resolve()}')
         else:
             try:
                 config_file = hf_hub_download(
@@ -183,25 +203,25 @@ class PreTrainedConfig(draccus.ChoiceRegistry, HubMixin, abc.ABC):
                 )
             except HfHubHTTPError as e:
                 raise FileNotFoundError(
-                    f"{CONFIG_NAME} not found on the HuggingFace Hub in {model_id}"
+                    f'{CONFIG_NAME} not found on the HuggingFace Hub in {model_id}'
                 ) from e
 
         # HACK: Parse the original config to get the config subclass, so that we can
         # apply cli overrides.
         # This is very ugly, ideally we'd like to be able to do that natively with draccus
         # something like --policy.path (in addition to --policy.type)
-        with draccus.config_type("json"):
+        with draccus.config_type('json'):
             orig_config = draccus.parse(cls, config_file, args=[])
 
         with open(config_file) as f:
             config = json.load(f)
 
-        config.pop("type")
-        with tempfile.NamedTemporaryFile("w+") as f:
+        config.pop('type')
+        with tempfile.NamedTemporaryFile('w+') as f:
             json.dump(config, f)
             config_file = f.name
             f.flush()
 
-            cli_overrides = policy_kwargs.pop("cli_overrides", [])
-            with draccus.config_type("json"):
+            cli_overrides = policy_kwargs.pop('cli_overrides', [])
+            with draccus.config_type('json'):
                 return draccus.parse(orig_config.__class__, config_file, args=cli_overrides)

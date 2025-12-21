@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 Nicklas Hansen, Xiaolong Wang, Hao Su,
 # and The HuggingFace Inc. team. All rights reserved.
 #
@@ -21,7 +35,7 @@ from lerobot.configs.types import NormalizationMode
 from lerobot.optim.optimizers import AdamConfig
 
 
-@PreTrainedConfig.register_subclass("tdmpc")
+@PreTrainedConfig.register_subclass('tdmpc')
 @dataclass
 class TDMPCConfig(PreTrainedConfig):
     """Configuration class for TDMPCPolicy.
@@ -114,10 +128,10 @@ class TDMPCConfig(PreTrainedConfig):
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
-            "VISUAL": NormalizationMode.IDENTITY,
-            "STATE": NormalizationMode.IDENTITY,
-            "ENV": NormalizationMode.IDENTITY,
-            "ACTION": NormalizationMode.MIN_MAX,
+            'VISUAL': NormalizationMode.IDENTITY,
+            'STATE': NormalizationMode.IDENTITY,
+            'ENV': NormalizationMode.IDENTITY,
+            'ACTION': NormalizationMode.MIN_MAX,
         }
     )
 
@@ -165,27 +179,27 @@ class TDMPCConfig(PreTrainedConfig):
         """Input validation (not exhaustive)."""
         if self.n_gaussian_samples <= 0:
             raise ValueError(
-                f"The number of gaussian samples for CEM should be non-zero. Got `{self.n_gaussian_samples=}`"
+                f'The number of gaussian samples for CEM should be non-zero. Got `{self.n_gaussian_samples=}`'
             )
-        if self.normalization_mapping["ACTION"] is not NormalizationMode.MIN_MAX:
+        if self.normalization_mapping['ACTION'] is not NormalizationMode.MIN_MAX:
             raise ValueError(
-                "TD-MPC assumes the action space dimensions to all be in [-1, 1]. Therefore it is strongly "
-                f"advised that you stick with the default. See {self.__class__.__name__} docstring for more "
-                "information."
+                'TD-MPC assumes the action space dimensions to all be in [-1, 1]. Therefore it is strongly '
+                f'advised that you stick with the default. See {self.__class__.__name__} docstring for more '
+                'information.'
             )
         if self.n_obs_steps != 1:
             raise ValueError(
-                f"Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`"
+                f'Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`'
             )
         if self.n_action_steps > 1:
             if self.n_action_repeats != 1:
                 raise ValueError(
-                    "If `n_action_steps > 1`, `n_action_repeats` must be left to its default value of 1."
+                    'If `n_action_steps > 1`, `n_action_repeats` must be left to its default value of 1.'
                 )
             if not self.use_mpc:
-                raise ValueError("If `n_action_steps > 1`, `use_mpc` must be set to `True`.")
+                raise ValueError('If `n_action_steps > 1`, `use_mpc` must be set to `True`.')
             if self.n_action_steps > self.horizon:
-                raise ValueError("`n_action_steps` must be less than or equal to `horizon`.")
+                raise ValueError('`n_action_steps` must be less than or equal to `horizon`.')
 
     def get_optimizer_preset(self) -> AdamConfig:
         return AdamConfig(lr=self.optimizer_lr)
@@ -197,7 +211,7 @@ class TDMPCConfig(PreTrainedConfig):
         # There should only be one image key.
         if len(self.image_features) > 1:
             raise ValueError(
-                f"{self.__class__.__name__} handles at most one image for now. Got image keys {self.image_features}."
+                f'{self.__class__.__name__} handles at most one image for now. Got image keys {self.image_features}.'
             )
 
         if len(self.image_features) > 0:
@@ -205,7 +219,9 @@ class TDMPCConfig(PreTrainedConfig):
             if image_ft.shape[-2] != image_ft.shape[-1]:
                 # TODO(alexander-soare): This limitation is solely because of code in the random shift
                 # augmentation. It should be able to be removed.
-                raise ValueError(f"Only square images are handled now. Got image shape {image_ft.shape}.")
+                raise ValueError(
+                    f'Only square images are handled now. Got image shape {image_ft.shape}.'
+                )
 
     @property
     def observation_delta_indices(self) -> list:

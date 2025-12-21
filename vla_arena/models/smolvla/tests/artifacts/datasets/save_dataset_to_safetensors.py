@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,12 +43,11 @@ Example usage:
 import shutil
 from pathlib import Path
 
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from safetensors.torch import save_file
 
-from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
-
-def save_dataset_to_safetensors(output_dir, repo_id="lerobot/pusht"):
+def save_dataset_to_safetensors(output_dir, repo_id='lerobot/pusht'):
     repo_dir = Path(output_dir) / repo_id
 
     if repo_dir.exists():
@@ -47,19 +60,22 @@ def save_dataset_to_safetensors(output_dir, repo_id="lerobot/pusht"):
     )
 
     # save 2 first frames of first episode
-    i = dataset.episode_data_index["from"][0].item()
-    save_file(dataset[i], repo_dir / f"frame_{i}.safetensors")
-    save_file(dataset[i + 1], repo_dir / f"frame_{i + 1}.safetensors")
+    i = dataset.episode_data_index['from'][0].item()
+    save_file(dataset[i], repo_dir / f'frame_{i}.safetensors')
+    save_file(dataset[i + 1], repo_dir / f'frame_{i + 1}.safetensors')
 
     # save 2 frames at the middle of first episode
-    i = int((dataset.episode_data_index["to"][0].item() - dataset.episode_data_index["from"][0].item()) / 2)
-    save_file(dataset[i], repo_dir / f"frame_{i}.safetensors")
-    save_file(dataset[i + 1], repo_dir / f"frame_{i + 1}.safetensors")
+    i = int(
+        (dataset.episode_data_index['to'][0].item() - dataset.episode_data_index['from'][0].item())
+        / 2
+    )
+    save_file(dataset[i], repo_dir / f'frame_{i}.safetensors')
+    save_file(dataset[i + 1], repo_dir / f'frame_{i + 1}.safetensors')
 
     # save 2 last frames of first episode
-    i = dataset.episode_data_index["to"][0].item()
-    save_file(dataset[i - 2], repo_dir / f"frame_{i - 2}.safetensors")
-    save_file(dataset[i - 1], repo_dir / f"frame_{i - 1}.safetensors")
+    i = dataset.episode_data_index['to'][0].item()
+    save_file(dataset[i - 2], repo_dir / f'frame_{i - 2}.safetensors')
+    save_file(dataset[i - 1], repo_dir / f'frame_{i - 1}.safetensors')
 
     # TODO(rcadene): Enable testing on second and last episode
     # We currently cant because our test dataset only contains the first episode
@@ -80,12 +96,12 @@ def save_dataset_to_safetensors(output_dir, repo_id="lerobot/pusht"):
     # save_file(dataset[i - 1], repo_dir / f"frame_{i-1}.safetensors")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     for dataset in [
-        "lerobot/pusht",
-        "lerobot/aloha_sim_insertion_human",
-        "lerobot/xarm_lift_medium",
-        "lerobot/nyu_franka_play_dataset",
-        "lerobot/cmu_stretch",
+        'lerobot/pusht',
+        'lerobot/aloha_sim_insertion_human',
+        'lerobot/xarm_lift_medium',
+        'lerobot/nyu_franka_play_dataset',
+        'lerobot/cmu_stretch',
     ]:
-        save_dataset_to_safetensors("tests/artifacts/datasets", repo_id=dataset)
+        save_dataset_to_safetensors('tests/artifacts/datasets', repo_id=dataset)

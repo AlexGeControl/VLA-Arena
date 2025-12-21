@@ -1,12 +1,28 @@
-import os
-import xml.etree.ElementTree as ET
-import robosuite
-from robosuite.utils.mjcf_utils import find_elements
-import numpy as np
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
-import torch
+import os
 import random
+import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import numpy as np
+import robosuite
+import torch
+from robosuite.utils.mjcf_utils import find_elements
+
 
 DIR = os.path.dirname(__file__)
 
@@ -24,40 +40,40 @@ def postprocess_model_xml(xml_str, cameras_dict={}):
     """
 
     path = os.path.split(robosuite.__file__)[0]
-    path_split = path.split("/")
+    path_split = path.split('/')
 
     # replace mesh and texture file paths
     tree = ET.fromstring(xml_str)
     root = tree
-    asset = root.find("asset")
-    meshes = asset.findall("mesh")
-    textures = asset.findall("texture")
+    asset = root.find('asset')
+    meshes = asset.findall('mesh')
+    textures = asset.findall('texture')
     all_elements = meshes + textures
 
     for elem in all_elements:
-        old_path = elem.get("file")
+        old_path = elem.get('file')
         if old_path is None:
             continue
-        old_path_split = old_path.split("/")
-        if "robosuite" not in old_path_split:
+        old_path_split = old_path.split('/')
+        if 'robosuite' not in old_path_split:
             continue
         ind = max(
-            loc for loc, val in enumerate(old_path_split) if val == "robosuite"
+            loc for loc, val in enumerate(old_path_split) if val == 'robosuite'
         )  # last occurrence index
         new_path_split = path_split + old_path_split[ind + 1 :]
-        new_path = "/".join(new_path_split)
-        elem.set("file", new_path)
+        new_path = '/'.join(new_path_split)
+        elem.set('file', new_path)
 
     # cameras = root.find("worldbody").findall("camera")
-    cameras = find_elements(root=tree, tags="camera", return_first=False)
+    cameras = find_elements(root=tree, tags='camera', return_first=False)
     for camera in cameras:
-        camera_name = camera.get("name")
+        camera_name = camera.get('name')
         if camera_name in cameras_dict:
-            camera.set("name", camera_name)
-            camera.set("pos", cameras_dict[camera_name]["pos"])
-            camera.set("quat", cameras_dict[camera_name]["quat"])
-            camera.set("mode", "fixed")
-    return ET.tostring(root, encoding="utf8").decode("utf8")
+            camera.set('name', camera_name)
+            camera.set('pos', cameras_dict[camera_name]['pos'])
+            camera.set('quat', cameras_dict[camera_name]['quat'])
+            camera.set('mode', 'fixed')
+    return ET.tostring(root, encoding='utf8').decode('utf8')
 
 
 def process_image_input(img_tensor):
@@ -71,5 +87,5 @@ def reconstruct_image_output(img_array):
 
 
 def update_env_kwargs(env_kwargs, **kwargs):
-    for (k, v) in kwargs.items():
+    for k, v in kwargs.items():
         env_kwargs[k] = v

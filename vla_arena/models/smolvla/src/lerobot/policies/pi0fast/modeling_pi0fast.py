@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 Physical Intelligence and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,6 +64,10 @@ from functools import partial
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
+from lerobot.constants import ACTION, OBS_STATE
+from lerobot.policies.normalize import Normalize, Unnormalize
+from lerobot.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
+from lerobot.policies.pretrained import PreTrainedPolicy
 from PIL import Image
 from scipy.fft import idct
 from torch import Tensor, nn
@@ -57,15 +75,11 @@ from transformers import AutoProcessor, AutoTokenizer, PaliGemmaForConditionalGe
 from transformers.cache_utils import HybridCache, StaticCache
 from transformers.models.auto import CONFIG_MAPPING
 
-from lerobot.constants import ACTION, OBS_STATE
-from lerobot.policies.normalize import Normalize, Unnormalize
-from lerobot.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
-from lerobot.policies.pretrained import PreTrainedPolicy
 
 PRECISION = {
-    "float16": torch.float16,
-    "float32": torch.float32,
-    "bfloat16": torch.bfloat16,
+    'float16': torch.float16,
+    'float32': torch.float32,
+    'bfloat16': torch.bfloat16,
 }
 
 
@@ -94,7 +108,9 @@ def aloha_gripper_to_angular(value):
 
     # This is the inverse of the angular to linear transformation inside the Interbotix code.
     def linear_to_radian(linear_position, arm_length, horn_radius):
-        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (2 * horn_radius * linear_position)
+        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (
+            2 * horn_radius * linear_position
+        )
         return safe_arcsin(value)
 
     # The constants are taken from the Interbotix code.
@@ -127,7 +143,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
     """Wrapper class around PI0FAST tokenizer and model to train and run inference within LeRobot."""
 
     config_class = PI0FASTConfig
-    name = "pi0fast"
+    name = 'pi0fast'
 
     def __init__(
         self,
@@ -146,7 +162,9 @@ class PI0FASTPolicy(PreTrainedPolicy):
         config.validate_features()
         self.config = config
 
-        self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
+        self.normalize_inputs = Normalize(
+            config.input_features, config.normalization_mapping, dataset_stats
+        )
         self.normalize_targets = Normalize(
             config.output_features, config.normalization_mapping, dataset_stats
         )
@@ -154,7 +172,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
             config.output_features, config.normalization_mapping, dataset_stats
         )
 
-        self.language_tokenizer = AutoProcessor.from_pretrained("google/paligemma-3b-pt-224")
+        self.language_tokenizer = AutoProcessor.from_pretrained('google/paligemma-3b-pt-224')
         self.model = PI0FAST(config)
 
         self.reset()
@@ -167,9 +185,9 @@ class PI0FASTPolicy(PreTrainedPolicy):
     def from_pretrained(cls, *args, **kwargs):
         """Override the from_pretrained method to display important disclaimer."""
         print(
-            "⚠️  DISCLAIMER: The PI0FAST model is ported from JAX by the Hugging Face team. \n"
-            "   It is not expected to perform as well as the original implementation. \n"
-            "   Original implementation: https://github.com/Physical-Intelligence/openpi"
+            '⚠️  DISCLAIMER: The PI0FAST model is ported from JAX by the Hugging Face team. \n'
+            '   It is not expected to perform as well as the original implementation. \n'
+            '   Original implementation: https://github.com/Physical-Intelligence/openpi'
         )
         return super().from_pretrained(*args, **kwargs)
 
@@ -206,7 +224,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
     @torch.no_grad()
     def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
         """Predict a chunk of actions given environment observations."""
-        raise NotImplementedError("Currently not implemented for PI0FAST")
+        raise NotImplementedError('Currently not implemented for PI0FAST')
 
     @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor]) -> Tensor:
@@ -235,7 +253,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
             ]  # self.config.max_action_dim  # self.config.action_feature.shape[0]
             actions = actions[:, :, :original_action_dim]
 
-            actions = self.unnormalize_outputs({"action": actions})["action"]
+            actions = self.unnormalize_outputs({'action': actions})['action']
 
             if self.config.adapt_to_pi_aloha:
                 actions = self._pi_aloha_encode_actions(actions)
@@ -252,7 +270,7 @@ class PI0FASTPolicy(PreTrainedPolicy):
         batch = self.normalize_inputs(batch)
         batch = self.normalize_targets(batch)
         loss_dict = self.model.forward(batch)
-        return loss_dict["loss"], loss_dict
+        return loss_dict['loss'], loss_dict
 
 
 def block_causal_update_causal_mask(
@@ -261,13 +279,13 @@ def block_causal_update_causal_mask(
     past_key_values=None,
     cache_position=None,
     input_tensor=None,
-    attn_implementation: str = "eager",
-    dtype: torch.dtype = "float32",
+    attn_implementation: str = 'eager',
+    dtype: torch.dtype = 'float32',
 ):
     """
     Update the causal mask during training and generation. It can be customized to different attention masks.
     """
-    if attn_implementation == "flash_attention_2":
+    if attn_implementation == 'flash_attention_2':
         if attention_mask is not None and 0.0 in attention_mask:
             return attention_mask
         return None
@@ -294,7 +312,10 @@ def block_causal_update_causal_mask(
 
     # Causal mask initialization
     causal_mask = torch.full(
-        (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, device=cache_position.device
+        (sequence_length, target_length),
+        fill_value=min_dtype,
+        dtype=dtype,
+        device=cache_position.device,
     )
 
     # Standard causal masking (triu ensures tokens can only attend to past)
@@ -312,15 +333,15 @@ def block_causal_update_causal_mask(
             causal_mask = causal_mask[:, None, :, :]
         else:
             # Apply past cache position constraint
-            causal_mask *= torch.arange(target_length, device=cache_position.device) > cache_position.reshape(
-                -1, 1
-            )
+            causal_mask *= torch.arange(
+                target_length, device=cache_position.device
+            ) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].expand(inputs_lead_dim, 1, -1, -1)
     else:
         # Apply past cache position constraint
-        causal_mask *= torch.arange(target_length, device=cache_position.device) > cache_position.reshape(
-            -1, 1
-        )
+        causal_mask *= torch.arange(
+            target_length, device=cache_position.device
+        ) > cache_position.reshape(-1, 1)
         causal_mask = causal_mask[None, None, :, :].expand(inputs_lead_dim, 1, -1, -1)
 
     if attention_mask is not None:
@@ -393,19 +414,24 @@ def prepare_inputs_for_generation(
     )
 
     # Position_ids in Paligemma are 1-indexed
-    if model_inputs.get("position_ids") is not None:
-        model_inputs["position_ids"] += 1
+    if model_inputs.get('position_ids') is not None:
+        model_inputs['position_ids'] += 1
     # If we're in cached decoding stage, pixel values should be None because input ids do not contain special image token anymore
     # Otherwise we need pixel values to be passed to model. NOTE: use_cache=False needs pixel_values always
     if cache_position[0] == 0:
-        model_inputs["pixel_values"] = pixel_values
+        model_inputs['pixel_values'] = pixel_values
     is_training = token_type_ids is not None and labels is not None
     if cache_position[0] == 0 and isinstance(past_key_values, HybridCache):
         input_tensor = inputs_embeds if inputs_embeds is not None else input_ids
         causal_mask = self._update_causal_mask(
-            attention_mask, token_type_ids, past_key_values, cache_position, input_tensor, is_training
+            attention_mask,
+            token_type_ids,
+            past_key_values,
+            cache_position,
+            input_tensor,
+            is_training,
         )
-        model_inputs["attention_mask"] = causal_mask
+        model_inputs['attention_mask'] = causal_mask
 
     return model_inputs
 
@@ -416,11 +442,13 @@ class PI0FAST(nn.Module):
         self.config = config
 
         # TODO: move tokenizers in Policy
-        fast_tokenizer_path = "physical-intelligence/fast"
-        pi0_paligemma_path = "google/paligemma-3b-pt-224"
+        fast_tokenizer_path = 'physical-intelligence/fast'
+        pi0_paligemma_path = 'google/paligemma-3b-pt-224'
         self.paligemma_tokenizer = AutoTokenizer.from_pretrained(pi0_paligemma_path)
         self.processor = AutoProcessor.from_pretrained(pi0_paligemma_path)
-        self.fast_tokenizer = AutoProcessor.from_pretrained(fast_tokenizer_path, trust_remote_code=True)
+        self.fast_tokenizer = AutoProcessor.from_pretrained(
+            fast_tokenizer_path, trust_remote_code=True
+        )
         self.fast_skip_tokens = self.config.fast_skip_tokens
         self.max_input_seq_len = self.config.max_input_seq_len
         self.action_horizon = self.config.chunk_size
@@ -431,45 +459,45 @@ class PI0FAST(nn.Module):
         torch_precision = PRECISION.get(precision, torch.float32)
         self.pad_token_id = (
             self.paligemma_tokenizer.pad_token_id
-            if hasattr(self.paligemma_tokenizer, "pad_token_id")
+            if hasattr(self.paligemma_tokenizer, 'pad_token_id')
             else self.paligemma_tokenizer.eos_token_id
         )
 
-        paligemma_config = CONFIG_MAPPING["paligemma"](
-            transformers_version="4.48.1",
+        paligemma_config = CONFIG_MAPPING['paligemma'](
+            transformers_version='4.48.1',
             _vocab_size=257152,
             bos_token_id=2,
             eos_token_id=1,
             hidden_size=2048,
             image_token_index=257152,
-            model_type="paligemma",
+            model_type='paligemma',
             pad_token_id=0,
             projection_dim=2048,
             text_config={
-                "hidden_activation": "gelu_pytorch_tanh",
-                "hidden_size": 2048,
-                "intermediate_size": 16384,
-                "model_type": "gemma",
-                "num_attention_heads": 8,
-                "num_hidden_layers": 18,
-                "num_image_tokens": 256,
-                "num_key_value_heads": 1,
-                "torch_dtype": precision,
-                "vocab_size": 257152,
-                "_attn_implementation": "eager",
+                'hidden_activation': 'gelu_pytorch_tanh',
+                'hidden_size': 2048,
+                'intermediate_size': 16384,
+                'model_type': 'gemma',
+                'num_attention_heads': 8,
+                'num_hidden_layers': 18,
+                'num_image_tokens': 256,
+                'num_key_value_heads': 1,
+                'torch_dtype': precision,
+                'vocab_size': 257152,
+                '_attn_implementation': 'eager',
             },
             vision_config={
-                "hidden_size": 1152,
-                "intermediate_size": 4304,
-                "model_type": "siglip_vision_model",
-                "num_attention_heads": 16,
-                "num_hidden_layers": 27,
-                "num_image_tokens": 256,
-                "patch_size": 14,
-                "projection_dim": 2048,
-                "projector_hidden_act": "gelu_pytorch_tanh",
-                "torch_dtype": precision,
-                "vision_use_head": False,
+                'hidden_size': 1152,
+                'intermediate_size': 4304,
+                'model_type': 'siglip_vision_model',
+                'num_attention_heads': 16,
+                'num_hidden_layers': 27,
+                'num_image_tokens': 256,
+                'patch_size': 14,
+                'projection_dim': 2048,
+                'projector_hidden_act': 'gelu_pytorch_tanh',
+                'torch_dtype': precision,
+                'vision_use_head': False,
             },
         )
         self.pi0_paligemma = PaliGemmaForConditionalGeneration(config=paligemma_config)
@@ -479,9 +507,9 @@ class PI0FAST(nn.Module):
         )
         # change important stuff in bf16
         params_to_change_dtype = [
-            "language_model",
-            "vision_tower",
-            "multi_modal",
+            'language_model',
+            'vision_tower',
+            'multi_modal',
         ]
         for name, param in self.pi0_paligemma.named_parameters():
             if any(selector in name for selector in params_to_change_dtype):
@@ -501,7 +529,7 @@ class PI0FAST(nn.Module):
         # To avoid unused params issue with distributed training
         if self.config.freeze_lm_head:
             for name, params in self.pi0_paligemma.named_parameters():
-                if "embed_tokens" in name:  # lm heads and embedding layer are tied
+                if 'embed_tokens' in name:  # lm heads and embedding layer are tied
                     params.requires_grad = False
 
     def embed_tokens(self, tokens: torch.Tensor):
@@ -517,7 +545,7 @@ class PI0FAST(nn.Module):
         present_img_keys = [key for key in self.image_keys if key in batch]
         if len(present_img_keys) == 0:
             raise ValueError(
-                f"All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})"
+                f'All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})'
             )
 
         # Preprocess image features present in the batch
@@ -568,7 +596,7 @@ class PI0FAST(nn.Module):
         conversion to PyTorch tensors, and returns a dictionary without padding.
         """
         batch_tokens = self.fast_tokenizer(actions_norm)
-        fast_out = self.processor.tokenizer.pad({"input_ids": batch_tokens}, return_tensors="pt")
+        fast_out = self.processor.tokenizer.pad({'input_ids': batch_tokens}, return_tensors='pt')
 
         return fast_out
 
@@ -591,28 +619,34 @@ class PI0FAST(nn.Module):
         prefix_texts = []
         state_text = []
         for txt, disc in zip(lang_text, discretized, strict=False):
-            cleaned = txt.lower().strip().replace("_", " ")
-            state_str = " ".join(str(val.item()) for val in disc)
-            prefix_texts.append(f"Task: {cleaned}, State: {state_str};\n")
-            state_text.append(f"State: {state_str};\n")
+            cleaned = txt.lower().strip().replace('_', ' ')
+            state_str = ' '.join(str(val.item()) for val in disc)
+            prefix_texts.append(f'Task: {cleaned}, State: {state_str};\n')
+            state_text.append(f'State: {state_str};\n')
 
         prefix_out = self.paligemma_tokenizer(
-            prefix_texts, add_special_tokens=True, return_tensors="pt", padding="longest", truncation=False
+            prefix_texts,
+            add_special_tokens=True,
+            return_tensors='pt',
+            padding='longest',
+            truncation=False,
         )
-        prefix_ids = prefix_out["input_ids"].to(device)
-        prefix_mask = prefix_out["attention_mask"].to(device)
+        prefix_ids = prefix_out['input_ids'].to(device)
+        prefix_mask = prefix_out['attention_mask'].to(device)
         prefix_lens = prefix_mask.sum(dim=1)[:, None].cpu()
 
         if actions is not None:
             actions_norm = self.normalize_actions(actions)
             actions_pad = F.pad(
-                actions_norm, (0, max(0, self.config.max_action_dim - actions_norm.shape[2])), value=0
+                actions_norm,
+                (0, max(0, self.config.max_action_dim - actions_norm.shape[2])),
+                value=0,
             )[:, :, : self.config.max_action_dim]
             fast_out = self.fast_tokenizer_wrapper(
                 actions_pad.cpu(),
             )
-            act_ids = fast_out["input_ids"]
-            act_mask = fast_out["attention_mask"].to(device)
+            act_ids = fast_out['input_ids']
+            act_mask = fast_out['attention_mask'].to(device)
 
             act_ids = self._act_tokens_to_paligemma_tokens(act_ids).to(device)
             # Replace action with 0 to pad tokens
@@ -626,9 +660,11 @@ class PI0FAST(nn.Module):
                 [self.paligemma_tokenizer.eos_token_id], dtype=torch.long, device=device
             ).expand(bsize, -1)
             eos_mask = torch.tensor([1], dtype=torch.long, device=device).expand(bsize, -1)
-            bos = self.paligemma_tokenizer("Action: ", add_special_tokens=False, return_tensors="pt")
-            bos_token = bos["input_ids"].expand(act_ids.shape[0], -1).to(device)
-            bos_mask = bos["attention_mask"].expand(act_ids.shape[0], -1).to(device)
+            bos = self.paligemma_tokenizer(
+                'Action: ', add_special_tokens=False, return_tensors='pt'
+            )
+            bos_token = bos['input_ids'].expand(act_ids.shape[0], -1).to(device)
+            bos_mask = bos['attention_mask'].expand(act_ids.shape[0], -1).to(device)
             act_ids = torch.cat([bos_token, act_ids, eos_token], dim=1)
             act_mask = torch.cat([bos_mask, act_mask, eos_mask], dim=1)
             act_mask = act_mask.to(device)
@@ -638,24 +674,24 @@ class PI0FAST(nn.Module):
         final_ids = torch.cat([prefix_ids, act_ids], dim=1)
 
         final_mask = torch.cat([prefix_mask, act_mask], dim=1)
-        batch_inputs = {"input_ids": final_ids.tolist(), "attention_mask": final_mask.tolist()}
+        batch_inputs = {'input_ids': final_ids.tolist(), 'attention_mask': final_mask.tolist()}
 
         # Use tokenizer pad function
         padded_output = self.paligemma_tokenizer.pad(
-            batch_inputs, padding="longest", max_length=180, return_tensors="pt"
+            batch_inputs, padding='longest', max_length=180, return_tensors='pt'
         )
-        padded_mask = padded_output["attention_mask"]
+        padded_mask = padded_output['attention_mask']
 
         # define tensor of padding lengths
         att_mask = (padded_mask != 0).cumsum(dim=1) > prefix_lens
 
         token_type_ids = self.create_token_type_ids(padded_mask=padded_mask, prefix_len=prefix_lens)
 
-        padded_output["padded_mask"] = padded_output.pop("attention_mask")
-        padded_output["attention_mask"] = att_mask
+        padded_output['padded_mask'] = padded_output.pop('attention_mask')
+        padded_output['attention_mask'] = att_mask
         # loss is computed not on prefix, and not on padding
-        padded_output["loss_mask"] = att_mask & padded_output["padded_mask"]
-        padded_output["token_type_ids"] = token_type_ids
+        padded_output['loss_mask'] = att_mask & padded_output['padded_mask']
+        padded_output['token_type_ids'] = token_type_ids
         return padded_output
 
     def shift_padding_side(
@@ -666,9 +702,9 @@ class PI0FAST(nn.Module):
         loss_mask: torch.Tensor,
         targets: torch.Tensor,
         token_type_ids: torch.Tensor,
-        padding_side: str = "right",
+        padding_side: str = 'right',
     ) -> tuple[torch.Tensor]:
-        if padding_side not in ["right", "left"]:
+        if padding_side not in ['right', 'left']:
             return tokens, ar_mask, padding_mask, loss_mask, targets, token_type_ids
 
         new_tokens = torch.empty_like(tokens)
@@ -681,7 +717,7 @@ class PI0FAST(nn.Module):
         for i in range(batch_size):
             padding_indices = torch.where(padding_mask[i] == 0)[0]
             non_padding_indices = torch.where(padding_mask[i] == 1)[0]
-            if padding_side == "left":
+            if padding_side == 'left':
                 new_indices = torch.cat((padding_indices, non_padding_indices), dim=0)
             else:
                 new_indices = torch.cat((non_padding_indices, padding_indices), dim=0)
@@ -692,7 +728,14 @@ class PI0FAST(nn.Module):
             new_targets[i] = targets[i].index_select(0, new_indices)
             new_token_type_ids[i] = token_type_ids[i].index_select(0, new_indices)
 
-        return new_tokens, new_ar_masks, new_padding_mask, new_loss_mask, new_targets, new_token_type_ids
+        return (
+            new_tokens,
+            new_ar_masks,
+            new_padding_mask,
+            new_loss_mask,
+            new_targets,
+            new_token_type_ids,
+        )
 
     def forward(self, batch: dict[str, Tensor]):
         device = batch[OBS_STATE].device
@@ -701,24 +744,26 @@ class PI0FAST(nn.Module):
 
         padded_outs = self.create_input_tokens(
             state=batch[OBS_STATE],
-            lang_text=batch["task"],
+            lang_text=batch['task'],
             actions=batch[ACTION],
         )
 
         embs, pad_masks, _, targets, loss_mask, token_type_ids = self.embed_inputs(
             images,
             img_masks,
-            padded_outs["input_ids"],
-            padded_outs["padded_mask"],
-            padded_outs["attention_mask"],
-            padded_outs["loss_mask"],
-            padded_outs["token_type_ids"],
+            padded_outs['input_ids'],
+            padded_outs['padded_mask'],
+            padded_outs['attention_mask'],
+            padded_outs['loss_mask'],
+            padded_outs['token_type_ids'],
             padding_side=self.padding_side,
         )
         position_ids = torch.cumsum(pad_masks, dim=1) - 1
         token_type_ids = token_type_ids.to(dtype=torch.int64)
         past_seen_tokens = 0
-        cache_position = torch.arange(past_seen_tokens, past_seen_tokens + embs.shape[1], device=embs.device)
+        cache_position = torch.arange(
+            past_seen_tokens, past_seen_tokens + embs.shape[1], device=embs.device
+        )
         pad_masks = block_causal_update_causal_mask(
             attention_mask=pad_masks,
             past_key_values=None,
@@ -741,7 +786,7 @@ class PI0FAST(nn.Module):
 
         logits = outputs.logits
 
-        loss_fct = nn.CrossEntropyLoss(reduction="none")
+        loss_fct = nn.CrossEntropyLoss(reduction='none')
 
         # Shift left for next-step prediction
         logits = logits[:, :-1, :]
@@ -758,7 +803,7 @@ class PI0FAST(nn.Module):
         loss = token_loss.sum() / torch.clamp(loss_mask.sum(), min=1)
 
         # Return loss dictionary
-        loss_dict = {"ce_loss": loss.item(), "loss": loss}
+        loss_dict = {'ce_loss': loss.item(), 'loss': loss}
         return loss_dict
 
     def decode_actions_with_fast(
@@ -773,7 +818,9 @@ class PI0FAST(nn.Module):
         Adapt original decoding in FAST to always return actions instead of zeros.
         """
         self.time_horizon = (
-            time_horizon or self.fast_tokenizer.time_horizon or self.fast_tokenizer.called_time_horizon
+            time_horizon
+            or self.fast_tokenizer.time_horizon
+            or self.fast_tokenizer.called_time_horizon
         )
         self.action_dim = (
             action_dim or self.fast_tokenizer.action_dim or self.fast_tokenizer.called_action_dim
@@ -783,43 +830,49 @@ class PI0FAST(nn.Module):
         self.called_time_horizon = self.time_horizon
         self.called_action_dim = self.action_dim
 
-        assert self.time_horizon is not None and self.action_dim is not None, (
-            "Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim."
-        )
+        assert (
+            self.time_horizon is not None and self.action_dim is not None
+        ), 'Tokenizer not initialized, call encode() once or pass in time_horizon and action_dim.'
 
         decoded_actions = []
         for token in tokens:
             try:
                 decoded_tokens = self.fast_tokenizer.bpe_tokenizer.decode(token)
-                decoded_dct_coeff = np.array(list(map(ord, decoded_tokens))) + self.fast_tokenizer.min_token
+                decoded_dct_coeff = (
+                    np.array(list(map(ord, decoded_tokens))) + self.fast_tokenizer.min_token
+                )
                 if relaxed_decoding:
                     # Expected sequence length
                     expected_seq_len = self.time_horizon * self.action_dim
                     diff = expected_seq_len - decoded_dct_coeff.shape[0]
                     # Apply truncation if too long
                     if diff < 0:
-                        decoded_dct_coeff = decoded_dct_coeff[:expected_seq_len]  # Truncate on the right
+                        decoded_dct_coeff = decoded_dct_coeff[
+                            :expected_seq_len
+                        ]  # Truncate on the right
                     # Apply padding if too short
                     elif diff > 0:
                         decoded_dct_coeff = np.pad(
-                            decoded_dct_coeff, (0, diff), mode="constant", constant_values=0
+                            decoded_dct_coeff, (0, diff), mode='constant', constant_values=0
                         )
 
                 decoded_dct_coeff = decoded_dct_coeff.reshape(-1, self.action_dim)
                 assert decoded_dct_coeff.shape == (
                     self.time_horizon,
                     self.action_dim,
-                ), (
-                    f"Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})"
-                )
+                ), f'Decoded DCT coefficients have shape {decoded_dct_coeff.shape}, expected ({self.time_horizon}, {self.action_dim})'
             except Exception as e:
-                print(f"Error decoding tokens: {e}")
-                print(f"Tokens: {token}")
+                print(f'Error decoding tokens: {e}')
+                print(f'Tokens: {token}')
                 decoded_dct_coeff = np.zeros((self.time_horizon, self.action_dim))
-            decoded_actions.append(idct(decoded_dct_coeff / self.fast_tokenizer.scale, axis=0, norm="ortho"))
+            decoded_actions.append(
+                idct(decoded_dct_coeff / self.fast_tokenizer.scale, axis=0, norm='ortho')
+            )
         return np.stack(decoded_actions)
 
-    def extract_actions(self, tokens: torch.Tensor, action_horizon: int, action_dim: int) -> torch.Tensor:
+    def extract_actions(
+        self, tokens: torch.Tensor, action_horizon: int, action_dim: int
+    ) -> torch.Tensor:
         """
         Extracts actions from predicted output tokens using the FAST model.
 
@@ -834,15 +887,16 @@ class PI0FAST(nn.Module):
         # Decode predicted output tokens
         decoded_tokens = self.paligemma_tokenizer.batch_decode(tokens, skip_special_tokens=True)
         cleaned_tokens = [
-            tokens_sequence.replace("Action:", "").replace(":", "").strip().split("|")[0].strip()
+            tokens_sequence.replace('Action:', '').replace(':', '').strip().split('|')[0].strip()
             for tokens_sequence in decoded_tokens
         ]
         raw_action_tokens = [
-            self.processor.tokenizer.encode(sample_tokens, return_tensors="pt", padding=False)
+            self.processor.tokenizer.encode(sample_tokens, return_tensors='pt', padding=False)
             for sample_tokens in cleaned_tokens
         ]  # something like this should be robust #looks good
         action_tokens = [
-            self._act_tokens_to_paligemma_tokens(raw_action_token) for raw_action_token in raw_action_tokens
+            self._act_tokens_to_paligemma_tokens(raw_action_token)
+            for raw_action_token in raw_action_tokens
         ]
         # returns the tensor of decoded actions per sample in a list
         decoded_actions = [
@@ -867,16 +921,18 @@ class PI0FAST(nn.Module):
         # TODO: keep like this or move to the policy .forward
         images, img_masks = self.prepare_images(batch)
 
-        padded_outs = self.create_input_tokens(state=batch[OBS_STATE], lang_text=batch["task"], actions=None)
+        padded_outs = self.create_input_tokens(
+            state=batch[OBS_STATE], lang_text=batch['task'], actions=None
+        )
         embs, pad_masks, att_masks2, targets, loss_mask, token_type_ids = self.embed_inputs(
             images,
             img_masks,
-            padded_outs["input_ids"],
-            padded_outs["padded_mask"],
-            padded_outs["attention_mask"],
-            padded_outs["loss_mask"],
-            padded_outs["token_type_ids"],
-            padding_side="left",
+            padded_outs['input_ids'],
+            padded_outs['padded_mask'],
+            padded_outs['attention_mask'],
+            padded_outs['loss_mask'],
+            padded_outs['token_type_ids'],
+            padding_side='left',
         )
         token_type_ids = token_type_ids.to(dtype=torch.int64)
         prefix_position_ids = torch.cumsum(pad_masks, dim=1) - 1
@@ -897,7 +953,7 @@ class PI0FAST(nn.Module):
 
     def embed_image(self, image: torch.Tensor):
         # Handle different transformers versions
-        if hasattr(self.pi0_paligemma, "get_image_features"):
+        if hasattr(self.pi0_paligemma, 'get_image_features'):
             return self.pi0_paligemma.get_image_features(image)
         else:
             return self.pi0_paligemma.model.get_image_features(image)
@@ -911,7 +967,7 @@ class PI0FAST(nn.Module):
         ar_mask,
         loss_mask,
         token_type_ids,
-        padding_side: str = "right",
+        padding_side: str = 'right',
     ):
         # TODO: avoid list in python and torch.cat ; prefer pre-allocation with torch.empty
         # images are a list of same size
@@ -932,12 +988,16 @@ class PI0FAST(nn.Module):
         img_masks = torch.stack(img_masks, dim=1).unsqueeze(-1).to(device)
         num_img_emb = embedded.shape[2]
         img_pad_masks = img_masks.repeat(1, 1, num_img_emb).view(b, -1)
-        img_att_masks = torch.zeros((b, n, num_img_emb), dtype=torch.long, device=device).reshape(b, -1)
+        img_att_masks = torch.zeros((b, n, num_img_emb), dtype=torch.long, device=device).reshape(
+            b, -1
+        )
 
         image_target_tokens = (
             torch.ones((b, n, num_img_emb), dtype=torch.long, device=device) * self.pad_token_id
         ).reshape(b, -1)
-        image_loss_mask = torch.zeros((b, n, num_img_emb), dtype=torch.long, device=device).reshape(b, -1)
+        image_loss_mask = torch.zeros((b, n, num_img_emb), dtype=torch.long, device=device).reshape(
+            b, -1
+        )
 
         embedded = embedded.reshape(b, n * num_img_emb, image_embedding_dim)  # Shape: (B, N*P, D)
 
@@ -950,7 +1010,13 @@ class PI0FAST(nn.Module):
 
         # Shift pad tokens to the left (.generate()) or right (.train())
         embs, att_masks, pad_masks, loss_masks, targets, token_type_ids = self.shift_padding_side(
-            embs, att_masks, pad_masks, loss_masks, targets, token_type_ids, padding_side=padding_side
+            embs,
+            att_masks,
+            pad_masks,
+            loss_masks,
+            targets,
+            token_type_ids,
+            padding_side=padding_side,
         )
 
         targets = torch.where(targets == self.pad_token_id, self.ignore_index, targets)
@@ -960,7 +1026,7 @@ class PI0FAST(nn.Module):
 def resize_with_pad(img, width, height, pad_value=0, interpolate_like_pi=True):
     # assume no-op when width height fits already
     if img.ndim != 4:
-        raise ValueError(f"(b,c,h,w) expected, but {img.shape}")
+        raise ValueError(f'(b,c,h,w) expected, but {img.shape}')
 
     cur_height, cur_width = img.shape[2:]
 
@@ -972,7 +1038,7 @@ def resize_with_pad(img, width, height, pad_value=0, interpolate_like_pi=True):
         img = (img * 255.0).to(dtype=torch.uint8)
         img = img.permute(0, 2, 3, 1)
         original_device = img.device
-        img = img.to(device="cpu").numpy()
+        img = img.to(device='cpu').numpy()
         imgs = []
         for sub_img in img:
             sub_img = Image.fromarray(sub_img)
@@ -984,7 +1050,7 @@ def resize_with_pad(img, width, height, pad_value=0, interpolate_like_pi=True):
         resized_img = img.to(device=original_device, dtype=torch.float32) / 255.0
     else:
         resized_img = F.interpolate(
-            img, size=(resized_height, resized_width), mode="bilinear", align_corners=False
+            img, size=(resized_height, resized_width), mode='bilinear', align_corners=False
         )
 
     pad_height = max(0, int(height - resized_height))

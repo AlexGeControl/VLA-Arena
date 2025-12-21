@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,9 +35,10 @@ import time
 
 import pytest
 import torch
-
 from lerobot.configs.types import PolicyFeature
+
 from tests.utils import require_package
+
 
 # -----------------------------------------------------------------------------
 # Test fixtures
@@ -35,7 +50,7 @@ class MockPolicy:
     Refer to tests/policies for tests of the individual policies supported."""
 
     class _Config:
-        robot_type = "dummy_robot"
+        robot_type = 'dummy_robot'
 
         @property
         def image_features(self) -> dict[str, PolicyFeature]:
@@ -44,7 +59,7 @@ class MockPolicy:
 
     def predict_action_chunk(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
         """Return a chunk of 20 dummy actions."""
-        batch_size = len(observation["observation.state"])
+        batch_size = len(observation['observation.state'])
         return torch.zeros(batch_size, 20, 6)
 
     def __init__(self):
@@ -56,31 +71,31 @@ class MockPolicy:
 
     def model(self, batch: dict) -> torch.Tensor:
         # Return a chunk of 20 dummy actions.
-        batch_size = len(batch["robot_type"])
+        batch_size = len(batch['robot_type'])
         return torch.zeros(batch_size, 20, 6)
 
 
 @pytest.fixture
-@require_package("grpc")
+@require_package('grpc')
 def policy_server():
     """Fresh `PolicyServer` instance with a stubbed-out policy model."""
     # Import only when the test actually runs (after decorator check)
     from lerobot.scripts.server.configs import PolicyServerConfig
     from lerobot.scripts.server.policy_server import PolicyServer
 
-    test_config = PolicyServerConfig(host="localhost", port=9999)
+    test_config = PolicyServerConfig(host='localhost', port=9999)
     server = PolicyServer(test_config)
     # Replace the real policy with our fast, deterministic stub.
     server.policy = MockPolicy()
     server.actions_per_chunk = 20
-    server.device = "cpu"
+    server.device = 'cpu'
 
     # Add mock lerobot_features that the observation similarity functions need
     server.lerobot_features = {
-        "observation.state": {
-            "dtype": "float32",
-            "shape": [6],
-            "names": ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"],
+        'observation.state': {
+            'dtype': 'float32',
+            'shape': [6],
+            'names': ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6'],
         }
     }
 
@@ -99,12 +114,12 @@ def _make_obs(state: torch.Tensor, timestep: int = 0, must_go: bool = False):
 
     return TimedObservation(
         observation={
-            "joint1": state[0].item() if len(state) > 0 else 0.0,
-            "joint2": state[1].item() if len(state) > 1 else 0.0,
-            "joint3": state[2].item() if len(state) > 2 else 0.0,
-            "joint4": state[3].item() if len(state) > 3 else 0.0,
-            "joint5": state[4].item() if len(state) > 4 else 0.0,
-            "joint6": state[5].item() if len(state) > 5 else 0.0,
+            'joint1': state[0].item() if len(state) > 0 else 0.0,
+            'joint2': state[1].item() if len(state) > 1 else 0.0,
+            'joint3': state[2].item() if len(state) > 2 else 0.0,
+            'joint4': state[3].item() if len(state) > 3 else 0.0,
+            'joint5': state[4].item() if len(state) > 4 else 0.0,
+            'joint6': state[5].item() if len(state) > 5 else 0.0,
         },
         timestamp=time.time(),
         timestep=timestep,
@@ -194,15 +209,15 @@ def test_predict_action_chunk(monkeypatch, policy_server):
     from lerobot.scripts.server.policy_server import PolicyServer
 
     # Force server to act-style policy; patch method to return deterministic tensor
-    policy_server.policy_type = "act"
+    policy_server.policy_type = 'act'
     action_dim = 6
     batch_size = 1
     actions_per_chunk = policy_server.actions_per_chunk
 
-    def _fake_get_action_chunk(_self, _obs, _type="act"):
+    def _fake_get_action_chunk(_self, _obs, _type='act'):
         return torch.zeros(batch_size, actions_per_chunk, action_dim)
 
-    monkeypatch.setattr(PolicyServer, "_get_action_chunk", _fake_get_action_chunk, raising=True)
+    monkeypatch.setattr(PolicyServer, '_get_action_chunk', _fake_get_action_chunk, raising=True)
 
     obs = _make_obs(torch.zeros(6), timestep=5)
     timed_actions = policy_server._predict_action_chunk(obs)

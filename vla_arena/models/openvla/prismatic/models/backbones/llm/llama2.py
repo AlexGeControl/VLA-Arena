@@ -1,10 +1,25 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 llama2.py
 
 Class definition for all LLMs derived from LlamaForCausalLM.
 """
 
-from typing import Optional, Sequence, Type
+from collections.abc import Sequence
+from typing import Optional, Type
 
 import torch
 from torch import nn as nn
@@ -19,34 +34,35 @@ from vla_arena.models.openvla.prismatic.models.backbones.llm.prompting import (
     VicunaV15ChatPromptBuilder,
 )
 
+
 # Registry =>> Support LLaMa-2 Models (from HF Transformers)
 # fmt: off
 LLAMA2_MODELS = {
     # === Pure Meta LLaMa-2 (non-instruct/chat-tuned) Models ===
-    "llama2-7b-pure": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "meta-llama/Llama-2-7b-hf"
+    'llama2-7b-pure': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'meta-llama/Llama-2-7b-hf'
     },
 
-    "llama2-13b-pure": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "meta-llama/Llama-2-13b-hf"
+    'llama2-13b-pure': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'meta-llama/Llama-2-13b-hf'
     },
 
     # === Meta LLaMa-2 Chat Models ===
-    "llama2-7b-chat": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "meta-llama/Llama-2-7b-chat-hf"
+    'llama2-7b-chat': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'meta-llama/Llama-2-7b-chat-hf'
     },
 
-    "llama2-13b-chat": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "meta-llama/Llama-2-13b-chat-hf"
+    'llama2-13b-chat': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'meta-llama/Llama-2-13b-chat-hf'
     },
 
     # === Vicuna v1.5 Chat Models ===
-    "vicuna-v15-7b": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "lmsys/vicuna-7b-v1.5"
+    'vicuna-v15-7b': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'lmsys/vicuna-7b-v1.5'
     },
 
-    "vicuna-v15-13b": {
-        "llm_family": "llama2", "llm_cls": LlamaForCausalLM, "hf_hub_path": "lmsys/vicuna-13b-v1.5"
+    'vicuna-v15-13b': {
+        'llm_family': 'llama2', 'llm_cls': LlamaForCausalLM, 'hf_hub_path': 'lmsys/vicuna-13b-v1.5'
     },
 }
 # fmt: on
@@ -57,7 +73,7 @@ class LLaMa2LLMBackbone(HFCausalLLMBackbone):
         self,
         llm_backbone_id: str,
         llm_max_length: int = 2048,
-        hf_token: Optional[str] = None,
+        hf_token: str | None = None,
         inference_mode: bool = False,
         use_flash_attention_2: bool = True,
     ) -> None:
@@ -71,25 +87,25 @@ class LLaMa2LLMBackbone(HFCausalLLMBackbone):
         )
 
         # [Special Case] LLaMa-2 PAD Token Handling --> for clarity, we add an extra token (and resize)
-        self.tokenizer.add_special_tokens({"pad_token": "<PAD>"})
+        self.tokenizer.add_special_tokens({'pad_token': '<PAD>'})
         self.llm.config.pad_token_id = self.tokenizer.pad_token_id
         self.llm.resize_token_embeddings(len(self.tokenizer), pad_to_multiple_of=64)
 
     @property
-    def prompt_builder_fn(self) -> Type[PromptBuilder]:
-        if self.identifier.startswith("llama2-") and self.identifier.endswith("-pure"):
+    def prompt_builder_fn(self) -> type[PromptBuilder]:
+        if self.identifier.startswith('llama2-') and self.identifier.endswith('-pure'):
             return PurePromptBuilder
 
-        elif self.identifier.startswith("llama2-") and self.identifier.endswith("-chat"):
+        elif self.identifier.startswith('llama2-') and self.identifier.endswith('-chat'):
             return LLaMa2ChatPromptBuilder
 
-        elif self.identifier.startswith("vicuna"):
+        elif self.identifier.startswith('vicuna'):
             return VicunaV15ChatPromptBuilder
 
-        raise ValueError(f"No PromptBuilder defined for LLM Backbone `{self.identifier}`")
+        raise ValueError(f'No PromptBuilder defined for LLM Backbone `{self.identifier}`')
 
     @property
-    def transformer_layer_cls(self) -> Type[nn.Module]:
+    def transformer_layer_cls(self) -> type[nn.Module]:
         return LlamaDecoderLayer
 
     @property

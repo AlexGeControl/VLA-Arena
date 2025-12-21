@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +29,6 @@
 # limitations under the License.
 
 import pytest
-
 from lerobot.utils.encoding_utils import (
     decode_sign_magnitude,
     decode_twos_complement,
@@ -25,7 +38,7 @@ from lerobot.utils.encoding_utils import (
 
 
 @pytest.mark.parametrize(
-    "value, sign_bit_index, expected",
+    'value, sign_bit_index, expected',
     [
         (5, 4, 5),
         (0, 4, 0),
@@ -40,7 +53,7 @@ def test_encode_sign_magnitude(value, sign_bit_index, expected):
 
 
 @pytest.mark.parametrize(
-    "encoded, sign_bit_index, expected",
+    'encoded, sign_bit_index, expected',
     [
         (5, 4, 5),
         (0, 4, 0),
@@ -55,7 +68,7 @@ def test_decode_sign_magnitude(encoded, sign_bit_index, expected):
 
 
 @pytest.mark.parametrize(
-    "encoded, sign_bit_index",
+    'encoded, sign_bit_index',
     [
         (16, 4),
         (-9, 3),
@@ -72,11 +85,11 @@ def test_encode_decode_sign_magnitude():
         for value in range(-max_val, max_val + 1):
             encoded = encode_sign_magnitude(value, sign_bit_index)
             decoded = decode_sign_magnitude(encoded, sign_bit_index)
-            assert decoded == value, f"Failed at value={value}, index={sign_bit_index}"
+            assert decoded == value, f'Failed at value={value}, index={sign_bit_index}'
 
 
 @pytest.mark.parametrize(
-    "value, n_bytes, expected",
+    'value, n_bytes, expected',
     [
         (0, 1, 0),
         (5, 1, 5),
@@ -103,7 +116,7 @@ def test_encode_twos_complement(value, n_bytes, expected):
 
 
 @pytest.mark.parametrize(
-    "value, n_bytes, expected",
+    'value, n_bytes, expected',
     [
         (0, 1, 0),
         (5, 1, 5),
@@ -130,7 +143,7 @@ def test_decode_twos_complement(value, n_bytes, expected):
 
 
 @pytest.mark.parametrize(
-    "value, n_bytes",
+    'value, n_bytes',
     [
         (-129, 1),
         (128, 1),
@@ -146,7 +159,7 @@ def test_encode_twos_complement_out_of_range(value, n_bytes):
 
 
 @pytest.mark.parametrize(
-    "value, n_bytes",
+    'value, n_bytes',
     [
         (-128, 1),
         (-1, 1),
@@ -168,4 +181,4 @@ def test_encode_twos_complement_out_of_range(value, n_bytes):
 def test_encode_decode_twos_complement(value, n_bytes):
     encoded = encode_twos_complement(value, n_bytes)
     decoded = decode_twos_complement(encoded, n_bytes)
-    assert decoded == value, f"Failed at value={value}, n_bytes={n_bytes}"
+    assert decoded == value, f'Failed at value={value}, n_bytes={n_bytes}'

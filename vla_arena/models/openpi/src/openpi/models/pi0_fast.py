@@ -1,21 +1,35 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import dataclasses
 import logging
 from typing import Any
+from typing_extensions import override
 
 import einops
 import flax.nnx as nnx
 import flax.nnx.bridge as nnx_bridge
 import jax
 import jax.numpy as jnp
-from typing_extensions import override
-
-from openpi.models import model as _model
 import openpi.models.gemma_fast as _gemma
 import openpi.models.siglip as _siglip
-from openpi.shared import array_typing as at
 import openpi.shared.nnx_utils as nnx_utils
+from openpi.models import model as _model
+from openpi.shared import array_typing as at
 
-logger = logging.getLogger("openpi")
+
+logger = logging.getLogger('openpi')
 
 PALIGEMMA_EOS_TOKEN = 1
 
@@ -68,15 +82,15 @@ def put_along_last_axis(arr, indices, values):
     """Like np.put_along_axis(..., axis=-1), since jax is missing it."""
     assert arr.ndim == indices.ndim == values.ndim, (arr.ndim, indices.ndim, values.ndim)
     onehot = jax.nn.one_hot(indices, arr.shape[-1], dtype=values.dtype)
-    put_mask = jnp.einsum("...i,...in->...n", jnp.ones(values.shape, jnp.int32), onehot)
-    put_values = jnp.einsum("...i,...in->...n", values, onehot)
+    put_mask = jnp.einsum('...i,...in->...n', jnp.ones(values.shape, jnp.int32), onehot)
+    put_values = jnp.einsum('...i,...in->...n', values, onehot)
     return jnp.where(put_mask, put_values, arr)
 
 
 @dataclasses.dataclass(frozen=True)
 class Pi0FASTConfig(_model.BaseModelConfig):
-    dtype: str = "bfloat16"
-    paligemma_variant: _gemma.Variant = "gemma_2b"
+    dtype: str = 'bfloat16'
+    paligemma_variant: _gemma.Variant = 'gemma_2b'
 
     # Set the model specific defaults.
     action_dim: int = 32
@@ -94,7 +108,7 @@ class Pi0FASTConfig(_model.BaseModelConfig):
         return _model.ModelType.PI0_FAST
 
     @override
-    def create(self, rng: at.KeyArrayLike) -> "Pi0FAST":
+    def create(self, rng: at.KeyArrayLike) -> 'Pi0FAST':
         return Pi0FAST(self, rngs=nnx.Rngs(rng))
 
     @override
@@ -105,14 +119,14 @@ class Pi0FASTConfig(_model.BaseModelConfig):
         with at.disable_typechecking():
             observation_spec = _model.Observation(
                 images={
-                    "base_0_rgb": image_spec,
-                    "base_1_rgb": image_spec,
-                    "wrist_0_rgb": image_spec,
+                    'base_0_rgb': image_spec,
+                    'base_1_rgb': image_spec,
+                    'wrist_0_rgb': image_spec,
                 },
                 image_masks={
-                    "base_0_rgb": image_mask_spec,
-                    "base_1_rgb": image_mask_spec,
-                    "wrist_0_rgb": image_mask_spec,
+                    'base_0_rgb': image_mask_spec,
+                    'base_1_rgb': image_mask_spec,
+                    'wrist_0_rgb': image_mask_spec,
                 },
                 state=jax.ShapeDtypeStruct([batch_size, self.action_dim], jnp.float32),
                 tokenized_prompt=jax.ShapeDtypeStruct([batch_size, self.max_token_len], jnp.int32),
@@ -120,14 +134,16 @@ class Pi0FASTConfig(_model.BaseModelConfig):
                 token_ar_mask=jax.ShapeDtypeStruct([batch_size, self.max_token_len], jnp.int32),
                 token_loss_mask=jax.ShapeDtypeStruct([batch_size, self.max_token_len], jnp.bool_),
             )
-        action_spec = jax.ShapeDtypeStruct([batch_size, self.action_horizon, self.action_dim], jnp.float32)
+        action_spec = jax.ShapeDtypeStruct(
+            [batch_size, self.action_horizon, self.action_dim], jnp.float32
+        )
 
         return observation_spec, action_spec
 
     def get_freeze_filter(self) -> nnx.filterlib.Filter:
         """Returns the freeze filter based on the model config."""
-        if "lora" in self.paligemma_variant:
-            return nnx.All(nnx_utils.PathRegex(".*llm.*"), nnx.Not(nnx_utils.PathRegex(".*lora.*")))
+        if 'lora' in self.paligemma_variant:
+            return nnx.All(nnx_utils.PathRegex('.*llm.*'), nnx.Not(nnx_utils.PathRegex('.*lora.*')))
         return nnx.Nothing
 
 
@@ -143,12 +159,12 @@ class Pi0FAST(_model.BaseModel):
                 cache_dtype=config.dtype,
             )
         )
-        llm.lazy_init(rngs=rngs, method="init")
+        llm.lazy_init(rngs=rngs, method='init')
         img = nnx_bridge.ToNNX(
             _siglip.Module(
                 num_classes=paligemma_config.width,
-                variant="So400m/14",
-                pool_type="none",
+                variant='So400m/14',
+                pool_type='none',
                 scan=True,
                 dtype_mm=config.dtype,
             )
@@ -159,7 +175,7 @@ class Pi0FAST(_model.BaseModel):
     @at.typecheck
     def embed_inputs(
         self, obs: _model.Observation
-    ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Int[at.Array, "b s"]]:
+    ) -> tuple[at.Float[at.Array, 'b s emb'], at.Bool[at.Array, 'b s'], at.Int[at.Array, 'b s']]:
         input_mask = []
         ar_mask = []
         token_embeddings = []
@@ -171,7 +187,7 @@ class Pi0FAST(_model.BaseModel):
             input_mask.append(
                 einops.repeat(
                     obs.image_masks[name],
-                    "b -> b s",
+                    'b -> b s',
                     s=image_token_embeddings.shape[1],
                 )
             )
@@ -179,9 +195,9 @@ class Pi0FAST(_model.BaseModel):
             ar_mask.append(0 * input_mask[-1])
 
         # add tokenized inputs
-        assert obs.tokenized_prompt is not None, "Tokenized prompt is required"
-        assert obs.tokenized_prompt_mask is not None, "Tokenized prompt mask is required"
-        assert obs.token_ar_mask is not None, "Token auto-regressive mask is required"
+        assert obs.tokenized_prompt is not None, 'Tokenized prompt is required'
+        assert obs.tokenized_prompt_mask is not None, 'Tokenized prompt mask is required'
+        assert obs.token_ar_mask is not None, 'Token auto-regressive mask is required'
         tokenized_inputs_embeddings = self.PaliGemma.llm(obs.tokenized_prompt, embed_only=True)
         token_embeddings.append(tokenized_inputs_embeddings)
         input_mask.append(obs.tokenized_prompt_mask)
@@ -196,8 +212,13 @@ class Pi0FAST(_model.BaseModel):
 
     @override
     def compute_loss(
-        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
-    ) -> at.Float[at.Array, "*b ah"]:
+        self,
+        rng: at.KeyArrayLike,
+        observation: _model.Observation,
+        actions: _model.Actions,
+        *,
+        train: bool = False,
+    ) -> at.Float[at.Array, '*b ah']:
         observation = _model.preprocess_observation(
             rng, observation, train=train, image_keys=list(observation.images.keys())
         )
@@ -227,7 +248,7 @@ class Pi0FAST(_model.BaseModel):
         logp = jax.nn.log_softmax(logits, axis=-1)
 
         # Compute CE loss on token targets
-        assert observation.token_loss_mask is not None, "Token loss mask is required"
+        assert observation.token_loss_mask is not None, 'Token loss mask is required'
         loss_mask = observation.token_loss_mask[:, 1:]
         token_pplx = jnp.sum(targets * logp, axis=-1)
         return -jnp.sum(token_pplx * loss_mask, axis=-1) / jnp.clip(jnp.sum(loss_mask, -1), 1)
@@ -238,7 +259,7 @@ class Pi0FAST(_model.BaseModel):
         rng: at.KeyArrayLike,
         observation: _model.Observation,
         *,
-        max_decoding_steps: int | at.Int[at.Array, ""] = 256,
+        max_decoding_steps: int | at.Int[at.Array, ''] = 256,
         temperature: float = 0.0,
     ) -> _model.Actions:
         # TODO: this is a hack to get the image keys.
@@ -263,7 +284,10 @@ class Pi0FAST(_model.BaseModel):
         prefix_attn_mask = jnp.pad(prefix_attn_mask, ((0, 0), (0, 0), (0, max_decoding_steps)))
         prefix_positions = jnp.cumsum(prefix_mask, axis=-1) - 1
         prefix_logits, kv_cache, _ = self.PaliGemma.llm(
-            embedded_prefix=prefix_token_embeddings, mask=prefix_attn_mask, positions=prefix_positions, decode=True
+            embedded_prefix=prefix_token_embeddings,
+            mask=prefix_attn_mask,
+            positions=prefix_positions,
+            decode=True,
         )
 
         # prepare decoding -- final logit decodes the first token
@@ -282,7 +306,9 @@ class Pi0FAST(_model.BaseModel):
                 lambda _: jnp.argmax(last_logit, axis=-1),
                 operand=None,
             )
-            output_tokens = put_along_last_axis(output_tokens, jnp.broadcast_to(step, (token.shape[0], 1)), token)
+            output_tokens = put_along_last_axis(
+                output_tokens, jnp.broadcast_to(step, (token.shape[0], 1)), token
+            )
 
             # Check for early stopping --> stop if all batch elements have EOS token
             has_eos = jnp.any(token == PALIGEMMA_EOS_TOKEN, axis=-1)
@@ -292,12 +318,17 @@ class Pi0FAST(_model.BaseModel):
             token_embedding = self.PaliGemma.llm(token, embed_only=True)
             positions = prefill_len[:, None] + step + 1
             mask = jnp.logical_and(
-                jnp.arange(prefill_size + max_decoding_steps)[None, None, :] >= prefix_start[:, None, None],
+                jnp.arange(prefill_size + max_decoding_steps)[None, None, :]
+                >= prefix_start[:, None, None],
                 jnp.arange(prefill_size + max_decoding_steps)[None, None, :]
                 < (jnp.broadcast_to(prefill_size + step + 1, (prefix_start.shape[0], 1, 1))),
             )
             last_logit, kv_cache, _ = self.PaliGemma.llm(
-                embedded_prefix=token_embedding, mask=mask, positions=positions, decode=True, kv_cache=cache
+                embedded_prefix=token_embedding,
+                mask=mask,
+                positions=positions,
+                decode=True,
+                kv_cache=cache,
             )
 
             return rng, last_logit, output_tokens, kv_cache, all_eos, step + 1

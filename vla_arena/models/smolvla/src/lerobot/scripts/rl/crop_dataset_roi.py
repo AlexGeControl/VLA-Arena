@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,9 +36,8 @@ from pathlib import Path
 import cv2
 import torch
 import torchvision.transforms.functional as F  # type: ignore  # noqa: N812
-from tqdm import tqdm  # type: ignore
-
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from tqdm import tqdm  # type: ignore
 
 
 def select_rect_roi(img):
@@ -68,7 +81,7 @@ def select_rect_roi(img):
                 # Show a temporary image with the current rectangle drawn
                 temp = working_img.copy()
                 cv2.rectangle(temp, (left, top), (right, bottom), (0, 255, 0), 2)
-                cv2.imshow("Select ROI", temp)
+                cv2.imshow('Select ROI', temp)
 
         elif event == cv2.EVENT_LBUTTONUP:
             # Finish drawing
@@ -83,36 +96,36 @@ def select_rect_roi(img):
             # Draw the final rectangle on the working image and display it
             working_img = clone.copy()
             cv2.rectangle(working_img, (left, top), (right, bottom), (0, 255, 0), 2)
-            cv2.imshow("Select ROI", working_img)
+            cv2.imshow('Select ROI', working_img)
 
     # Create the window and set the callback
-    cv2.namedWindow("Select ROI")
-    cv2.setMouseCallback("Select ROI", mouse_callback)
-    cv2.imshow("Select ROI", working_img)
+    cv2.namedWindow('Select ROI')
+    cv2.setMouseCallback('Select ROI', mouse_callback)
+    cv2.imshow('Select ROI', working_img)
 
-    print("Instructions for ROI selection:")
-    print("  - Click and drag to draw a rectangular ROI.")
+    print('Instructions for ROI selection:')
+    print('  - Click and drag to draw a rectangular ROI.')
     print("  - Press 'c' to confirm the selection.")
     print("  - Press 'r' to reset and draw again.")
-    print("  - Press ESC to cancel the selection.")
+    print('  - Press ESC to cancel the selection.')
 
     # Wait until the user confirms with 'c', resets with 'r', or cancels with ESC
     while True:
         key = cv2.waitKey(1) & 0xFF
         # Confirm ROI if one has been drawn
-        if key == ord("c") and roi is not None:
+        if key == ord('c') and roi is not None:
             break
         # Reset: clear the ROI and restore the original image
-        elif key == ord("r"):
+        elif key == ord('r'):
             working_img = clone.copy()
             roi = None
-            cv2.imshow("Select ROI", working_img)
+            cv2.imshow('Select ROI', working_img)
         # Cancel selection for this image
         elif key == 27:  # ESC key
             roi = None
             break
 
-    cv2.destroyWindow("Select ROI")
+    cv2.destroyWindow('Select ROI')
     return roi
 
 
@@ -154,7 +167,7 @@ def get_image_from_lerobot_dataset(dataset: LeRobotDataset):
     row = dataset[0]
     image_dict = {}
     for k in row:
-        if "image" in k:
+        if 'image' in k:
             image_dict[k] = deepcopy(row[k])
     return image_dict
 
@@ -166,7 +179,7 @@ def convert_lerobot_dataset_to_cropper_lerobot_dataset(
     new_dataset_root: str,
     resize_size: tuple[int, int] = (128, 128),
     push_to_hub: bool = False,
-    task: str = "",
+    task: str = '',
 ) -> LeRobotDataset:
     """
     Converts an existing LeRobotDataset by iterating over its episodes and frames,
@@ -192,15 +205,15 @@ def convert_lerobot_dataset_to_cropper_lerobot_dataset(
         fps=original_dataset.fps,
         root=new_dataset_root,
         robot_type=original_dataset.meta.robot_type,
-        features=original_dataset.meta.info["features"],
+        features=original_dataset.meta.info['features'],
         use_videos=len(original_dataset.meta.video_keys) > 0,
     )
 
     # Update the metadata for every image key that will be cropped:
     # (Here we simply set the shape to be the final resize_size.)
     for key in crop_params_dict:
-        if key in new_dataset.meta.info["features"]:
-            new_dataset.meta.info["features"][key]["shape"] = [3] + list(resize_size)
+        if key in new_dataset.meta.info['features']:
+            new_dataset.meta.info['features'][key]['shape'] = [3] + list(resize_size)
 
     # TODO:  Directly modify the mp4 video + meta info features, instead of recreating a dataset
     prev_episode_index = 0
@@ -210,9 +223,9 @@ def convert_lerobot_dataset_to_cropper_lerobot_dataset(
         # Create a copy of the frame to add to the new dataset
         new_frame = {}
         for key, value in frame.items():
-            if key in ("task_index", "timestamp", "episode_index", "frame_index", "index", "task"):
+            if key in ('task_index', 'timestamp', 'episode_index', 'frame_index', 'index', 'task'):
                 continue
-            if key in ("next.done", "next.reward"):
+            if key in ('next.done', 'next.reward'):
                 # if not isinstance(value, str) and len(value.shape) == 0:
                 value = value.unsqueeze(0)
 
@@ -222,16 +235,20 @@ def convert_lerobot_dataset_to_cropper_lerobot_dataset(
                 cropped = F.crop(value, top, left, height, width)
                 value = F.resize(cropped, resize_size)
                 value = value.clamp(0, 1)
-            if key.startswith("complementary_info") and isinstance(value, torch.Tensor) and value.dim() == 0:
+            if (
+                key.startswith('complementary_info')
+                and isinstance(value, torch.Tensor)
+                and value.dim() == 0
+            ):
                 value = value.unsqueeze(0)
             new_frame[key] = value
 
         new_dataset.add_frame(new_frame, task=task)
 
-        if frame["episode_index"].item() != prev_episode_index:
+        if frame['episode_index'].item() != prev_episode_index:
             # Save the episode
             new_dataset.save_episode()
-            prev_episode_index = frame["episode_index"].item()
+            prev_episode_index = frame['episode_index'].item()
 
     # Save the last episode
     new_dataset.save_episode()
@@ -242,36 +259,36 @@ def convert_lerobot_dataset_to_cropper_lerobot_dataset(
     return new_dataset
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Crop rectangular ROIs from a LeRobot dataset.")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Crop rectangular ROIs from a LeRobot dataset.')
     parser.add_argument(
-        "--repo-id",
+        '--repo-id',
         type=str,
-        default="lerobot",
-        help="The repository id of the LeRobot dataset to process.",
+        default='lerobot',
+        help='The repository id of the LeRobot dataset to process.',
     )
     parser.add_argument(
-        "--root",
-        type=str,
-        default=None,
-        help="The root directory of the LeRobot dataset.",
-    )
-    parser.add_argument(
-        "--crop-params-path",
+        '--root',
         type=str,
         default=None,
-        help="The path to the JSON file containing the ROIs.",
+        help='The root directory of the LeRobot dataset.',
     )
     parser.add_argument(
-        "--push-to-hub",
-        action="store_true",
-        help="Whether to push the new dataset to the hub.",
-    )
-    parser.add_argument(
-        "--task",
+        '--crop-params-path',
         type=str,
-        default="",
-        help="The natural language task to describe the dataset.",
+        default=None,
+        help='The path to the JSON file containing the ROIs.',
+    )
+    parser.add_argument(
+        '--push-to-hub',
+        action='store_true',
+        help='Whether to push the new dataset to the hub.',
+    )
+    parser.add_argument(
+        '--task',
+        type=str,
+        default='',
+        help='The natural language task to describe the dataset.',
     )
     args = parser.parse_args()
 
@@ -279,7 +296,7 @@ if __name__ == "__main__":
 
     images = get_image_from_lerobot_dataset(dataset)
     images = {k: v.cpu().permute(1, 2, 0).numpy() for k, v in images.items()}
-    images = {k: (v * 255).astype("uint8") for k, v in images.items()}
+    images = {k: (v * 255).astype('uint8') for k, v in images.items()}
 
     if args.crop_params_path is None:
         rois = select_square_roi_for_images(images)
@@ -288,12 +305,12 @@ if __name__ == "__main__":
             rois = json.load(f)
 
     # Print the selected rectangular ROIs
-    print("\nSelected Rectangular Regions of Interest (top, left, height, width):")
+    print('\nSelected Rectangular Regions of Interest (top, left, height, width):')
     for key, roi in rois.items():
-        print(f"{key}: {roi}")
+        print(f'{key}: {roi}')
 
-    new_repo_id = args.repo_id + "_cropped_resized"
-    new_dataset_root = Path(str(dataset.root) + "_cropped_resized")
+    new_repo_id = args.repo_id + '_cropped_resized'
+    new_dataset_root = Path(str(dataset.root) + '_cropped_resized')
 
     cropped_resized_dataset = convert_lerobot_dataset_to_cropper_lerobot_dataset(
         original_dataset=dataset,
@@ -305,8 +322,8 @@ if __name__ == "__main__":
         task=args.task,
     )
 
-    meta_dir = new_dataset_root / "meta"
+    meta_dir = new_dataset_root / 'meta'
     meta_dir.mkdir(exist_ok=True)
 
-    with open(meta_dir / "crop_params.json", "w") as f:
+    with open(meta_dir / 'crop_params.json', 'w') as f:
         json.dump(rois, f, indent=4)

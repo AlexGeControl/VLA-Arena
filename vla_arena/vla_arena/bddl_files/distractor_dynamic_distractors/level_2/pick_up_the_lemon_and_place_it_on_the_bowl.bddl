@@ -65,4 +65,3 @@
     (And (InContact lemon_1 toy_motorbike_1) (CheckGripperContact toy_motorbike_1))
   )
 )
-

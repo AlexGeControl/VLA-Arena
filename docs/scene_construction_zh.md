@@ -56,7 +56,7 @@ define (problem Tabletop_Manipulation) ; 从 "Tabletop_Manipulation" 和 "Floor_
 - `ranges` : 目标坐标系中的 XY 平面范围，格式为`(x_min y_min x_max y_max)`
 - `yaw_rotation`(可选) : 区域的旋转角度（仅对`fixtures`有效）
 
-### 1.3 对象定义 
+### 1.3 对象定义
 
 #### 固定对象
 环境中不会移动的对象：
@@ -86,7 +86,7 @@ define (problem Tabletop_Manipulation) ; 从 "Tabletop_Manipulation" 和 "Floor_
 ```
 
 #### 移动对象
-定义在场景中自主移动的对象，支持多种运动模式： 
+定义在场景中自主移动的对象，支持多种运动模式：
 
 ```lisp
 (:moving_objects

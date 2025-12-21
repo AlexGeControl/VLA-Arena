@@ -8,7 +8,7 @@ elif command -v python &> /dev/null; then
         export LD_LIBRARY_PATH="$CUDNN_PATH:$LD_LIBRARY_PATH"
     fi
 fi
-GPUS_PER_NODE=8  
+GPUS_PER_NODE=8
 NNODES=4
 MASTER_PORT=${MASTER_PORT:-28596}
 MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}

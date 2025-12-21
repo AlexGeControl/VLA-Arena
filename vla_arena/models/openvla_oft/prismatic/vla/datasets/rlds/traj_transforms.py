@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 traj_transforms.py
 
@@ -11,7 +25,7 @@ from typing import Dict
 import tensorflow as tf
 
 
-def chunk_act_obs(traj: Dict, window_size: int, future_action_window_size: int = 0) -> Dict:
+def chunk_act_obs(traj: dict, window_size: int, future_action_window_size: int = 0) -> dict:
     """
     Chunks actions and observations into the given window_size.
 
@@ -22,12 +36,12 @@ def chunk_act_obs(traj: Dict, window_size: int, future_action_window_size: int =
     indicates whether an observation should be considered padding (i.e. if it had come from a timestep
     before the start of the trajectory).
     """
-    traj_len = tf.shape(traj["action"])[0]
-    action_dim = traj["action"].shape[-1]
+    traj_len = tf.shape(traj['action'])[0]
+    action_dim = traj['action'].shape[-1]
     effective_traj_len = traj_len - future_action_window_size
-    chunk_indices = tf.broadcast_to(tf.range(-window_size + 1, 1), [effective_traj_len, window_size]) + tf.broadcast_to(
-        tf.range(effective_traj_len)[:, None], [effective_traj_len, window_size]
-    )
+    chunk_indices = tf.broadcast_to(
+        tf.range(-window_size + 1, 1), [effective_traj_len, window_size]
+    ) + tf.broadcast_to(tf.range(effective_traj_len)[:, None], [effective_traj_len, window_size])
 
     action_chunk_indices = tf.broadcast_to(
         tf.range(-window_size + 1, 1 + future_action_window_size),
@@ -41,25 +55,33 @@ def chunk_act_obs(traj: Dict, window_size: int, future_action_window_size: int =
 
     goal_timestep = tf.fill([effective_traj_len], traj_len - 1)
 
-    floored_action_chunk_indices = tf.minimum(tf.maximum(action_chunk_indices, 0), goal_timestep[:, None])
+    floored_action_chunk_indices = tf.minimum(
+        tf.maximum(action_chunk_indices, 0), goal_timestep[:, None]
+    )
 
-    traj["observation"] = tf.nest.map_structure(lambda x: tf.gather(x, floored_chunk_indices), traj["observation"])
-    traj["action"] = tf.gather(traj["action"], floored_action_chunk_indices)
+    traj['observation'] = tf.nest.map_structure(
+        lambda x: tf.gather(x, floored_chunk_indices), traj['observation']
+    )
+    traj['action'] = tf.gather(traj['action'], floored_action_chunk_indices)
 
     # indicates whether an entire observation is padding
-    traj["observation"]["pad_mask"] = chunk_indices >= 0
+    traj['observation']['pad_mask'] = chunk_indices >= 0
 
     # Truncate other elements of the trajectory dict
-    traj["task"] = tf.nest.map_structure(lambda x: tf.gather(x, tf.range(effective_traj_len)), traj["task"])
-    traj["dataset_name"] = tf.gather(traj["dataset_name"], tf.range(effective_traj_len))
-    traj["absolute_action_mask"] = tf.gather(traj["absolute_action_mask"], tf.range(effective_traj_len))
+    traj['task'] = tf.nest.map_structure(
+        lambda x: tf.gather(x, tf.range(effective_traj_len)), traj['task']
+    )
+    traj['dataset_name'] = tf.gather(traj['dataset_name'], tf.range(effective_traj_len))
+    traj['absolute_action_mask'] = tf.gather(
+        traj['absolute_action_mask'], tf.range(effective_traj_len)
+    )
 
     return traj
 
 
-def subsample(traj: Dict, subsample_length: int) -> Dict:
+def subsample(traj: dict, subsample_length: int) -> dict:
     """Subsamples trajectories to the given length."""
-    traj_len = tf.shape(traj["action"])[0]
+    traj_len = tf.shape(traj['action'])[0]
     if traj_len > subsample_length:
         indices = tf.random.shuffle(tf.range(traj_len))[:subsample_length]
         traj = tf.nest.map_structure(lambda x: tf.gather(x, indices), traj)
@@ -67,14 +89,14 @@ def subsample(traj: Dict, subsample_length: int) -> Dict:
     return traj
 
 
-def add_pad_mask_dict(traj: Dict) -> Dict:
+def add_pad_mask_dict(traj: dict) -> dict:
     """
     Adds a dictionary indicating which elements of the observation/task should be treated as padding.
         =>> traj["observation"|"task"]["pad_mask_dict"] = {k: traj["observation"|"task"][k] is not padding}
     """
-    traj_len = tf.shape(traj["action"])[0]
+    traj_len = tf.shape(traj['action'])[0]
 
-    for key in ["observation", "task"]:
+    for key in ['observation', 'task']:
         pad_mask_dict = {}
         for subkey in traj[key]:
             # Handles "language_instruction", "image_*", and "depth_*"
@@ -85,6 +107,6 @@ def add_pad_mask_dict(traj: Dict) -> Dict:
             else:
                 pad_mask_dict[subkey] = tf.ones([traj_len], dtype=tf.bool)
 
-        traj[key]["pad_mask_dict"] = pad_mask_dict
+        traj[key]['pad_mask_dict'] = pad_mask_dict
 
     return traj

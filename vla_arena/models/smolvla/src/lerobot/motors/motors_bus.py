@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,10 +44,10 @@ from typing import Protocol, TypeAlias
 
 import serial
 from deepdiff import DeepDiff
-from tqdm import tqdm
-
 from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from lerobot.utils.utils import enter_pressed, move_cursor_up
+from tqdm import tqdm
+
 
 NameOrID: TypeAlias = str | int
 Value: TypeAlias = int | float
@@ -44,7 +58,7 @@ logger = logging.getLogger(__name__)
 def get_ctrl_table(model_ctrl_table: dict[str, dict], model: str) -> dict[str, tuple[int, int]]:
     ctrl_table = model_ctrl_table.get(model)
     if ctrl_table is None:
-        raise KeyError(f"Control table for {model=} not found.")
+        raise KeyError(f'Control table for {model=} not found.')
     return ctrl_table
 
 
@@ -56,7 +70,9 @@ def get_address(model_ctrl_table: dict[str, dict], model: str, data_name: str) -
     return addr_bytes
 
 
-def assert_same_address(model_ctrl_table: dict[str, dict], motor_models: list[str], data_name: str) -> None:
+def assert_same_address(
+    model_ctrl_table: dict[str, dict], motor_models: list[str], data_name: str
+) -> None:
     all_addr = []
     all_bytes = []
     for model in motor_models:
@@ -67,20 +83,20 @@ def assert_same_address(model_ctrl_table: dict[str, dict], motor_models: list[st
     if len(set(all_addr)) != 1:
         raise NotImplementedError(
             f"At least two motor models use a different address for `data_name`='{data_name}'"
-            f"({list(zip(motor_models, all_addr, strict=False))})."
+            f'({list(zip(motor_models, all_addr, strict=False))}).'
         )
 
     if len(set(all_bytes)) != 1:
         raise NotImplementedError(
             f"At least two motor models use a different bytes representation for `data_name`='{data_name}'"
-            f"({list(zip(motor_models, all_bytes, strict=False))})."
+            f'({list(zip(motor_models, all_bytes, strict=False))}).'
         )
 
 
 class MotorNormMode(str, Enum):
-    RANGE_0_100 = "range_0_100"
-    RANGE_M100_100 = "range_m100_100"
-    DEGREES = "degrees"
+    RANGE_0_100 = 'range_0_100'
+    RANGE_M100_100 = 'range_m100_100'
+    DEGREES = 'degrees'
 
 
 @dataclass
@@ -100,7 +116,7 @@ class Motor:
 
 
 class JointOutOfRangeError(Exception):
-    def __init__(self, message="Joint is out of range"):
+    def __init__(self, message='Joint is out of range'):
         self.message = message
         super().__init__(self.message)
 
@@ -288,9 +304,9 @@ class MotorsBus(abc.ABC):
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}(\n"
+            f'{self.__class__.__name__}(\n'
             f"    Port: '{self.port}',\n"
-            f"    Motors: \n{pformat(self.motors, indent=8, sort_dicts=False)},\n"
+            f'    Motors: \n{pformat(self.motors, indent=8, sort_dicts=False)},\n'
             ")',\n"
         )
 
@@ -301,7 +317,8 @@ class MotorsBus(abc.ABC):
 
         first_table = self.model_ctrl_table[self.models[0]]
         return any(
-            DeepDiff(first_table, get_ctrl_table(self.model_ctrl_table, model)) for model in self.models[1:]
+            DeepDiff(first_table, get_ctrl_table(self.model_ctrl_table, model))
+            for model in self.models[1:]
         )
 
     @cached_property
@@ -357,7 +374,7 @@ class MotorsBus(abc.ABC):
 
     def _validate_motors(self) -> None:
         if len(self.ids) != len(set(self.ids)):
-            raise ValueError(f"Some motors have the same id!\n{self}")
+            raise ValueError(f'Some motors have the same id!\n{self}')
 
         # Ensure ctrl table available for all models
         for model in self.models:
@@ -389,24 +406,24 @@ class MotorsBus(abc.ABC):
             error_lines = [f"{self.__class__.__name__} motor check failed on port '{self.port}':"]
 
             if missing_ids:
-                error_lines.append("\nMissing motor IDs:")
+                error_lines.append('\nMissing motor IDs:')
                 error_lines.extend(
-                    f"  - {id_} (expected model: {expected_models[id_]})" for id_ in missing_ids
+                    f'  - {id_} (expected model: {expected_models[id_]})' for id_ in missing_ids
                 )
 
             if wrong_models:
-                error_lines.append("\nMotors with incorrect model numbers:")
+                error_lines.append('\nMotors with incorrect model numbers:')
                 error_lines.extend(
-                    f"  - {id_} ({self._id_to_name(id_)}): expected {expected}, found {found}"
+                    f'  - {id_} ({self._id_to_name(id_)}): expected {expected}, found {found}'
                     for id_, (expected, found) in wrong_models.items()
                 )
 
-            error_lines.append("\nFull expected motor list (id: model_number):")
+            error_lines.append('\nFull expected motor list (id: model_number):')
             error_lines.append(pformat(expected_models, indent=4, sort_dicts=False))
-            error_lines.append("\nFull found motor list (id: model_number):")
+            error_lines.append('\nFull found motor list (id: model_number):')
             error_lines.append(pformat(found_models, indent=4, sort_dicts=False))
 
-            raise RuntimeError("\n".join(error_lines))
+            raise RuntimeError('\n'.join(error_lines))
 
     @abc.abstractmethod
     def _assert_protocol_is_compatible(self, instruction_name: str) -> None:
@@ -435,7 +452,7 @@ class MotorsBus(abc.ABC):
 
         self._connect(handshake)
         self.set_timeout()
-        logger.debug(f"{self.__class__.__name__} connected.")
+        logger.debug(f'{self.__class__.__name__} connected.')
 
     def _connect(self, handshake: bool = True) -> None:
         try:
@@ -446,7 +463,7 @@ class MotorsBus(abc.ABC):
         except (FileNotFoundError, OSError, serial.SerialException) as e:
             raise ConnectionError(
                 f"\nCould not connect on port '{self.port}'. Make sure you are using the correct port."
-                "\nTry running `lerobot-find-port`\n"
+                '\nTry running `lerobot-find-port`\n'
             ) from e
 
     @abc.abstractmethod
@@ -472,7 +489,7 @@ class MotorsBus(abc.ABC):
             self.disable_torque(num_retry=5)
 
         self.port_handler.closePort()
-        logger.debug(f"{self.__class__.__name__} disconnected.")
+        logger.debug(f'{self.__class__.__name__} disconnected.')
 
     @classmethod
     def scan_port(cls, port: str, *args, **kwargs) -> dict[int, list[int]]:
@@ -489,11 +506,11 @@ class MotorsBus(abc.ABC):
         bus = cls(port, {}, *args, **kwargs)
         bus._connect(handshake=False)
         baudrate_ids = {}
-        for baudrate in tqdm(bus.available_baudrates, desc="Scanning port"):
+        for baudrate in tqdm(bus.available_baudrates, desc='Scanning port'):
             bus.set_baudrate(baudrate)
             ids_models = bus.broadcast_ping()
             if ids_models:
-                tqdm.write(f"Motors found for {baudrate=}: {pformat(ids_models, indent=4)}")
+                tqdm.write(f'Motors found for {baudrate=}: {pformat(ids_models, indent=4)}')
                 baudrate_ids[baudrate] = list(ids_models)
 
         bus.port_handler.closePort()
@@ -533,11 +550,11 @@ class MotorsBus(abc.ABC):
         self._disable_torque(initial_id, model)
 
         # Set ID
-        addr, length = get_address(self.model_ctrl_table, model, "ID")
+        addr, length = get_address(self.model_ctrl_table, model, 'ID')
         self._write(addr, length, initial_id, target_id)
 
         # Set Baudrate
-        addr, length = get_address(self.model_ctrl_table, model, "Baud_Rate")
+        addr, length = get_address(self.model_ctrl_table, model, 'Baud_Rate')
         baudrate_value = self.model_baudrate_table[model][self.default_baudrate]
         self._write(addr, length, target_id, baudrate_value)
 
@@ -557,7 +574,9 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def disable_torque(self, motors: int | str | list[str] | None = None, num_retry: int = 0) -> None:
+    def disable_torque(
+        self, motors: int | str | list[str] | None = None, num_retry: int = 0
+    ) -> None:
         """Disable torque on selected motors.
 
         Disabling Torque allows to write to the motors' permanent memory area (EPROM/EEPROM).
@@ -631,11 +650,11 @@ class MotorsBus(abc.ABC):
         """
         present_bus_baudrate = self.port_handler.getBaudRate()
         if present_bus_baudrate != baudrate:
-            logger.info(f"Setting bus baud rate to {baudrate}. Previously {present_bus_baudrate}.")
+            logger.info(f'Setting bus baud rate to {baudrate}. Previously {present_bus_baudrate}.')
             self.port_handler.setBaudRate(baudrate)
 
             if self.port_handler.getBaudRate() != baudrate:
-                raise RuntimeError("Failed to write bus baud rate.")
+                raise RuntimeError('Failed to write bus baud rate.')
 
     @property
     @abc.abstractmethod
@@ -653,7 +672,9 @@ class MotorsBus(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def write_calibration(self, calibration_dict: dict[str, MotorCalibration], cache: bool = True) -> None:
+    def write_calibration(
+        self, calibration_dict: dict[str, MotorCalibration], cache: bool = True
+    ) -> None:
         """Write calibration parameters to the motors and optionally cache them.
 
         Args:
@@ -683,13 +704,15 @@ class MotorsBus(abc.ABC):
         for motor in motors:
             model = self._get_motor_model(motor)
             max_res = self.model_resolution_table[model] - 1
-            self.write("Homing_Offset", motor, 0, normalize=False)
-            self.write("Min_Position_Limit", motor, 0, normalize=False)
-            self.write("Max_Position_Limit", motor, max_res, normalize=False)
+            self.write('Homing_Offset', motor, 0, normalize=False)
+            self.write('Min_Position_Limit', motor, 0, normalize=False)
+            self.write('Max_Position_Limit', motor, max_res, normalize=False)
 
         self.calibration = {}
 
-    def set_half_turn_homings(self, motors: NameOrID | list[NameOrID] | None = None) -> dict[NameOrID, Value]:
+    def set_half_turn_homings(
+        self, motors: NameOrID | list[NameOrID] | None = None
+    ) -> dict[NameOrID, Value]:
         """Centre each motor range around its current position.
 
         The function computes and writes a homing offset such that the present position becomes exactly one
@@ -709,10 +732,10 @@ class MotorsBus(abc.ABC):
             raise TypeError(motors)
 
         self.reset_calibration(motors)
-        actual_positions = self.sync_read("Present_Position", motors, normalize=False)
+        actual_positions = self.sync_read('Present_Position', motors, normalize=False)
         homing_offsets = self._get_half_turn_homings(actual_positions)
         for motor, offset in homing_offsets.items():
-            self.write("Homing_Offset", motor, offset)
+            self.write('Homing_Offset', motor, offset)
 
         return homing_offsets
 
@@ -744,21 +767,23 @@ class MotorsBus(abc.ABC):
         elif not isinstance(motors, list):
             raise TypeError(motors)
 
-        start_positions = self.sync_read("Present_Position", motors, normalize=False)
+        start_positions = self.sync_read('Present_Position', motors, normalize=False)
         mins = start_positions.copy()
         maxes = start_positions.copy()
 
         user_pressed_enter = False
         while not user_pressed_enter:
-            positions = self.sync_read("Present_Position", motors, normalize=False)
+            positions = self.sync_read('Present_Position', motors, normalize=False)
             mins = {motor: min(positions[motor], min_) for motor, min_ in mins.items()}
             maxes = {motor: max(positions[motor], max_) for motor, max_ in maxes.items()}
 
             if display_values:
-                print("\n-------------------------------------------")
+                print('\n-------------------------------------------')
                 print(f"{'NAME':<15} | {'MIN':>6} | {'POS':>6} | {'MAX':>6}")
                 for motor in motors:
-                    print(f"{motor:<15} | {mins[motor]:>6} | {positions[motor]:>6} | {maxes[motor]:>6}")
+                    print(
+                        f'{motor:<15} | {mins[motor]:>6} | {positions[motor]:>6} | {maxes[motor]:>6}'
+                    )
 
             if enter_pressed():
                 user_pressed_enter = True
@@ -769,13 +794,15 @@ class MotorsBus(abc.ABC):
 
         same_min_max = [motor for motor in motors if mins[motor] == maxes[motor]]
         if same_min_max:
-            raise ValueError(f"Some motors have the same min and max values:\n{pformat(same_min_max)}")
+            raise ValueError(
+                f'Some motors have the same min and max values:\n{pformat(same_min_max)}'
+            )
 
         return mins, maxes
 
     def _normalize(self, ids_values: dict[int, int]) -> dict[int, float]:
         if not self.calibration:
-            raise RuntimeError(f"{self} has no calibration registered.")
+            raise RuntimeError(f'{self} has no calibration registered.')
 
         normalized_values = {}
         for id_, val in ids_values.items():
@@ -804,7 +831,7 @@ class MotorsBus(abc.ABC):
 
     def _unnormalize(self, ids_values: dict[int, float]) -> dict[int, int]:
         if not self.calibration:
-            raise RuntimeError(f"{self} has no calibration registered.")
+            raise RuntimeError(f'{self} has no calibration registered.')
 
         unnormalized_values = {}
         for id_, val in ids_values.items():
@@ -851,14 +878,14 @@ class MotorsBus(abc.ABC):
             - 4 (for values 0 to 4,294,967,295)
         """
         if value < 0:
-            raise ValueError(f"Negative values are not allowed: {value}")
+            raise ValueError(f'Negative values are not allowed: {value}')
 
         max_value = {1: 0xFF, 2: 0xFFFF, 4: 0xFFFFFFFF}.get(length)
         if max_value is None:
-            raise NotImplementedError(f"Unsupported byte size: {length}. Expected [1, 2, 4].")
+            raise NotImplementedError(f'Unsupported byte size: {length}. Expected [1, 2, 4].')
 
         if value > max_value:
-            raise ValueError(f"Value {value} exceeds the maximum for {length} bytes ({max_value}).")
+            raise ValueError(f'Value {value} exceeds the maximum for {length} bytes ({max_value}).')
 
         return self._split_into_byte_chunks(value, length)
 
@@ -884,7 +911,7 @@ class MotorsBus(abc.ABC):
             model_number, comm, error = self.packet_handler.ping(self.port_handler, id_)
             if self._is_comm_success(comm):
                 break
-            logger.debug(f"ping failed for {id_=}: {n_try=} got {comm=} {error=}")
+            logger.debug(f'ping failed for {id_=}: {n_try=} got {comm=} {error=}')
 
         if not self._is_comm_success(comm):
             if raise_on_error:
@@ -900,7 +927,9 @@ class MotorsBus(abc.ABC):
         return model_number
 
     @abc.abstractmethod
-    def broadcast_ping(self, num_retry: int = 0, raise_on_error: bool = False) -> dict[int, int] | None:
+    def broadcast_ping(
+        self, num_retry: int = 0, raise_on_error: bool = False
+    ) -> dict[int, int] | None:
         """Ping every ID on the bus using the broadcast address.
 
         Args:
@@ -943,7 +972,9 @@ class MotorsBus(abc.ABC):
         addr, length = get_address(self.model_ctrl_table, model, data_name)
 
         err_msg = f"Failed to read '{data_name}' on {id_=} after {num_retry + 1} tries."
-        value, _, _ = self._read(addr, length, id_, num_retry=num_retry, raise_on_error=True, err_msg=err_msg)
+        value, _, _ = self._read(
+            addr, length, id_, num_retry=num_retry, raise_on_error=True, err_msg=err_msg
+        )
 
         id_value = self._decode_sign(data_name, {id_: value})
 
@@ -960,7 +991,7 @@ class MotorsBus(abc.ABC):
         *,
         num_retry: int = 0,
         raise_on_error: bool = True,
-        err_msg: str = "",
+        err_msg: str = '',
     ) -> tuple[int, int]:
         if length == 1:
             read_fn = self.packet_handler.read1ByteTxRx
@@ -976,19 +1007,25 @@ class MotorsBus(abc.ABC):
             if self._is_comm_success(comm):
                 break
             logger.debug(
-                f"Failed to read @{address=} ({length=}) on {motor_id=} ({n_try=}): "
+                f'Failed to read @{address=} ({length=}) on {motor_id=} ({n_try=}): '
                 + self.packet_handler.getTxRxResult(comm)
             )
 
         if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+            raise ConnectionError(f'{err_msg} {self.packet_handler.getTxRxResult(comm)}')
         elif self._is_error(error) and raise_on_error:
-            raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
+            raise RuntimeError(f'{err_msg} {self.packet_handler.getRxPacketError(error)}')
 
         return value, comm, error
 
     def write(
-        self, data_name: str, motor: str, value: Value, *, normalize: bool = True, num_retry: int = 0
+        self,
+        data_name: str,
+        motor: str,
+        value: Value,
+        *,
+        normalize: bool = True,
+        num_retry: int = 0,
     ) -> None:
         """Write a value to a single motor's register.
 
@@ -1019,8 +1056,12 @@ class MotorsBus(abc.ABC):
 
         value = self._encode_sign(data_name, {id_: value})[id_]
 
-        err_msg = f"Failed to write '{data_name}' on {id_=} with '{value}' after {num_retry + 1} tries."
-        self._write(addr, length, id_, value, num_retry=num_retry, raise_on_error=True, err_msg=err_msg)
+        err_msg = (
+            f"Failed to write '{data_name}' on {id_=} with '{value}' after {num_retry + 1} tries."
+        )
+        self._write(
+            addr, length, id_, value, num_retry=num_retry, raise_on_error=True, err_msg=err_msg
+        )
 
     def _write(
         self,
@@ -1031,22 +1072,24 @@ class MotorsBus(abc.ABC):
         *,
         num_retry: int = 0,
         raise_on_error: bool = True,
-        err_msg: str = "",
+        err_msg: str = '',
     ) -> tuple[int, int]:
         data = self._serialize_data(value, length)
         for n_try in range(1 + num_retry):
-            comm, error = self.packet_handler.writeTxRx(self.port_handler, motor_id, addr, length, data)
+            comm, error = self.packet_handler.writeTxRx(
+                self.port_handler, motor_id, addr, length, data
+            )
             if self._is_comm_success(comm):
                 break
             logger.debug(
-                f"Failed to sync write @{addr=} ({length=}) on id={motor_id} with {value=} ({n_try=}): "
+                f'Failed to sync write @{addr=} ({length=}) on id={motor_id} with {value=} ({n_try=}): '
                 + self.packet_handler.getTxRxResult(comm)
             )
 
         if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+            raise ConnectionError(f'{err_msg} {self.packet_handler.getTxRxResult(comm)}')
         elif self._is_error(error) and raise_on_error:
-            raise RuntimeError(f"{err_msg} {self.packet_handler.getRxPacketError(error)}")
+            raise RuntimeError(f'{err_msg} {self.packet_handler.getRxPacketError(error)}')
 
         return comm, error
 
@@ -1074,7 +1117,7 @@ class MotorsBus(abc.ABC):
                 f"{self.__class__.__name__}('{self.port}') is not connected. You need to run `{self.__class__.__name__}.connect()`."
             )
 
-        self._assert_protocol_is_compatible("sync_read")
+        self._assert_protocol_is_compatible('sync_read')
 
         names = self._get_motors_list(motors)
         ids = [self.motors[motor].id for motor in names]
@@ -1106,7 +1149,7 @@ class MotorsBus(abc.ABC):
         *,
         num_retry: int = 0,
         raise_on_error: bool = True,
-        err_msg: str = "",
+        err_msg: str = '',
     ) -> tuple[dict[int, int], int]:
         self._setup_sync_reader(motor_ids, addr, length)
         for n_try in range(1 + num_retry):
@@ -1114,12 +1157,12 @@ class MotorsBus(abc.ABC):
             if self._is_comm_success(comm):
                 break
             logger.debug(
-                f"Failed to sync read @{addr=} ({length=}) on {motor_ids=} ({n_try=}): "
+                f'Failed to sync read @{addr=} ({length=}) on {motor_ids=} ({n_try=}): '
                 + self.packet_handler.getTxRxResult(comm)
             )
 
         if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+            raise ConnectionError(f'{err_msg} {self.packet_handler.getTxRxResult(comm)}')
 
         values = {id_: self.sync_reader.getData(id_, addr, length) for id_ in motor_ids}
         return values, comm
@@ -1184,8 +1227,12 @@ class MotorsBus(abc.ABC):
 
         ids_values = self._encode_sign(data_name, ids_values)
 
-        err_msg = f"Failed to sync write '{data_name}' with {ids_values=} after {num_retry + 1} tries."
-        self._sync_write(addr, length, ids_values, num_retry=num_retry, raise_on_error=True, err_msg=err_msg)
+        err_msg = (
+            f"Failed to sync write '{data_name}' with {ids_values=} after {num_retry + 1} tries."
+        )
+        self._sync_write(
+            addr, length, ids_values, num_retry=num_retry, raise_on_error=True, err_msg=err_msg
+        )
 
     def _sync_write(
         self,
@@ -1194,7 +1241,7 @@ class MotorsBus(abc.ABC):
         ids_values: dict[int, int],
         num_retry: int = 0,
         raise_on_error: bool = True,
-        err_msg: str = "",
+        err_msg: str = '',
     ) -> int:
         self._setup_sync_writer(ids_values, addr, length)
         for n_try in range(1 + num_retry):
@@ -1202,12 +1249,12 @@ class MotorsBus(abc.ABC):
             if self._is_comm_success(comm):
                 break
             logger.debug(
-                f"Failed to sync write @{addr=} ({length=}) with {ids_values=} ({n_try=}): "
+                f'Failed to sync write @{addr=} ({length=}) with {ids_values=} ({n_try=}): '
                 + self.packet_handler.getTxRxResult(comm)
             )
 
         if not self._is_comm_success(comm) and raise_on_error:
-            raise ConnectionError(f"{err_msg} {self.packet_handler.getTxRxResult(comm)}")
+            raise ConnectionError(f'{err_msg} {self.packet_handler.getTxRxResult(comm)}')
 
         return comm
 

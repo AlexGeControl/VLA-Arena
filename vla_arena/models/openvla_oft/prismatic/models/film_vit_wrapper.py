@@ -1,7 +1,22 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Implementation of additional modules for the VLA's vision transformer."""
 
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Any, Callable, Sequence, Tuple, Union
+from typing import Any, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -69,7 +84,9 @@ class FiLMedVisionTransformerBlock(nn.Module):
         x = x + self.block.drop_path1(self.block.ls1(self.block.attn(self.block.norm1(x))))
 
         # Modulate intermediate visual representations via FiLM
-        x = x * (1 + gamma.view(gamma.shape[0], 1, gamma.shape[1])) + beta.view(beta.shape[0], 1, beta.shape[1])
+        x = x * (1 + gamma.view(gamma.shape[0], 1, gamma.shape[1])) + beta.view(
+            beta.shape[0], 1, beta.shape[1]
+        )
 
         # Pass visual inputs through feedforward portion of original block
         x = x + self.block.drop_path2(self.block.ls2(self.block.mlp(self.block.norm2(x))))
@@ -95,7 +112,7 @@ class NullVisionTransformerBlockWrapper(nn.Module):
         return self.block(x)
 
 
-def unpack_tuple(fn: Callable[[Any], Tuple[Any]]) -> Callable[[Any], Any]:
+def unpack_tuple(fn: Callable[[Any], tuple[Any]]) -> Callable[[Any], Any]:
     """Utility function for monkey-patching functions."""
 
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -115,7 +132,7 @@ class FiLMedVisionTransformer(VisionTransformer):
         self,
         x: torch.Tensor,
         language_embeddings: torch.Tensor,
-        n: Union[int, Sequence] = 1,
+        n: int | Sequence = 1,
     ):
         """
         Copy of timm.models.vision_transformer.VisionTransformer._intermediate_layers() with modifications
@@ -140,11 +157,11 @@ class FiLMedVisionTransformer(VisionTransformer):
         self,
         x: torch.Tensor,
         language_embeddings: torch.Tensor,
-        n: Union[int, Sequence] = 1,
+        n: int | Sequence = 1,
         reshape: bool = False,
         return_prefix_tokens: bool = False,
         norm: bool = False,
-    ) -> Tuple[Union[torch.Tensor, Tuple[torch.Tensor]]]:
+    ) -> tuple[torch.Tensor | tuple[torch.Tensor]]:
         """
         Copy of timm.models.vision_transformer.VisionTransformer.get_intermediate_layers() with modifications
         to allow language embeddings as additional input.
@@ -159,7 +176,9 @@ class FiLMedVisionTransformer(VisionTransformer):
         if reshape:
             grid_size = self.patch_embed.grid_size
             outputs = [
-                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous()
+                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1)
+                .permute(0, 3, 1, 2)
+                .contiguous()
                 for out in outputs
             ]
 
@@ -208,7 +227,9 @@ class FiLMedPrismaticVisionBackbone(nn.Module):
         block_wrappers = []
         for block in vit.blocks:
             block_wrappers.append(
-                FiLMedVisionTransformerBlock(block=block, vision_dim=vit.num_features, llm_dim=self.llm_dim)
+                FiLMedVisionTransformerBlock(
+                    block=block, vision_dim=vit.num_features, llm_dim=self.llm_dim
+                )
             )
         vit.blocks = nn.Sequential(*block_wrappers)
 
@@ -228,7 +249,9 @@ class FiLMedPrismaticVisionBackbone(nn.Module):
         """Sets the number of input images for the vision backbone."""
         self.vision_backbone.set_num_images_in_input(num_images_in_input)
 
-    def forward(self, pixel_values: torch.Tensor, language_embeddings: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, pixel_values: torch.Tensor, language_embeddings: torch.Tensor
+    ) -> torch.Tensor:
         """
         Implements the forward pass for the vision backbone with FiLM to infuse language inputs into visual features.
 
@@ -248,12 +271,16 @@ class FiLMedPrismaticVisionBackbone(nn.Module):
             # Split `pixel_values :: [bsz, 2 * 3, resolution, resolution]` =>> featurize =>> channel stack
             img, img_fused = torch.split(pixel_values, [3, 3], dim=1)
             patches = self.vision_backbone.featurizer(img, average_language_embedding)
-            patches_fused = self.vision_backbone.fused_featurizer(img_fused, average_language_embedding)
+            patches_fused = self.vision_backbone.fused_featurizer(
+                img_fused, average_language_embedding
+            )
 
             return torch.cat([patches, patches_fused], dim=2)
 
         else:
-            assert self.vision_backbone.use_fused_vision_backbone, "Multi-image inputs require using fused backbone!"
+            assert (
+                self.vision_backbone.use_fused_vision_backbone
+            ), 'Multi-image inputs require using fused backbone!'
 
             # Split `pixel_values` into individual images (each with 6 channels: 3 for SigLIP + 3 for DINOv2)
             images = torch.split(pixel_values, [6] * self.get_num_images_in_input(), dim=1)
@@ -266,7 +293,9 @@ class FiLMedPrismaticVisionBackbone(nn.Module):
 
                 # Get patches from both SigLIP and DINOv2 vision transformers
                 patches = self.vision_backbone.featurizer(img_regular, average_language_embedding)
-                patches_fused = self.vision_backbone.fused_featurizer(img_fused, average_language_embedding)
+                patches_fused = self.vision_backbone.fused_featurizer(
+                    img_fused, average_language_embedding
+                )
 
                 # Concatenate SigLIP and DINOv2 patches along the hidden dimension
                 combined_patches = torch.cat([patches, patches_fused], dim=2)

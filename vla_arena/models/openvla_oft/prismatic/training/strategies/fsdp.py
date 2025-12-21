@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 fsdp.py
 
@@ -7,9 +21,10 @@ fine-grained control over wrapping policies and mixed precision per component).
 
 import math
 from collections import OrderedDict
+from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 import torch
 import torch.distributed as dist
@@ -19,19 +34,18 @@ from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     apply_activation_checkpointing,
     checkpoint_wrapper,
 )
-from torch.distributed.fsdp import (
-    FullStateDictConfig,
-    MixedPrecision,
-    ShardingStrategy,
-    StateDictType,
-)
+from torch.distributed.fsdp import FullStateDictConfig
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+from torch.distributed.fsdp import MixedPrecision, ShardingStrategy, StateDictType
 from torch.optim import AdamW
 from transformers.optimization import get_constant_schedule, get_cosine_schedule_with_warmup
 
 from vla_arena.models.openvla_oft.prismatic.models.vlms import PrismaticVLM
 from vla_arena.models.openvla_oft.prismatic.overwatch import initialize_overwatch
-from vla_arena.models.openvla_oft.prismatic.training.strategies.base_strategy import TrainingStrategy
+from vla_arena.models.openvla_oft.prismatic.training.strategies.base_strategy import (
+    TrainingStrategy,
+)
+
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
@@ -44,7 +58,7 @@ class FSDPStrategy(TrainingStrategy):
         device_id: int,
         stage: str,
         epochs: int,
-        max_steps: Optional[int],
+        max_steps: int | None,
         global_batch_size: int,
         per_device_batch_size: int,
         learning_rate: float,
@@ -56,8 +70,8 @@ class FSDPStrategy(TrainingStrategy):
         enable_mixed_precision_training: bool = True,
         reduce_in_full_precision: bool = False,
         mixed_precision_dtype: torch.dtype = torch.bfloat16,
-        worker_init_fn: Optional[Callable[[int], None]] = None,
-        sharding_strategy: str = "shard-grad-op",
+        worker_init_fn: Callable[[int], None] | None = None,
+        sharding_strategy: str = 'shard-grad-op',
         state_dict_type: StateDictType = StateDictType.FULL_STATE_DICT,
     ) -> None:
         super().__init__(
@@ -81,14 +95,16 @@ class FSDPStrategy(TrainingStrategy):
         )
 
         # FSDP-Specific Parameters
-        if sharding_strategy == "shard-grad-op":
+        if sharding_strategy == 'shard-grad-op':
             self.fsdp_sharding_strategy = ShardingStrategy._HYBRID_SHARD_ZERO2
-        elif sharding_strategy == "full-shard":
+        elif sharding_strategy == 'full-shard':
             self.fsdp_sharding_strategy = ShardingStrategy.HYBRID_SHARD
         else:
-            raise ValueError(f"FSDP Sharding Strategy {sharding_strategy} is not supported!")
+            raise ValueError(f'FSDP Sharding Strategy {sharding_strategy} is not supported!')
 
-        assert state_dict_type == StateDictType.FULL_STATE_DICT, "Sharded state saving is not yet implemented!"
+        assert (
+            state_dict_type == StateDictType.FULL_STATE_DICT
+        ), 'Sharded state saving is not yet implemented!'
         self.fsdp_state_dict_type = state_dict_type
         self.fsdp_save_policy = FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
 
@@ -97,37 +113,43 @@ class FSDPStrategy(TrainingStrategy):
         run_dir: Path,
         global_step: int,
         epoch: int,
-        train_loss: Optional[float] = None,
+        train_loss: float | None = None,
         only_trainable: bool = True,
     ) -> None:
         """Save a checkpoint to the `run_dir` only containing the state_dicts for trainable parameters by default."""
-        assert isinstance(self.vlm, FSDP), "FSDPStrategy.save_checkpoint assumes VLM is already wrapped in FSDP!"
+        assert isinstance(
+            self.vlm, FSDP
+        ), 'FSDPStrategy.save_checkpoint assumes VLM is already wrapped in FSDP!'
 
         # Summon Full State Dictionary =>> Reconstitute from Shards
         with FSDP.state_dict_type(self.vlm, self.fsdp_state_dict_type, self.fsdp_save_policy):
             full_vlm_state_dict = self.vlm.state_dict()
             model_state_dicts = {
-                mkey: OrderedDict() for mkey in (self.trainable_module_keys if only_trainable else self.all_module_keys)
+                mkey: OrderedDict()
+                for mkey in (self.trainable_module_keys if only_trainable else self.all_module_keys)
             }
 
             # Iterate through `full_vlm_state_dict` and split `mkey.{full_dotted_path}` -> `mkey: {full_dotted_path}`
             for key, param in full_vlm_state_dict.items():
                 for mkey in model_state_dicts:
-                    if key.startswith(mprefix := f"{mkey}."):
+                    if key.startswith(mprefix := f'{mkey}.'):
                         model_state_dicts[mkey][key.removeprefix(mprefix)] = param
 
             # Save on rank zero *only*
             if overwatch.is_rank_zero():
-                checkpoint_dir = run_dir / "checkpoints"
+                checkpoint_dir = run_dir / 'checkpoints'
                 if train_loss is None:
-                    checkpoint_path = checkpoint_dir / f"step-{global_step:06d}-epoch-{epoch:02d}-loss=inf.pt"
+                    checkpoint_path = (
+                        checkpoint_dir / f'step-{global_step:06d}-epoch-{epoch:02d}-loss=inf.pt'
+                    )
                 else:
                     checkpoint_path = (
-                        checkpoint_dir / f"step-{global_step:06d}-epoch-{epoch:02d}-loss={train_loss:.4f}.pt"
+                        checkpoint_dir
+                        / f'step-{global_step:06d}-epoch-{epoch:02d}-loss={train_loss:.4f}.pt'
                     )
 
                 # Save Checkpoint & Copy Latest to `latest-checkpoint.pt`
-                torch.save({"model": model_state_dicts}, checkpoint_path)
+                torch.save({'model': model_state_dicts}, checkpoint_path)
 
                 # TODO (siddk) :: This breaks w/ Sagemaker default permissions (root vs. <user>)... skip?
                 # shutil.copy(checkpoint_path, checkpoint_dir / "latest-checkpoint.pt")
@@ -140,14 +162,18 @@ class FSDPStrategy(TrainingStrategy):
         if self.enable_mixed_precision_training and self.mixed_precision_dtype == torch.bfloat16:
             # MixedPrecision `param_dtype` specifies *compute* dtype (for forward/backward only)
             #   => Reference: https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.MixedPrecision
-            reduce_buffer_dtype = torch.bfloat16 if not self.reduce_in_full_precision else torch.float32
+            reduce_buffer_dtype = (
+                torch.bfloat16 if not self.reduce_in_full_precision else torch.float32
+            )
             fsdp_precision_policy = MixedPrecision(
-                param_dtype=torch.bfloat16, reduce_dtype=reduce_buffer_dtype, buffer_dtype=reduce_buffer_dtype
+                param_dtype=torch.bfloat16,
+                reduce_dtype=reduce_buffer_dtype,
+                buffer_dtype=reduce_buffer_dtype,
             )
 
             # When running FSDP with a frozen vision backbone --> move to half precision!
-            if self.stage not in {"full-finetune", "vla-full-train", "vla-sandwich-train"}:
-                overwatch.info("Casting Vision Backbone to *Half Precision* via `.to(dtype=...)`")
+            if self.stage not in {'full-finetune', 'vla-full-train', 'vla-sandwich-train'}:
+                overwatch.info('Casting Vision Backbone to *Half Precision* via `.to(dtype=...)`')
                 self.vlm.vision_backbone.to(dtype=self.vlm.vision_backbone.half_precision_dtype)
 
         else:
@@ -174,26 +200,32 @@ class FSDPStrategy(TrainingStrategy):
             #   cannot rely on the HF Transformers default `gradient_checkpointing_enable()` --> FSDP breaks semantics!
             #
             # Instead, we need to write our own *NO-REENTRANT* wrapper, and apply it to the LLM's Transformer Layer.
-            non_reentrant_wrapper = partial(checkpoint_wrapper, checkpoint_impl=CheckpointImpl.NO_REENTRANT)
+            non_reentrant_wrapper = partial(
+                checkpoint_wrapper, checkpoint_impl=CheckpointImpl.NO_REENTRANT
+            )
 
             def check_fn(submodule: nn.Module) -> bool:
                 return isinstance(submodule, self.llm_transformer_layer_cls)
 
             # Note that the terms "activation checkpointing" and "gradient checkpointing" are synonymous!
-            apply_activation_checkpointing(self.vlm, checkpoint_wrapper_fn=non_reentrant_wrapper, check_fn=check_fn)
+            apply_activation_checkpointing(
+                self.vlm, checkpoint_wrapper_fn=non_reentrant_wrapper, check_fn=check_fn
+            )
 
         # Barrier =>> Sharding takes a minute?
         dist.barrier()
 
         # Create Optimizer and LR Scheduler =>> note that most of the LR Schedulers we use require `max_steps/epochs`
         #   => Optimizer should only operate on parameters that are *unfrozen* / trainable!
-        n_train_examples = math.ceil(n_train_examples / self.global_batch_size) * self.global_batch_size
+        n_train_examples = (
+            math.ceil(n_train_examples / self.global_batch_size) * self.global_batch_size
+        )
         if self.max_steps is None:
             num_training_steps = (n_train_examples * self.epochs) // self.global_batch_size
         else:
             num_training_steps = self.max_steps
 
-        if self.lr_scheduler_type == "linear-warmup+cosine-decay":
+        if self.lr_scheduler_type == 'linear-warmup+cosine-decay':
             # Set warmup steps (floor) based on `warmup_ratio` (should be 0.03 - 0.05)
             num_warmup_steps = int(num_training_steps * self.warmup_ratio)
 
@@ -205,21 +237,26 @@ class FSDPStrategy(TrainingStrategy):
                     continue
 
                 # Check on any parameters with fewer than 2 dimensions or with "bias" in the name
-                if param.ndim <= 1 or name.endswith(".bias"):
+                if param.ndim <= 1 or name.endswith('.bias'):
                     no_decay.append(param)
                 else:
                     decay.append(param)
 
             # Build Parameter Groups
-            groups = [{"params": decay, "weight_decay": self.weight_decay}, {"params": no_decay, "weight_decay": 0.0}]
+            groups = [
+                {'params': decay, 'weight_decay': self.weight_decay},
+                {'params': no_decay, 'weight_decay': 0.0},
+            ]
 
             # Create Optimizer & LR Scheduler
             self.optimizer = AdamW(groups, lr=self.learning_rate)
-            self.lr_scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps, num_training_steps)
+            self.lr_scheduler = get_cosine_schedule_with_warmup(
+                self.optimizer, num_warmup_steps, num_training_steps
+            )
             for param_group in self.optimizer.param_groups:
-                param_group["lr"] = 0.0
+                param_group['lr'] = 0.0
 
-        elif self.lr_scheduler_type == "constant":
+        elif self.lr_scheduler_type == 'constant':
             num_warmup_steps = 0
 
             # Default AdamW w/ specified LR & Linear Warmup / Cosine Decay & Weight Decay
@@ -230,39 +267,44 @@ class FSDPStrategy(TrainingStrategy):
                     continue
 
                 # Check on any parameters with fewer than 2 dimensions or with "bias" in the name
-                if param.ndim <= 1 or name.endswith(".bias"):
+                if param.ndim <= 1 or name.endswith('.bias'):
                     no_decay.append(param)
                 else:
                     decay.append(param)
 
             # Build Parameter Groups
-            groups = [{"params": decay, "weight_decay": self.weight_decay}, {"params": no_decay, "weight_decay": 0.0}]
+            groups = [
+                {'params': decay, 'weight_decay': self.weight_decay},
+                {'params': no_decay, 'weight_decay': 0.0},
+            ]
 
             # Create Optimizer & LR Scheduler
             self.optimizer = AdamW(groups, lr=self.learning_rate)
             self.lr_scheduler = get_constant_schedule(self.optimizer)
 
         else:
-            raise ValueError(f"Learning Rate Schedule with type `{self.lr_scheduler_type}` is not supported!")
+            raise ValueError(
+                f'Learning Rate Schedule with type `{self.lr_scheduler_type}` is not supported!'
+            )
 
         # Finalize Setup =>> Log!
         overwatch.info(
-            "FSDP Full-Shard Strategy =>> Finalized Training Setup:\n"
-            f"         |-> Global (Effective) Batch Size = {self.global_batch_size}\n"
-            f"         |-> Per-Device Batch Size = {self.per_device_batch_size}\n"
-            f"         |-> Distributed World Size = {overwatch.world_size()}\n"
-            f"         |-> Gradient Accumulation Steps = {self.grad_accumulation_steps}\n\n"
-            f"         |-> LLM Backbone FSDP Gradient Checkpointing = {self.enable_gradient_checkpointing}\n"
-            f"         |-> Use FSDP Mixed Precision = {self.enable_mixed_precision_training}\n"
-            f"                 |-> Parameter Precision = {fsdp_precision_policy.param_dtype}\n"
-            f"                 |-> Reduction Precision = {fsdp_precision_policy.reduce_dtype}\n"
-            f"                 |-> Buffer Precision = {fsdp_precision_policy.buffer_dtype}\n\n"
-            f"         |-> Default AdamW LR = {self.learning_rate}\n"
-            f"         |-> AdamW Weight Decay = {self.weight_decay}\n"
-            f"         |-> LR Scheduler Type = {self.lr_scheduler_type}\n"
-            f"         |-> LR Scheduler Warmup Steps (Ratio) = {num_warmup_steps} ({self.warmup_ratio})\n"
-            f"         |-> Dataset Size = {n_train_examples} Examples\n"
-            f"         |-> Max Steps = {num_training_steps}\n"
+            'FSDP Full-Shard Strategy =>> Finalized Training Setup:\n'
+            f'         |-> Global (Effective) Batch Size = {self.global_batch_size}\n'
+            f'         |-> Per-Device Batch Size = {self.per_device_batch_size}\n'
+            f'         |-> Distributed World Size = {overwatch.world_size()}\n'
+            f'         |-> Gradient Accumulation Steps = {self.grad_accumulation_steps}\n\n'
+            f'         |-> LLM Backbone FSDP Gradient Checkpointing = {self.enable_gradient_checkpointing}\n'
+            f'         |-> Use FSDP Mixed Precision = {self.enable_mixed_precision_training}\n'
+            f'                 |-> Parameter Precision = {fsdp_precision_policy.param_dtype}\n'
+            f'                 |-> Reduction Precision = {fsdp_precision_policy.reduce_dtype}\n'
+            f'                 |-> Buffer Precision = {fsdp_precision_policy.buffer_dtype}\n\n'
+            f'         |-> Default AdamW LR = {self.learning_rate}\n'
+            f'         |-> AdamW Weight Decay = {self.weight_decay}\n'
+            f'         |-> LR Scheduler Type = {self.lr_scheduler_type}\n'
+            f'         |-> LR Scheduler Warmup Steps (Ratio) = {num_warmup_steps} ({self.warmup_ratio})\n'
+            f'         |-> Dataset Size = {n_train_examples} Examples\n'
+            f'         |-> Max Steps = {num_training_steps}\n'
         )
 
     def clip_grad_norm(self) -> None:

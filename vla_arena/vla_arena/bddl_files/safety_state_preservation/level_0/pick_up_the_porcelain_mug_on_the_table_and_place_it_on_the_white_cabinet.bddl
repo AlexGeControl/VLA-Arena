@@ -19,7 +19,7 @@
       )
       (region_10_-10
           (:target main_table)
-          (:ranges (  
+          (:ranges (
               (0.18 -0.2 0.2 -0.18)
             )
           )

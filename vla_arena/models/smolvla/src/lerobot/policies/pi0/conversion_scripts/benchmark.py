@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,20 +27,20 @@
 # limitations under the License.
 
 import torch
-
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.factory import make_policy
+
 
 torch.backends.cudnn.benchmark = True
 
 
 def main():
-    device = "cuda"
-    dataset_repo_id = "danaaubakirova/koch_test"
+    device = 'cuda'
+    dataset_repo_id = 'danaaubakirova/koch_test'
     # model_name = "pi0_base"
     # ckpt_torch_dir = Path.home() / f".cache/openpi/openpi-assets/checkpoints/{model_name}_pytorch"
-    ckpt_torch_dir = "lerobot/pi0"
+    ckpt_torch_dir = 'lerobot/pi0'
 
     dataset = LeRobotDataset(dataset_repo_id, episodes=[0])
 
@@ -74,9 +88,9 @@ def main():
     elapsed_time_ms = start_event.elapsed_time(end_event)
 
     avg_time_per_iter = elapsed_time_ms / benchmark_iters
-    print(f"Average execution time per iteration: {avg_time_per_iter:.3f} ms")
+    print(f'Average execution time per iteration: {avg_time_per_iter:.3f} ms')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     with torch.inference_mode():
         main()

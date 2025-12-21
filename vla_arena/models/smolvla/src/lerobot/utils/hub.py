@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +34,8 @@ from typing import Any, TypeVar
 from huggingface_hub import HfApi
 from huggingface_hub.utils import validate_hf_hub_args
 
-T = TypeVar("T", bound="HubMixin")
+
+T = TypeVar('T', bound='HubMixin')
 
 
 class HubMixin:
@@ -179,12 +194,12 @@ class HubMixin:
         repo_id = api.create_repo(repo_id=repo_id, private=private, exist_ok=True).repo_id
 
         if commit_message is None:
-            if "Policy" in self.__class__.__name__:
-                commit_message = "Upload policy"
-            elif "Config" in self.__class__.__name__:
-                commit_message = "Upload config"
+            if 'Policy' in self.__class__.__name__:
+                commit_message = 'Upload policy'
+            elif 'Config' in self.__class__.__name__:
+                commit_message = 'Upload config'
             else:
-                commit_message = f"Upload {self.__class__.__name__}"
+                commit_message = f'Upload {self.__class__.__name__}'
 
         # Push the files to the repo in a single commit
         with TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -192,7 +207,7 @@ class HubMixin:
             self.save_pretrained(saved_path, card_kwargs=card_kwargs)
             return api.upload_folder(
                 repo_id=repo_id,
-                repo_type="model",
+                repo_type='model',
                 folder_path=saved_path,
                 commit_message=commit_message,
                 revision=branch,

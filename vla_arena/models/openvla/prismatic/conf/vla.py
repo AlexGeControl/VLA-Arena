@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 vla.py
 
@@ -21,7 +35,7 @@ from draccus import ChoiceRegistry
 class VLAConfig(ChoiceRegistry):
     # fmt: off
     vla_id: str                                     # Unique VLA Policy ID that fully specifies a configuration variant
-    base_vlm: Union[str, Path]                      # Base VLM as ID/Path to Run Directory (e.g., `prism-dinosiglip+7b`)
+    base_vlm: str | Path                      # Base VLM as ID/Path to Run Directory (e.g., `prism-dinosiglip+7b`)
     freeze_vision_backbone: bool                    # Freeze Vision Backbone Parameters (akin to pretraining)
     freeze_llm_backbone: bool                       # Freeze LLM Backbone parameters
     unfreeze_last_llm_layer: bool                   # Unfreeze final layer of LLM (only takes effect if LLM is frozen)
@@ -32,7 +46,7 @@ class VLAConfig(ChoiceRegistry):
 
     # Optimization Parameters
     epochs: int                                     # Epochs to Run (in case `max_steps` is not specified)
-    max_steps: Optional[int]                        # [Optional] Max Gradient Steps to Run (overrides `epochs`)
+    max_steps: int | None                        # [Optional] Max Gradient Steps to Run (overrides `epochs`)
 
     expected_world_size: int                        # Expected # of GPUs =>> allows us to gate training on hardware
     global_batch_size: int                          # Global Batch Size (divided across processes / world size)
@@ -63,20 +77,20 @@ class VLAConfig(ChoiceRegistry):
 # = [8 GPU] Fast Iteration =>> SigLIP 224px + Bridge =
 @dataclass
 class Exp_SigLIP_224px_Bridge(VLAConfig):
-    vla_id: str = "siglip-224px+mx-bridge"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px+mx-bridge'
+    base_vlm: str | Path = 'siglip-224px+7b'
 
     freeze_vision_backbone: bool = False
     freeze_llm_backbone: bool = False
     unfreeze_last_llm_layer: bool = False
 
     # Data Mixture Parameters
-    data_mix: str = "bridge"
+    data_mix: str = 'bridge'
     shuffle_buffer_size: int = 256_000
 
     # Optimization Parameters
     epochs: int = 1000
-    max_steps: Optional[int] = None
+    max_steps: int | None = None
 
     expected_world_size: int = 8
     global_batch_size: int = 256
@@ -85,36 +99,36 @@ class Exp_SigLIP_224px_Bridge(VLAConfig):
     learning_rate: float = 2e-5
     weight_decay: float = 0.0
     max_grad_norm: float = 1.0
-    lr_scheduler_type: str = "constant"
+    lr_scheduler_type: str = 'constant'
     warmup_ratio: float = 0.0
 
-    train_strategy: str = "fsdp-full-shard"
+    train_strategy: str = 'fsdp-full-shard'
 
 
 # = [8 GPU] SigLIP 224px Frozen Vision Backbone + Bridge =
 @dataclass
 class Exp_FreezeVIT_SigLIP_224px_Bridge(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px-icy+mx-bridge"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px-icy+mx-bridge'
+    base_vlm: str | Path = 'siglip-224px+7b'
     freeze_vision_backbone: bool = True
 
 
 # = [8 GPU] Fast Iteration =>> DINO-SigLIP 224px + Bridge =
 @dataclass
 class Exp_DinoSigLIP_224px_Bridge(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "prism-dinosiglip-224px+mx-bridge"
-    base_vlm: Union[str, Path] = "prism-dinosiglip-224px+7b"
+    vla_id: str = 'prism-dinosiglip-224px+mx-bridge'
+    base_vlm: str | Path = 'prism-dinosiglip-224px+7b'
 
-    data_mix: str = "bridge"
+    data_mix: str = 'bridge'
 
 
 # = [64 GPU] SigLIP 224px + OXE Magic Soup =
 @dataclass
 class Exp_SigLIP_224px_OXE_Magic_Soup(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px+mx-oxe-magic-soup"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px+mx-oxe-magic-soup'
+    base_vlm: str | Path = 'siglip-224px+7b'
 
-    data_mix: str = "oxe_magic_soup"
+    data_mix: str = 'oxe_magic_soup'
 
     expected_world_size: int = 64
     global_batch_size: int = 2048
@@ -124,12 +138,12 @@ class Exp_SigLIP_224px_OXE_Magic_Soup(Exp_SigLIP_224px_Bridge):
 # = [64 GPU] DINO-SigLIP 224px + OXE Magic Soup++ =
 @dataclass
 class Exp_DinoSigLIP_224px_OXE_Magic_Soup_Plus(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "prism-dinosiglip-224px+mx-oxe-magic-soup-plus"
-    base_vlm: Union[str, Path] = "prism-dinosiglip-224px+7b"
+    vla_id: str = 'prism-dinosiglip-224px+mx-oxe-magic-soup-plus'
+    base_vlm: str | Path = 'prism-dinosiglip-224px+7b'
 
     # Note =>> We adopt two stages, training on a mixture including DROID for 70% of training, before resampling!
     # data_mix: str = "oxe_magic_soup_plus"
-    data_mix: str = "oxe_magic_soup_plus_minus"
+    data_mix: str = 'oxe_magic_soup_plus_minus'
 
     expected_world_size: int = 64
     global_batch_size: int = 2048
@@ -142,60 +156,60 @@ class Exp_DinoSigLIP_224px_OXE_Magic_Soup_Plus(Exp_SigLIP_224px_Bridge):
 # = [8 GPU] SigLIP 224px + T-DROID =
 @dataclass
 class Exp_SigLIP_224px_TDROID_CarrotInBowl(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px+mx-tdroid_carrot_in_bowl"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px+mx-tdroid_carrot_in_bowl'
+    base_vlm: str | Path = 'siglip-224px+7b'
 
-    data_mix: str = "tdroid_carrot_in_bowl"
+    data_mix: str = 'tdroid_carrot_in_bowl'
 
 
 @dataclass
 class Exp_SigLIP_224px_TDROID_PourCornInPot(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px+mx-tdroid_pour_corn_in_pot"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px+mx-tdroid_pour_corn_in_pot'
+    base_vlm: str | Path = 'siglip-224px+7b'
 
-    data_mix: str = "tdroid_pour_corn_in_pot"
+    data_mix: str = 'tdroid_pour_corn_in_pot'
 
 
 # = [8 GPU] SigLIP 224px + T-DROID -- Partial Finetuning =
 @dataclass
 class Exp_SigLIP_224px_Icy_TDROID_CarrotInBowl(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px-icy+mx-tdroid_carrot_in_bowl"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px-icy+mx-tdroid_carrot_in_bowl'
+    base_vlm: str | Path = 'siglip-224px+7b'
     freeze_vision_backbone: bool = True
     freeze_llm_backbone: bool = False
 
-    data_mix: str = "tdroid_carrot_in_bowl"
+    data_mix: str = 'tdroid_carrot_in_bowl'
 
 
 @dataclass
 class Exp_SigLIP_224px_LastLayer_TDROID_CarrotInBowl(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px-last_layer+mx-tdroid_carrot_in_bowl"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px-last_layer+mx-tdroid_carrot_in_bowl'
+    base_vlm: str | Path = 'siglip-224px+7b'
     freeze_vision_backbone: bool = True
     freeze_llm_backbone: bool = True
     unfreeze_last_llm_layer: bool = True
 
-    data_mix: str = "tdroid_carrot_in_bowl"
+    data_mix: str = 'tdroid_carrot_in_bowl'
 
 
 @dataclass
 class Exp_SigLIP_224px_Sandwich_TDROID_CarrotInBowl(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px-sandwich+mx-tdroid_carrot_in_bowl"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px-sandwich+mx-tdroid_carrot_in_bowl'
+    base_vlm: str | Path = 'siglip-224px+7b'
     freeze_vision_backbone: bool = False
     freeze_llm_backbone: bool = True
     unfreeze_last_llm_layer: bool = True
 
-    data_mix: str = "tdroid_carrot_in_bowl"
+    data_mix: str = 'tdroid_carrot_in_bowl'
 
 
 # === [8 GPU] SigLIP 224px + FrankaWipe ===
 @dataclass
 class Exp_SigLIP_224px_Droid_Wipe(Exp_SigLIP_224px_Bridge):
-    vla_id: str = "siglip-224px+mx-droid_wipe"
-    base_vlm: Union[str, Path] = "siglip-224px+7b"
+    vla_id: str = 'siglip-224px+mx-droid_wipe'
+    base_vlm: str | Path = 'siglip-224px+7b'
 
-    data_mix: str = "droid_wipe"
+    data_mix: str = 'droid_wipe'
 
 
 # === Define a VLA Registry Enum for Reference & Validation ===

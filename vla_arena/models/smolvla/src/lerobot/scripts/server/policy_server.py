@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +50,6 @@ from queue import Empty, Queue
 import draccus
 import grpc
 import torch
-
 from lerobot.policies.factory import get_policy_class
 from lerobot.scripts.server.configs import PolicyServerConfig
 from lerobot.scripts.server.constants import SUPPORTED_POLICIES
@@ -50,15 +63,13 @@ from lerobot.scripts.server.helpers import (
     observations_similar,
     raw_observation_to_observation,
 )
-from lerobot.transport import (
-    services_pb2,  # type: ignore
-    services_pb2_grpc,  # type: ignore
-)
+from lerobot.transport import services_pb2  # type: ignore
+from lerobot.transport import services_pb2_grpc  # type: ignore
 from lerobot.transport.utils import receive_bytes_in_chunks
 
 
 class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
-    prefix = "policy_server"
+    prefix = 'policy_server'
     logger = get_logger(prefix)
 
     def __init__(self, config: PolicyServerConfig):
@@ -101,7 +112,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
 
     def Ready(self, request, context):  # noqa: N802
         client_id = context.peer()
-        self.logger.info(f"Client {client_id} connected and ready")
+        self.logger.info(f'Client {client_id} connected and ready')
         self._reset_server()
         self.shutdown_event.clear()
 
@@ -111,7 +122,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         """Receive policy instructions from the robot client"""
 
         if not self.running:
-            self.logger.warning("Server is not running. Ignoring policy instructions.")
+            self.logger.warning('Server is not running. Ignoring policy instructions.')
             return services_pb2.Empty()
 
         client_id = context.peer()
@@ -119,20 +130,20 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         policy_specs = pickle.loads(request.data)  # nosec
 
         if not isinstance(policy_specs, RemotePolicyConfig):
-            raise TypeError(f"Policy specs must be a RemotePolicyConfig. Got {type(policy_specs)}")
+            raise TypeError(f'Policy specs must be a RemotePolicyConfig. Got {type(policy_specs)}')
 
         if policy_specs.policy_type not in SUPPORTED_POLICIES:
             raise ValueError(
-                f"Policy type {policy_specs.policy_type} not supported. "
-                f"Supported policies: {SUPPORTED_POLICIES}"
+                f'Policy type {policy_specs.policy_type} not supported. '
+                f'Supported policies: {SUPPORTED_POLICIES}'
             )
 
         self.logger.info(
-            f"Receiving policy instructions from {client_id} | "
-            f"Policy type: {policy_specs.policy_type} | "
-            f"Pretrained name or path: {policy_specs.pretrained_name_or_path} | "
-            f"Actions per chunk: {policy_specs.actions_per_chunk} | "
-            f"Device: {policy_specs.device}"
+            f'Receiving policy instructions from {client_id} | '
+            f'Policy type: {policy_specs.policy_type} | '
+            f'Pretrained name or path: {policy_specs.pretrained_name_or_path} | '
+            f'Actions per chunk: {policy_specs.actions_per_chunk} | '
+            f'Device: {policy_specs.device}'
         )
 
         self.device = policy_specs.device
@@ -147,14 +158,14 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         self.policy.to(self.device)
         end = time.perf_counter()
 
-        self.logger.info(f"Time taken to put policy on {self.device}: {end - start:.4f} seconds")
+        self.logger.info(f'Time taken to put policy on {self.device}: {end - start:.4f} seconds')
 
         return services_pb2.Empty()
 
     def SendObservations(self, request_iterator, context):  # noqa: N802
         """Receive observations from the robot client"""
         client_id = context.peer()
-        self.logger.debug(f"Receiving observations from {client_id}")
+        self.logger.debug(f'Receiving observations from {client_id}')
 
         receive_time = time.time()  # comparing timestamps so need time.time()
         start_deserialize = time.perf_counter()
@@ -164,7 +175,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         timed_observation = pickle.loads(received_bytes)  # nosec
         deserialize_time = time.perf_counter() - start_deserialize
 
-        self.logger.debug(f"Received observation #{timed_observation.get_timestep()}")
+        self.logger.debug(f'Received observation #{timed_observation.get_timestep()}')
 
         obs_timestep = timed_observation.get_timestep()
         obs_timestamp = timed_observation.get_timestamp()
@@ -173,22 +184,20 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         fps_metrics = self.fps_tracker.calculate_fps_metrics(obs_timestamp)
 
         self.logger.info(
-            f"Received observation #{obs_timestep} | "
+            f'Received observation #{obs_timestep} | '
             f"Avg FPS: {fps_metrics['avg_fps']:.2f} | "  # fps at which observations are received from client
             f"Target: {fps_metrics['target_fps']:.2f} | "
-            f"One-way latency: {(receive_time - obs_timestamp) * 1000:.2f}ms"
+            f'One-way latency: {(receive_time - obs_timestamp) * 1000:.2f}ms'
         )
 
         self.logger.debug(
-            f"Server timestamp: {receive_time:.6f} | "
-            f"Client timestamp: {obs_timestamp:.6f} | "
-            f"Deserialization time: {deserialize_time:.6f}s"
+            f'Server timestamp: {receive_time:.6f} | '
+            f'Client timestamp: {obs_timestamp:.6f} | '
+            f'Deserialization time: {deserialize_time:.6f}s'
         )
 
-        if not self._enqueue_observation(
-            timed_observation  # wrapping a RawObservation
-        ):
-            self.logger.info(f"Observation #{obs_timestep} has been filtered out")
+        if not self._enqueue_observation(timed_observation):  # wrapping a RawObservation
+            self.logger.info(f'Observation #{obs_timestep} has been filtered out')
 
         return services_pb2.Empty()
 
@@ -196,14 +205,14 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         """Returns actions to the robot client. Actions are sent as a single
         chunk, containing multiple actions."""
         client_id = context.peer()
-        self.logger.debug(f"Client {client_id} connected for action streaming")
+        self.logger.debug(f'Client {client_id} connected for action streaming')
 
         # Generate action based on the most recent observation and its timestep
         try:
             getactions_starts = time.perf_counter()
             obs = self.observation_queue.get(timeout=self.config.obs_queue_timeout)
             self.logger.info(
-                f"Running inference for observation #{obs.get_timestep()} (must_go: {obs.must_go})"
+                f'Running inference for observation #{obs.get_timestep()} (must_go: {obs.must_go})'
             )
 
             with self._predicted_timesteps_lock:
@@ -221,19 +230,22 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
             actions = services_pb2.Actions(data=actions_bytes)
 
             self.logger.info(
-                f"Action chunk #{obs.get_timestep()} generated | "
-                f"Total time: {(inference_time + serialize_time) * 1000:.2f}ms"
+                f'Action chunk #{obs.get_timestep()} generated | '
+                f'Total time: {(inference_time + serialize_time) * 1000:.2f}ms'
             )
 
             self.logger.debug(
-                f"Action chunk #{obs.get_timestep()} generated | "
-                f"Inference time: {inference_time:.2f}s |"
-                f"Serialize time: {serialize_time:.2f}s |"
-                f"Total time: {inference_time + serialize_time:.2f}s"
+                f'Action chunk #{obs.get_timestep()} generated | '
+                f'Inference time: {inference_time:.2f}s |'
+                f'Serialize time: {serialize_time:.2f}s |'
+                f'Total time: {inference_time + serialize_time:.2f}s'
             )
 
             time.sleep(
-                max(0, self.config.inference_latency - max(0, time.perf_counter() - getactions_starts))
+                max(
+                    0,
+                    self.config.inference_latency - max(0, time.perf_counter() - getactions_starts),
+                )
             )  # sleep controls inference latency
 
             return actions
@@ -242,7 +254,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
             return services_pb2.Empty()
 
         except Exception as e:
-            self.logger.error(f"Error in StreamActions: {e}")
+            self.logger.error(f'Error in StreamActions: {e}')
 
             return services_pb2.Empty()
 
@@ -252,12 +264,14 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
             predicted_timesteps = self._predicted_timesteps
 
         if obs.get_timestep() in predicted_timesteps:
-            self.logger.debug(f"Skipping observation #{obs.get_timestep()} - Timestep predicted already!")
+            self.logger.debug(
+                f'Skipping observation #{obs.get_timestep()} - Timestep predicted already!'
+            )
             return False
 
         elif observations_similar(obs, previous_obs, lerobot_features=self.lerobot_features):
             self.logger.debug(
-                f"Skipping observation #{obs.get_timestep()} - Observation too similar to last obs predicted!"
+                f'Skipping observation #{obs.get_timestep()} - Observation too similar to last obs predicted!'
             )
             return False
 
@@ -273,16 +287,16 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
             or self.last_processed_obs is None
             or self._obs_sanity_checks(obs, self.last_processed_obs)
         ):
-            last_obs = self.last_processed_obs.get_timestep() if self.last_processed_obs else "None"
+            last_obs = self.last_processed_obs.get_timestep() if self.last_processed_obs else 'None'
             self.logger.debug(
-                f"Enqueuing observation. Must go: {obs.must_go} | Last processed obs: {last_obs}"
+                f'Enqueuing observation. Must go: {obs.must_go} | Last processed obs: {last_obs}'
             )
 
             # If queue is full, get the old observation to make room
             if self.observation_queue.full():
                 # pops from queue
                 _ = self.observation_queue.get_nowait()
-                self.logger.debug("Observation queue was full, removed oldest observation")
+                self.logger.debug('Observation queue was full, removed oldest observation')
 
             # Now put the new observation (never blocks as queue is non-full here)
             self.observation_queue.put(obs)
@@ -290,13 +304,17 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
 
         return False
 
-    def _time_action_chunk(self, t_0: float, action_chunk: list[torch.Tensor], i_0: int) -> list[TimedAction]:
+    def _time_action_chunk(
+        self, t_0: float, action_chunk: list[torch.Tensor], i_0: int
+    ) -> list[TimedAction]:
         """Turn a chunk of actions into a list of TimedAction instances,
         with the first action corresponding to t_0 and the rest corresponding to
         t_0 + i*environment_dt for i in range(len(action_chunk))
         """
         return [
-            TimedAction(timestamp=t_0 + i * self.config.environment_dt, timestep=i_0 + i, action=action)
+            TimedAction(
+                timestamp=t_0 + i * self.config.environment_dt, timestep=i_0 + i, action=action
+            )
             for i, action in enumerate(action_chunk)
         ]
 
@@ -321,7 +339,9 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         """Get an action chunk from the policy. The chunk contains only"""
         chunk = self.policy.predict_action_chunk(observation)
         if chunk.ndim != 3:
-            chunk = chunk.unsqueeze(0)  # adding batch dimension, now shape is (B, chunk_size, action_dim)
+            chunk = chunk.unsqueeze(
+                0
+            )  # adding batch dimension, now shape is (B, chunk_size, action_dim)
 
         return chunk[:, : self.actions_per_chunk, :]
 
@@ -353,17 +373,17 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         inference_stops = time.perf_counter()
 
         self.logger.info(
-            f"Observation {observation_t.get_timestep()} |"
-            f"Inference time: {1000 * (inference_stops - inference_starts):.2f}ms"
+            f'Observation {observation_t.get_timestep()} |'
+            f'Inference time: {1000 * (inference_stops - inference_starts):.2f}ms'
         )
 
         # full-process latency breakdown for debugging purposes
         self.logger.debug(
-            f"Observation {observation_t.get_timestep()} | "
-            f"Preprocessing time: {1000 * (preprocessing_time - inference_starts):.2f}ms | "
-            f"Inference time: {1000 * (inference_time - preprocessing_time):.2f}ms | "
-            f"Postprocessing time: {1000 * (postprocessing_time - inference_time):.2f}ms | "
-            f"Total time: {1000 * (postprocessing_time - inference_starts):.2f}ms"
+            f'Observation {observation_t.get_timestep()} | '
+            f'Preprocessing time: {1000 * (preprocessing_time - inference_starts):.2f}ms | '
+            f'Inference time: {1000 * (inference_time - preprocessing_time):.2f}ms | '
+            f'Postprocessing time: {1000 * (postprocessing_time - inference_time):.2f}ms | '
+            f'Total time: {1000 * (postprocessing_time - inference_starts):.2f}ms'
         )
 
         return action_chunk
@@ -371,7 +391,7 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
     def stop(self):
         """Stop the server"""
         self._reset_server()
-        self.logger.info("Server stopping...")
+        self.logger.info('Server stopping...')
 
 
 @draccus.wrap()
@@ -389,15 +409,15 @@ def serve(cfg: PolicyServerConfig):
     # Setup and start gRPC server
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
     services_pb2_grpc.add_AsyncInferenceServicer_to_server(policy_server, server)
-    server.add_insecure_port(f"{cfg.host}:{cfg.port}")
+    server.add_insecure_port(f'{cfg.host}:{cfg.port}')
 
-    policy_server.logger.info(f"PolicyServer started on {cfg.host}:{cfg.port}")
+    policy_server.logger.info(f'PolicyServer started on {cfg.host}:{cfg.port}')
     server.start()
 
     server.wait_for_termination()
 
-    policy_server.logger.info("Server terminated")
+    policy_server.logger.info('Server terminated')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     serve()

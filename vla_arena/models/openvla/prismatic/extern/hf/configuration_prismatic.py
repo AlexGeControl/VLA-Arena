@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 configuration_vla_arena.models.openvla.prismatic.py
 
@@ -10,58 +24,59 @@ from typing import Any, Dict, List, Optional
 from transformers import PretrainedConfig
 from transformers.models.auto import CONFIG_MAPPING
 
+
 # === Utilities for Mapping Prismatic names to HF names ===
 # fmt: off
-VISION_BACKBONE_TO_RESOLUTION: Dict[str, List[int]] = {
-    "clip-vit-l": [224], "siglip-vit-so400m": [224], "dinov2-vit-l": [224], "in1k-vit-l": [224],
+VISION_BACKBONE_TO_RESOLUTION: dict[str, list[int]] = {
+    'clip-vit-l': [224], 'siglip-vit-so400m': [224], 'dinov2-vit-l': [224], 'in1k-vit-l': [224],
 
-    "clip-vit-l-336px": [336],
-    "siglip-vit-so400m-384px": [384],
+    'clip-vit-l-336px': [336],
+    'siglip-vit-so400m-384px': [384],
 
-    "dinoclip-vit-l-336px": [336, 336],
-    "dinosiglip-vit-so-224px": [224, 224],
-    "dinosiglip-vit-so-384px": [384, 384],
+    'dinoclip-vit-l-336px': [336, 336],
+    'dinosiglip-vit-so-224px': [224, 224],
+    'dinosiglip-vit-so-384px': [384, 384],
 }
-VISION_BACKBONE_TO_TIMM_ID: Dict[str, List[str]] = {
-    "clip-vit-l": ["vit_large_patch14_clip_224.openai"],
-    "clip-vit-l-336px": ["vit_large_patch14_clip_336.openai"],
+VISION_BACKBONE_TO_TIMM_ID: dict[str, list[str]] = {
+    'clip-vit-l': ['vit_large_patch14_clip_224.openai'],
+    'clip-vit-l-336px': ['vit_large_patch14_clip_336.openai'],
 
-    "dinov2-vit-l": ["vit_large_patch14_reg4_dinov2.lvd142m"],
-    "in1k-vit-l": ["vit_large_patch16_224.augreg_in21k_ft_in1k"],
+    'dinov2-vit-l': ['vit_large_patch14_reg4_dinov2.lvd142m'],
+    'in1k-vit-l': ['vit_large_patch16_224.augreg_in21k_ft_in1k'],
 
-    "siglip-vit-so400m": ["vit_so400m_patch14_siglip_224"],
-    "siglip-vit-so400m-384px": ["vit_so400m_patch14_siglip_384"],
+    'siglip-vit-so400m': ['vit_so400m_patch14_siglip_224'],
+    'siglip-vit-so400m-384px': ['vit_so400m_patch14_siglip_384'],
 
-    "dinoclip-vit-l-336px": ["vit_large_patch14_reg4_dinov2.lvd142m", "vit_large_patch14_clip_336.openai"],
-    "dinosiglip-vit-so-224px": ["vit_large_patch14_reg4_dinov2.lvd142m", "vit_so400m_patch14_siglip_224"],
-    "dinosiglip-vit-so-384px": ["vit_large_patch14_reg4_dinov2.lvd142m", "vit_so400m_patch14_siglip_384"],
+    'dinoclip-vit-l-336px': ['vit_large_patch14_reg4_dinov2.lvd142m', 'vit_large_patch14_clip_336.openai'],
+    'dinosiglip-vit-so-224px': ['vit_large_patch14_reg4_dinov2.lvd142m', 'vit_so400m_patch14_siglip_224'],
+    'dinosiglip-vit-so-384px': ['vit_large_patch14_reg4_dinov2.lvd142m', 'vit_so400m_patch14_siglip_384'],
 }
-TIMM_OVERRIDE_ACT_LAYER: Dict[str, List[Optional[str]]] = {
-    "clip-vit-l": ["quick_gelu"], "clip-vit-l-336px": ["quick_gelu"],
-    "dinov2-vit-l": [None], "in1k-vit-l": [None],
-    "siglip-vit-so400m": [None], "siglip-vit-so400m-384px": [None],
-    "dinoclip-vit-l-336px": [None, "quick_gelu"],
-    "dinosiglip-vit-so-224px": [None, None], "dinosiglip-vit-so-384px": [None, None]
+TIMM_OVERRIDE_ACT_LAYER: dict[str, list[str | None]] = {
+    'clip-vit-l': ['quick_gelu'], 'clip-vit-l-336px': ['quick_gelu'],
+    'dinov2-vit-l': [None], 'in1k-vit-l': [None],
+    'siglip-vit-so400m': [None], 'siglip-vit-so400m-384px': [None],
+    'dinoclip-vit-l-336px': [None, 'quick_gelu'],
+    'dinosiglip-vit-so-224px': [None, None], 'dinosiglip-vit-so-384px': [None, None]
 }
 
 LLM_BACKBONE_TO_HF_PATH = {
-    "llama2-7b-pure": "meta-llama/Llama-2-7b-hf", "llama2-13b-pure": "meta-llama/Llama-2-13b-hf",
-    "llama2-7b-chat": "meta-llama/Llama-2-7b-chat-hf", "llama2-13b-chat": "meta-llama/Llama-2-13b-chat-hf",
+    'llama2-7b-pure': 'meta-llama/Llama-2-7b-hf', 'llama2-13b-pure': 'meta-llama/Llama-2-13b-hf',
+    'llama2-7b-chat': 'meta-llama/Llama-2-7b-chat-hf', 'llama2-13b-chat': 'meta-llama/Llama-2-13b-chat-hf',
 
-    "vicuna-v15-7b": "lmsys/vicuna-7b-v1.5", "vicuna-v15-13b": "lmsys/vicuna-13b-v1.5",
+    'vicuna-v15-7b': 'lmsys/vicuna-7b-v1.5', 'vicuna-v15-13b': 'lmsys/vicuna-13b-v1.5',
 
-    "mistral-v0.1-7b-pure": "mistralai/Mistral-7B-v0.1",
-    "mistral-v0.1-7b-instruct": "mistralai/Mistral-7B-Instruct-v0.1",
+    'mistral-v0.1-7b-pure': 'mistralai/Mistral-7B-v0.1',
+    'mistral-v0.1-7b-instruct': 'mistralai/Mistral-7B-Instruct-v0.1',
 
-    "phi-2-3b": "microsoft/phi-2",
+    'phi-2-3b': 'microsoft/phi-2',
 }
 LLM_BACKBONE_TO_HF_METACLASS = {
-    "llama2-7b-pure": "llama", "llama2-13b-pure": "llama", "llama2-7b-chat": "llama", "llama2-13b-chat": "llama",
-    "vicuna-v15-7b": "llama", "vicuna-v15-13b": "llama",
+    'llama2-7b-pure': 'llama', 'llama2-13b-pure': 'llama', 'llama2-7b-chat': 'llama', 'llama2-13b-chat': 'llama',
+    'vicuna-v15-7b': 'llama', 'vicuna-v15-13b': 'llama',
 
-    "mistral-v0.1-7b-pure": "mistral", "mistral-v0.1-7b-instruct": "mistral",
+    'mistral-v0.1-7b-pure': 'mistral', 'mistral-v0.1-7b-instruct': 'mistral',
 
-    "phi-2-3b": "phi",
+    'phi-2-3b': 'phi',
 }
 
 VALID_VISION_BACKBONES = set(VISION_BACKBONE_TO_RESOLUTION.keys())
@@ -70,17 +85,17 @@ VALID_LLM_BACKBONES = set(LLM_BACKBONE_TO_HF_PATH)
 
 
 class PrismaticConfig(PretrainedConfig):
-    model_type: str = "prismatic"
+    model_type: str = 'prismatic'
     is_composition: bool = False
 
     def __init__(
         self,
-        vision_backbone_id: str = "siglip-vit-so400m",
-        llm_backbone_id: str = "vicuna-v15-7b",
-        arch_specifier: str = "no-align+gelu-mlp",
-        use_fused_vision_backbone: Optional[bool] = None,
-        image_resize_strategy: str = "letterbox",
-        text_config: Optional[Dict[str, Any]] = None,
+        vision_backbone_id: str = 'siglip-vit-so400m',
+        llm_backbone_id: str = 'vicuna-v15-7b',
+        arch_specifier: str = 'no-align+gelu-mlp',
+        use_fused_vision_backbone: bool | None = None,
+        image_resize_strategy: str = 'letterbox',
+        text_config: dict[str, Any] | None = None,
         llm_max_length: int = 2048,
         pad_token_id: int = 32000,
         pad_to_multiple_of: int = 64,
@@ -88,10 +103,12 @@ class PrismaticConfig(PretrainedConfig):
         **kwargs: str,
     ) -> None:
         if vision_backbone_id not in VALID_VISION_BACKBONES:
-            raise ValueError(f"Vision backbone `{vision_backbone_id}` not in {VALID_VISION_BACKBONES = }")
+            raise ValueError(
+                f'Vision backbone `{vision_backbone_id}` not in {VALID_VISION_BACKBONES = }'
+            )
 
         if llm_backbone_id not in VALID_LLM_BACKBONES:
-            raise ValueError(f"LLM backbone `{llm_backbone_id}` not in {VALID_LLM_BACKBONES = }")
+            raise ValueError(f'LLM backbone `{llm_backbone_id}` not in {VALID_LLM_BACKBONES = }')
 
         # Set Prismatic Configuration Fields
         self.vision_backbone_id = vision_backbone_id
@@ -103,7 +120,7 @@ class PrismaticConfig(PretrainedConfig):
         self.use_fused_vision_backbone = (
             use_fused_vision_backbone
             if use_fused_vision_backbone is not None
-            else any(self.vision_backbone_id.startswith(v) for v in ["dinoclip", "dinosiglip"])
+            else any(self.vision_backbone_id.startswith(v) for v in ['dinoclip', 'dinosiglip'])
         )
 
         self.timm_model_ids = VISION_BACKBONE_TO_TIMM_ID[self.vision_backbone_id]
@@ -127,11 +144,11 @@ class PrismaticConfig(PretrainedConfig):
 
 
 class OpenVLAConfig(PrismaticConfig):
-    model_type: str = "openvla"
+    model_type: str = 'openvla'
 
     def __init__(
         self,
-        norm_stats: Optional[Dict[str, Dict[str, Dict[str, Dict[str, List[float]]]]]] = None,
+        norm_stats: dict[str, dict[str, dict[str, dict[str, list[float]]]]] | None = None,
         n_action_bins: int = 256,
         **kwargs: str,
     ) -> None:

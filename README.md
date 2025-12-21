@@ -16,7 +16,7 @@
 
 VLA-Arena is an open-source benchmark for systematic evaluation of Vision-Language-Action (VLA) models. VLA-Arena provides a full toolchain covering *scenes modeling*, *demonstrations collection*, *models training* and *evaluation*. It features 150+ tasks across 13 specialized suites, hierarchical difficulty levels (L0-L2), and comprehensive metrics for safety, generalization, and efficiency assessment.
 
-VLA-Arena focuses on four key domains: 
+VLA-Arena focuses on four key domains:
 - **Safety**: Operate reliably and safely in the physical world.
 - **Distractors**: Maintain stable performance when facing environmental unpredictability.
 - **Extrapolation**: Generalize learned knowledge to novel situations.
@@ -24,7 +24,7 @@ VLA-Arena focuses on four key domains:
 
 ## 📰 News
 
-**2025.09.29**: VLA-Arena is officially released! 
+**2025.09.29**: VLA-Arena is officially released!
 
 ## 🔥 Highlights
 

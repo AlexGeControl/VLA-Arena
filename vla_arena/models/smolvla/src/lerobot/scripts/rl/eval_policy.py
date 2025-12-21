@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # !/usr/bin/env python
 
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
@@ -20,16 +34,11 @@ from lerobot.configs import parser
 from lerobot.configs.train import TrainRLServerPipelineConfig
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.policies.factory import make_policy
-from lerobot.robots import (  # noqa: F401
-    RobotConfig,
-    make_robot_from_config,
-    so100_follower,
-)
+from lerobot.robots import RobotConfig, make_robot_from_config, so100_follower  # noqa: F401
 from lerobot.scripts.rl.gym_manipulator import make_robot_env
-from lerobot.teleoperators import (
-    gamepad,  # noqa: F401
-    so101_leader,  # noqa: F401
-)
+from lerobot.teleoperators import gamepad  # noqa: F401
+from lerobot.teleoperators import so101_leader  # noqa: F401
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,8 +56,8 @@ def eval_policy(env, policy, n_episodes):
                 break
         sum_reward_episode.append(episode_reward)
 
-    logging.info(f"Success after 20 steps {sum_reward_episode}")
-    logging.info(f"success rate {sum(sum_reward_episode) / len(sum_reward_episode)}")
+    logging.info(f'Success after 20 steps {sum_reward_episode}')
+    logging.info(f'success rate {sum(sum_reward_episode) / len(sum_reward_episode)}')
 
 
 @parser.wrap()
@@ -70,5 +79,5 @@ def main(cfg: TrainRLServerPipelineConfig):
     eval_policy(env, policy=policy, n_episodes=10)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

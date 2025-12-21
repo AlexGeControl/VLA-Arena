@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 scripts/additional-datasets/lvis_instruct4v.py
 
@@ -24,20 +38,25 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.preprocessing.download import download_with_progress
+from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.preprocessing.download import (
+    download_with_progress,
+)
+
 
 # === Constants ===
-DATA_URL = "https://huggingface.co/datasets/X2FD/LVIS-Instruct4V/resolve/main/lvis_instruct4v_220k.json"
-DOWNLOAD_DIR = Path("data/download/llava-v1.5-instruct")
-RAW_JSON_FILE = DOWNLOAD_DIR / "lvis_instruct4v_220k.json"
+DATA_URL = (
+    'https://huggingface.co/datasets/X2FD/LVIS-Instruct4V/resolve/main/lvis_instruct4v_220k.json'
+)
+DOWNLOAD_DIR = Path('data/download/llava-v1.5-instruct')
+RAW_JSON_FILE = DOWNLOAD_DIR / 'lvis_instruct4v_220k.json'
 
 # JSON Files for "merged" variant of the dataset (with `llava_v1_5_mix665k.json`)
-BASE_JSON_FILE = DOWNLOAD_DIR / "llava_v1_5_mix665k.json"
-MERGED_JSON_FILE = DOWNLOAD_DIR / "llava_v1_5_lvis4v_mix888k.json"
+BASE_JSON_FILE = DOWNLOAD_DIR / 'llava_v1_5_mix665k.json'
+MERGED_JSON_FILE = DOWNLOAD_DIR / 'llava_v1_5_lvis4v_mix888k.json'
 
 
 def build_lvis_instruct_4v() -> None:
-    print("[*] Downloading and Formatting `LVIS-Instruct-4V` Dataset!")
+    print('[*] Downloading and Formatting `LVIS-Instruct-4V` Dataset!')
 
     # Set Random Seed
     random.seed(7)
@@ -48,18 +67,18 @@ def build_lvis_instruct_4v() -> None:
         download_with_progress(DATA_URL, DOWNLOAD_DIR)
 
     # Open JSON File --> verify image existence!
-    print("[*] Loading LVIS Instruct4V Data!")
-    with open(RAW_JSON_FILE, "r") as f:
+    print('[*] Loading LVIS Instruct4V Data!')
+    with open(RAW_JSON_FILE) as f:
         data = json.load(f)
 
     # Iterate & Verify
-    for example in tqdm(data, desc="[*] Verifying all Images in LVIS Instruct4V"):
-        image_path = example["image"]
-        assert (DOWNLOAD_DIR / image_path).exists(), f"Missing Image `{image_path}`"
+    for example in tqdm(data, desc='[*] Verifying all Images in LVIS Instruct4V'):
+        image_path = example['image']
+        assert (DOWNLOAD_DIR / image_path).exists(), f'Missing Image `{image_path}`'
 
     # Create Stacked Dataset =>> Shuffle for Good Measure!
-    print("[*] Loading LLaVa v1.5 Data!")
-    with open(BASE_JSON_FILE, "r") as f:
+    print('[*] Loading LLaVa v1.5 Data!')
+    with open(BASE_JSON_FILE) as f:
         llava_v15_data = json.load(f)
 
     # Combine & Shuffle & Write
@@ -69,9 +88,9 @@ def build_lvis_instruct_4v() -> None:
     random.shuffle(full_data)
     random.shuffle(full_data)
 
-    with open(MERGED_JSON_FILE, "w") as f:
+    with open(MERGED_JSON_FILE, 'w') as f:
         json.dump(full_data, f)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     build_lvis_instruct_4v()

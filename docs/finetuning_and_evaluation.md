@@ -115,4 +115,3 @@ uv run evaluator.py --config <config_file_path>
 ## Configuration File Notes
 
 Configuration files typically contain information such as dataset paths, model parameters, training hyperparameters, etc. Please refer to the corresponding configuration examples based on the model type you are using.
-

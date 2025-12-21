@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,26 +42,25 @@ from typing import Any, Protocol, TypedDict
 import torch
 from huggingface_hub import ModelHubMixin, hf_hub_download
 from huggingface_hub.errors import HfHubHTTPError
-from safetensors.torch import load_file, save_file
-
 from lerobot.configs.types import PolicyFeature
+from safetensors.torch import load_file, save_file
 
 
 class TransitionKey(str, Enum):
     """Keys for accessing EnvTransition dictionary components."""
 
     # TODO(Steven): Use consts
-    OBSERVATION = "observation"
-    ACTION = "action"
-    REWARD = "reward"
-    DONE = "done"
-    TRUNCATED = "truncated"
-    INFO = "info"
-    COMPLEMENTARY_DATA = "complementary_data"
+    OBSERVATION = 'observation'
+    ACTION = 'action'
+    REWARD = 'reward'
+    DONE = 'done'
+    TRUNCATED = 'truncated'
+    INFO = 'info'
+    COMPLEMENTARY_DATA = 'complementary_data'
 
 
 EnvTransition = TypedDict(
-    "EnvTransition",
+    'EnvTransition',
     {
         TransitionKey.OBSERVATION.value: dict[str, Any] | None,
         TransitionKey.ACTION.value: Any | torch.Tensor | None,
@@ -84,7 +97,7 @@ class ProcessorStepRegistry:
             if registration_name in cls._registry:
                 raise ValueError(
                     f"Processor step '{registration_name}' is already registered. "
-                    f"Use a different name or unregister the existing one first."
+                    f'Use a different name or unregister the existing one first.'
                 )
 
             cls._registry[registration_name] = step_class
@@ -111,8 +124,8 @@ class ProcessorStepRegistry:
             available = list(cls._registry.keys())
             raise KeyError(
                 f"Processor step '{name}' not found in registry. "
-                f"Available steps: {available}. "
-                f"Make sure the step is registered using @ProcessorStepRegistry.register()"
+                f'Available steps: {available}. '
+                f'Make sure the step is registered using @ProcessorStepRegistry.register()'
             )
         return cls._registry[name]
 
@@ -198,21 +211,21 @@ def _default_batch_to_transition(batch: dict[str, Any]) -> EnvTransition:  # noq
     """
 
     # Extract observation keys
-    observation_keys = {k: v for k, v in batch.items() if k.startswith("observation.")}
+    observation_keys = {k: v for k, v in batch.items() if k.startswith('observation.')}
     observation = observation_keys if observation_keys else None
 
     # Extract padding and task keys for complementary data
-    pad_keys = {k: v for k, v in batch.items() if "_is_pad" in k}
-    task_key = {"task": batch["task"]} if "task" in batch else {}
+    pad_keys = {k: v for k, v in batch.items() if '_is_pad' in k}
+    task_key = {'task': batch['task']} if 'task' in batch else {}
     complementary_data = {**pad_keys, **task_key} if pad_keys or task_key else {}
 
     transition: EnvTransition = {
         TransitionKey.OBSERVATION: observation,
-        TransitionKey.ACTION: batch.get("action"),
-        TransitionKey.REWARD: batch.get("next.reward", 0.0),
-        TransitionKey.DONE: batch.get("next.done", False),
-        TransitionKey.TRUNCATED: batch.get("next.truncated", False),
-        TransitionKey.INFO: batch.get("info", {}),
+        TransitionKey.ACTION: batch.get('action'),
+        TransitionKey.REWARD: batch.get('next.reward', 0.0),
+        TransitionKey.DONE: batch.get('next.done', False),
+        TransitionKey.TRUNCATED: batch.get('next.truncated', False),
+        TransitionKey.INFO: batch.get('info', {}),
         TransitionKey.COMPLEMENTARY_DATA: complementary_data,
     }
     return transition
@@ -224,21 +237,21 @@ def _default_transition_to_batch(transition: EnvTransition) -> dict[str, Any]:  
     """
 
     batch = {
-        "action": transition.get(TransitionKey.ACTION),
-        "next.reward": transition.get(TransitionKey.REWARD, 0.0),
-        "next.done": transition.get(TransitionKey.DONE, False),
-        "next.truncated": transition.get(TransitionKey.TRUNCATED, False),
-        "info": transition.get(TransitionKey.INFO, {}),
+        'action': transition.get(TransitionKey.ACTION),
+        'next.reward': transition.get(TransitionKey.REWARD, 0.0),
+        'next.done': transition.get(TransitionKey.DONE, False),
+        'next.truncated': transition.get(TransitionKey.TRUNCATED, False),
+        'info': transition.get(TransitionKey.INFO, {}),
     }
 
     # Add padding and task data from complementary_data
     complementary_data = transition.get(TransitionKey.COMPLEMENTARY_DATA)
     if complementary_data:
-        pad_data = {k: v for k, v in complementary_data.items() if "_is_pad" in k}
+        pad_data = {k: v for k, v in complementary_data.items() if '_is_pad' in k}
         batch.update(pad_data)
 
-        if "task" in complementary_data:
-            batch["task"] = complementary_data["task"]
+        if 'task' in complementary_data:
+            batch['task'] = complementary_data['task']
 
     # Handle observation - flatten dict to observation.* keys if it's a dict
     observation = transition.get(TransitionKey.OBSERVATION)
@@ -287,7 +300,7 @@ class RobotProcessor(ModelHubMixin):
     """
 
     steps: Sequence[ProcessorStep] = field(default_factory=list)
-    name: str = "RobotProcessor"
+    name: str = 'RobotProcessor'
 
     to_transition: Callable[[dict[str, Any]], EnvTransition] = field(
         default_factory=lambda: _default_batch_to_transition, repr=False
@@ -298,8 +311,12 @@ class RobotProcessor(ModelHubMixin):
 
     # Processor-level hooks for observation/monitoring
     # Hooks do not modify transitions - they are called for logging, debugging, or monitoring purposes
-    before_step_hooks: list[Callable[[int, EnvTransition], None]] = field(default_factory=list, repr=False)
-    after_step_hooks: list[Callable[[int, EnvTransition], None]] = field(default_factory=list, repr=False)
+    before_step_hooks: list[Callable[[int, EnvTransition], None]] = field(
+        default_factory=list, repr=False
+    )
+    after_step_hooks: list[Callable[[int, EnvTransition], None]] = field(
+        default_factory=list, repr=False
+    )
 
     def __call__(self, data: EnvTransition | dict[str, Any]):
         """Process data through all steps.
@@ -344,7 +361,9 @@ class RobotProcessor(ModelHubMixin):
         # Convert back to original format if needed
         return self.to_output(current_transition) if called_with_batch else current_transition
 
-    def _prepare_transition(self, data: EnvTransition | dict[str, Any]) -> tuple[EnvTransition, bool]:
+    def _prepare_transition(
+        self, data: EnvTransition | dict[str, Any]
+    ) -> tuple[EnvTransition, bool]:
         """Prepare and validate transition data for processing.
 
         Args:
@@ -368,7 +387,7 @@ class RobotProcessor(ModelHubMixin):
 
         # Basic validation
         if not isinstance(transition, dict):
-            raise ValueError(f"EnvTransition must be a dictionary. Got {type(transition).__name__}")
+            raise ValueError(f'EnvTransition must be a dictionary. Got {type(transition).__name__}')
 
         return transition, called_with_batch
 
@@ -402,10 +421,12 @@ class RobotProcessor(ModelHubMixin):
     def _save_pretrained(self, save_directory: Path, **kwargs):
         """Internal save method for ModelHubMixin compatibility."""
         # Extract config_filename from kwargs if provided
-        config_filename = kwargs.pop("config_filename", None)
+        config_filename = kwargs.pop('config_filename', None)
         self.save_pretrained(save_directory, config_filename=config_filename)
 
-    def save_pretrained(self, save_directory: str | Path, config_filename: str | None = None, **kwargs):
+    def save_pretrained(
+        self, save_directory: str | Path, config_filename: str | None = None, **kwargs
+    ):
         """Serialize the processor definition and parameters to *save_directory*.
 
         Args:
@@ -419,35 +440,35 @@ class RobotProcessor(ModelHubMixin):
         import re
 
         # The huggingface hub does not allow special characters in the repo name, so we sanitize the name
-        sanitized_name = re.sub(r"[^a-zA-Z0-9_]", "_", self.name.lower())
+        sanitized_name = re.sub(r'[^a-zA-Z0-9_]', '_', self.name.lower())
 
         # Use sanitized name for config if not provided
         if config_filename is None:
-            config_filename = f"{sanitized_name}.json"
+            config_filename = f'{sanitized_name}.json'
 
         config: dict[str, Any] = {
-            "name": self.name,
-            "steps": [],
+            'name': self.name,
+            'steps': [],
         }
 
         for step_index, processor_step in enumerate(self.steps):
             # Check if step was registered
-            registry_name = getattr(processor_step.__class__, "_registry_name", None)
+            registry_name = getattr(processor_step.__class__, '_registry_name', None)
 
             step_entry: dict[str, Any] = {}
             if registry_name:
                 # Use registry name for registered steps
-                step_entry["registry_name"] = registry_name
+                step_entry['registry_name'] = registry_name
             else:
                 # Fall back to full module path for unregistered steps
-                step_entry["class"] = (
-                    f"{processor_step.__class__.__module__}.{processor_step.__class__.__name__}"
+                step_entry['class'] = (
+                    f'{processor_step.__class__.__module__}.{processor_step.__class__.__name__}'
                 )
 
-            if hasattr(processor_step, "get_config"):
-                step_entry["config"] = processor_step.get_config()
+            if hasattr(processor_step, 'get_config'):
+                step_entry['config'] = processor_step.get_config()
 
-            if hasattr(processor_step, "state_dict"):
+            if hasattr(processor_step, 'state_dict'):
                 state = processor_step.state_dict()
                 if state:
                     # Clone tensors to avoid shared memory issues
@@ -465,16 +486,18 @@ class RobotProcessor(ModelHubMixin):
                     # Include pipeline name and step index to ensure unique filenames
                     # This prevents conflicts when multiple processors are saved in the same directory
                     if registry_name:
-                        state_filename = f"{sanitized_name}_step_{step_index}_{registry_name}.safetensors"
+                        state_filename = (
+                            f'{sanitized_name}_step_{step_index}_{registry_name}.safetensors'
+                        )
                     else:
-                        state_filename = f"{sanitized_name}_step_{step_index}.safetensors"
+                        state_filename = f'{sanitized_name}_step_{step_index}.safetensors'
 
                     save_file(cloned_state, os.path.join(str(save_directory), state_filename))
-                    step_entry["state_file"] = state_filename
+                    step_entry['state_file'] = state_filename
 
-            config["steps"].append(step_entry)
+            config['steps'].append(step_entry)
 
-        with open(os.path.join(str(save_directory), config_filename), "w") as file_pointer:
+        with open(os.path.join(str(save_directory), config_filename), 'w') as file_pointer:
             json.dump(config, file_pointer, indent=2)
 
     @classmethod
@@ -558,13 +581,13 @@ class RobotProcessor(ModelHubMixin):
 
             if config_filename is None:
                 # Look for any .json file in the directory
-                json_files = list(base_path.glob("*.json"))
+                json_files = list(base_path.glob('*.json'))
                 if len(json_files) == 0:
-                    raise FileNotFoundError(f"No .json configuration files found in {source}")
+                    raise FileNotFoundError(f'No .json configuration files found in {source}')
                 elif len(json_files) > 1:
                     raise ValueError(
-                        f"Multiple .json files found in {source}: {[f.name for f in json_files]}. "
-                        f"Please specify which one to load using the config_filename parameter."
+                        f'Multiple .json files found in {source}: {[f.name for f in json_files]}. '
+                        f'Please specify which one to load using the config_filename parameter.'
                     )
                 config_filename = json_files[0].name
 
@@ -575,10 +598,10 @@ class RobotProcessor(ModelHubMixin):
             if config_filename is None:
                 # Try common config names
                 common_names = [
-                    "processor.json",
-                    "preprocessor.json",
-                    "postprocessor.json",
-                    "robotprocessor.json",
+                    'processor.json',
+                    'preprocessor.json',
+                    'postprocessor.json',
+                    'robotprocessor.json',
                 ]
                 config_path = None
                 for name in common_names:
@@ -586,7 +609,7 @@ class RobotProcessor(ModelHubMixin):
                         config_path = hf_hub_download(
                             source,
                             name,
-                            repo_type="model",
+                            repo_type='model',
                             force_download=force_download,
                             resume_download=resume_download,
                             proxies=proxies,
@@ -605,15 +628,15 @@ class RobotProcessor(ModelHubMixin):
 
                 if config_path is None:
                     raise FileNotFoundError(
-                        f"No processor configuration file found in {source}. "
-                        f"Tried: {common_names}. Please specify the config_filename parameter."
+                        f'No processor configuration file found in {source}. '
+                        f'Tried: {common_names}. Please specify the config_filename parameter.'
                     )
             else:
                 # Download specific config file
                 config_path = hf_hub_download(
                     source,
                     config_filename,
-                    repo_type="model",
+                    repo_type='model',
                     force_download=force_download,
                     resume_download=resume_download,
                     proxies=proxies,
@@ -637,19 +660,21 @@ class RobotProcessor(ModelHubMixin):
         override_keys = set(overrides.keys())
 
         steps: list[ProcessorStep] = []
-        for step_entry in loaded_config["steps"]:
+        for step_entry in loaded_config['steps']:
             # Check if step uses registry name or module path
-            if "registry_name" in step_entry:
+            if 'registry_name' in step_entry:
                 # Load from registry
                 try:
-                    step_class = ProcessorStepRegistry.get(step_entry["registry_name"])
-                    step_key = step_entry["registry_name"]
+                    step_class = ProcessorStepRegistry.get(step_entry['registry_name'])
+                    step_key = step_entry['registry_name']
                 except KeyError as e:
-                    raise ImportError(f"Failed to load processor step from registry. {str(e)}") from e
+                    raise ImportError(
+                        f'Failed to load processor step from registry. {str(e)}'
+                    ) from e
             else:
                 # Fall back to module path loading for backward compatibility
-                full_class_path = step_entry["class"]
-                module_path, class_name = full_class_path.rsplit(".", 1)
+                full_class_path = step_entry['class']
+                module_path, class_name = full_class_path.rsplit('.', 1)
 
                 # Import the module containing the step class
                 try:
@@ -660,13 +685,13 @@ class RobotProcessor(ModelHubMixin):
                     raise ImportError(
                         f"Failed to load processor step '{full_class_path}'. "
                         f"Make sure the module '{module_path}' is installed and contains class '{class_name}'. "
-                        f"Consider registering the step using @ProcessorStepRegistry.register() for better portability. "
-                        f"Error: {str(e)}"
+                        f'Consider registering the step using @ProcessorStepRegistry.register() for better portability. '
+                        f'Error: {str(e)}'
                     ) from e
 
             # Instantiate the step with its config
             try:
-                saved_cfg = step_entry.get("config", {})
+                saved_cfg = step_entry.get('config', {})
                 step_overrides = overrides.get(step_key, {})
                 merged_cfg = {**saved_cfg, **step_overrides}
                 step_instance: ProcessorStep = step_class(**merged_cfg)
@@ -676,23 +701,23 @@ class RobotProcessor(ModelHubMixin):
                     override_keys.discard(step_key)
 
             except Exception as e:
-                step_name = step_entry.get("registry_name", step_entry.get("class", "Unknown"))
+                step_name = step_entry.get('registry_name', step_entry.get('class', 'Unknown'))
                 raise ValueError(
                     f"Failed to instantiate processor step '{step_name}' with config: {step_entry.get('config', {})}. "
-                    f"Error: {str(e)}"
+                    f'Error: {str(e)}'
                 ) from e
 
             # Load state if available
-            if "state_file" in step_entry and hasattr(step_instance, "load_state_dict"):
+            if 'state_file' in step_entry and hasattr(step_instance, 'load_state_dict'):
                 if Path(source).is_dir():
                     # Local path - read directly
-                    state_path = str(base_path / step_entry["state_file"])
+                    state_path = str(base_path / step_entry['state_file'])
                 else:
                     # Hugging Face Hub - download the state file
                     state_path = hf_hub_download(
                         source,
-                        step_entry["state_file"],
-                        repo_type="model",
+                        step_entry['state_file'],
+                        repo_type='model',
                         force_download=force_download,
                         resume_download=resume_download,
                         proxies=proxies,
@@ -709,21 +734,21 @@ class RobotProcessor(ModelHubMixin):
         # Check for unused override keys
         if override_keys:
             available_keys = []
-            for step_entry in loaded_config["steps"]:
-                if "registry_name" in step_entry:
-                    available_keys.append(step_entry["registry_name"])
+            for step_entry in loaded_config['steps']:
+                if 'registry_name' in step_entry:
+                    available_keys.append(step_entry['registry_name'])
                 else:
-                    full_class_path = step_entry["class"]
-                    class_name = full_class_path.rsplit(".", 1)[1]
+                    full_class_path = step_entry['class']
+                    class_name = full_class_path.rsplit('.', 1)[1]
                     available_keys.append(class_name)
 
             raise KeyError(
-                f"Override keys {list(override_keys)} do not match any step in the saved configuration. "
-                f"Available step keys: {available_keys}. "
-                f"Make sure override keys match exact step class names or registry names."
+                f'Override keys {list(override_keys)} do not match any step in the saved configuration. '
+                f'Available step keys: {available_keys}. '
+                f'Make sure override keys match exact step class names or registry names.'
             )
 
-        return cls(steps, loaded_config.get("name", "RobotProcessor"))
+        return cls(steps, loaded_config.get('name', 'RobotProcessor'))
 
     def __len__(self) -> int:
         """Return the number of steps in the processor."""
@@ -755,7 +780,7 @@ class RobotProcessor(ModelHubMixin):
             self.before_step_hooks.remove(fn)
         except ValueError:
             raise ValueError(
-                f"Hook {fn} not found in before_step_hooks. Make sure to pass the exact same function reference."
+                f'Hook {fn} not found in before_step_hooks. Make sure to pass the exact same function reference.'
             ) from None
 
     def register_after_step_hook(self, fn: Callable[[int, EnvTransition], None]):
@@ -775,13 +800,13 @@ class RobotProcessor(ModelHubMixin):
             self.after_step_hooks.remove(fn)
         except ValueError:
             raise ValueError(
-                f"Hook {fn} not found in after_step_hooks. Make sure to pass the exact same function reference."
+                f'Hook {fn} not found in after_step_hooks. Make sure to pass the exact same function reference.'
             ) from None
 
     def reset(self):
         """Clear state in every step that implements ``reset()`` and fire registered hooks."""
         for step in self.steps:
-            if hasattr(step, "reset"):
+            if hasattr(step, 'reset'):
                 step.reset()  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
@@ -789,13 +814,13 @@ class RobotProcessor(ModelHubMixin):
         step_names = [step.__class__.__name__ for step in self.steps]
 
         if not step_names:
-            steps_repr = "steps=0: []"
+            steps_repr = 'steps=0: []'
         elif len(step_names) <= 3:
             steps_repr = f"steps={len(step_names)}: [{', '.join(step_names)}]"
         else:
             # Show first 2 and last 1 with ellipsis for long lists
-            displayed = f"{step_names[0]}, {step_names[1]}, ..., {step_names[-1]}"
-            steps_repr = f"steps={len(step_names)}: [{displayed}]"
+            displayed = f'{step_names[0]}, {step_names[1]}, ..., {step_names[-1]}'
+            steps_repr = f'steps={len(step_names)}: [{displayed}]'
 
         parts = [f"name='{self.name}'", steps_repr]
 
@@ -805,16 +830,18 @@ class RobotProcessor(ModelHubMixin):
         for i, step in enumerate(self.steps):
             if not callable(step):
                 raise TypeError(
-                    f"Step {i} ({type(step).__name__}) must define __call__(transition) -> EnvTransition"
+                    f'Step {i} ({type(step).__name__}) must define __call__(transition) -> EnvTransition'
                 )
 
-            fc = getattr(step, "feature_contract", None)
+            fc = getattr(step, 'feature_contract', None)
             if not callable(fc):
                 raise TypeError(
-                    f"Step {i} ({type(step).__name__}) must define feature_contract(features) -> dict[str, Any]"
+                    f'Step {i} ({type(step).__name__}) must define feature_contract(features) -> dict[str, Any]'
                 )
 
-    def feature_contract(self, initial_features: dict[str, PolicyFeature]) -> dict[str, PolicyFeature]:
+    def feature_contract(
+        self, initial_features: dict[str, PolicyFeature]
+    ) -> dict[str, PolicyFeature]:
         """
         Apply ALL steps in order. Each step must implement
         feature_contract(features) and return a dict (full or incremental schema).
@@ -824,7 +851,9 @@ class RobotProcessor(ModelHubMixin):
         for _, step in enumerate(self.steps):
             out = step.feature_contract(features)
             if not isinstance(out, dict):
-                raise TypeError(f"{step.__class__.__name__}.feature_contract must return dict[str, Any]")
+                raise TypeError(
+                    f'{step.__class__.__name__}.feature_contract must return dict[str, Any]'
+                )
             features = out
         return features
 

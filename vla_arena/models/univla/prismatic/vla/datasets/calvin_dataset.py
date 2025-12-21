@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import ast
 import copy
 import io
@@ -6,13 +20,13 @@ import os
 import pickle
 import random
 import re
-
 from cgitb import text
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import chain
 from multiprocessing import Value
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import braceexpand
 import cv2
@@ -23,8 +37,9 @@ import torch.nn.functional as F
 import torchvision
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
-from torch.utils.data import Dataset                           
+from torch.utils.data import Dataset
 from webdataset.filters import _shuffle
+
 
 # Constants
 Image.MAX_IMAGE_PIXELS = 1000000000
@@ -46,21 +61,23 @@ logger = logging.getLogger(__name__)
 
 
 def process_state(
-    episode: Dict[str, np.ndarray],
+    episode: dict[str, np.ndarray],
     observation_space: DictConfig,
-    transforms: Dict,
+    transforms: dict,
     proprio_state: DictConfig,
     seq_idx: int = 0,
     window_size: int = 0,
-) -> Dict[str, torch.Tensor]:
-    state_obs_keys = observation_space["state_obs"]
+) -> dict[str, torch.Tensor]:
+    state_obs_keys = observation_space['state_obs']
     state_obs_list_normalized = []
     state_obs_list_unnormalized = []
     for state_ob in state_obs_keys:
         if window_size == 0 and seq_idx == 0:  # single file loader
             state_tensor = torch.from_numpy(episode[state_ob]).float()
         else:  # episode loader
-            state_tensor = torch.from_numpy(episode[state_ob][seq_idx : seq_idx + window_size]).float()
+            state_tensor = torch.from_numpy(
+                episode[state_ob][seq_idx : seq_idx + window_size]
+            ).float()
         # expand dims for single environment obs
         if len(state_tensor.shape) != 2:
             state_tensor = state_tensor.unsqueeze(0)
@@ -75,7 +92,7 @@ def process_state(
     seq_state_obs = torch.cat(state_obs_list_normalized, dim=1)
     seq_state_obs_unnormalized = torch.cat(state_obs_list_unnormalized, dim=1)
 
-    if not proprio_state.normalize_robot_orientation and "robot_orientation_idx" in proprio_state:
+    if not proprio_state.normalize_robot_orientation and 'robot_orientation_idx' in proprio_state:
         seq_state_obs[:, slice(*proprio_state.robot_orientation_idx)] = seq_state_obs_unnormalized[
             :, slice(*proprio_state.robot_orientation_idx)
         ]
@@ -90,17 +107,17 @@ def process_state(
         state_obs_sliced.append(seq_state_obs_)
     seq_state_obs = torch.cat(state_obs_sliced, dim=1)
 
-    return {"robot_obs": seq_state_obs}
+    return {'robot_obs': seq_state_obs}
 
 
 def process_rgb(
-    episode: Dict[str, np.ndarray],
+    episode: dict[str, np.ndarray],
     observation_space: DictConfig,
-    transforms: Dict,
+    transforms: dict,
     seq_idx: int = 0,
     window_size: int = 0,
-) -> Dict[str, Dict[str, torch.Tensor]]:
-    rgb_obs_keys = observation_space["rgb_obs"]
+) -> dict[str, dict[str, torch.Tensor]]:
+    rgb_obs_keys = observation_space['rgb_obs']
 
     seq_rgb_obs_dict = {}
     for _, rgb_obs_key in enumerate(rgb_obs_keys):
@@ -113,29 +130,33 @@ def process_rgb(
             # To Square image
             seq_rgb_obs_ = torch.from_numpy(rgb_obs).byte().permute(0, 3, 1, 2)
         else:  # episode loader
-            seq_rgb_obs_ = torch.from_numpy(rgb_obs[seq_idx : seq_idx + window_size]).byte().permute(0, 3, 1, 2)
+            seq_rgb_obs_ = (
+                torch.from_numpy(rgb_obs[seq_idx : seq_idx + window_size])
+                .byte()
+                .permute(0, 3, 1, 2)
+            )
         # we might have different transformations for the different cameras
         if rgb_obs_key in transforms:
             seq_rgb_obs_ = transforms[rgb_obs_key](seq_rgb_obs_)
         seq_rgb_obs_dict[rgb_obs_key] = seq_rgb_obs_
     # shape: N_rgb_obs x (BxCxHxW)
-    return {"rgb_obs": seq_rgb_obs_dict}
+    return {'rgb_obs': seq_rgb_obs_dict}
 
 
 def process_depth(
-    episode: Dict[str, np.ndarray],
+    episode: dict[str, np.ndarray],
     observation_space: DictConfig,
-    transforms: Dict,
+    transforms: dict,
     seq_idx: int = 0,
     window_size: int = 0,
-) -> Dict[str, Dict[str, torch.Tensor]]:
+) -> dict[str, dict[str, torch.Tensor]]:
     # expand dims for single environment obs
     def exp_dim(depth_img):
         if len(depth_img.shape) != 3:
             depth_img = np.expand_dims(depth_img, axis=0)
         return depth_img
 
-    depth_obs_keys = observation_space["depth_obs"]
+    depth_obs_keys = observation_space['depth_obs']
     seq_depth_obs_dict = {}
     for _, depth_obs_key in enumerate(depth_obs_keys):
         depth_ob = exp_dim(episode[depth_obs_key])
@@ -149,43 +170,49 @@ def process_depth(
             depth_ob_ = transforms[depth_obs_key](depth_ob_)
         seq_depth_obs_dict[depth_obs_key] = depth_ob_
     # shape: N_depth_obs x(BxHxW)
-    return {"depth_obs": seq_depth_obs_dict}
+    return {'depth_obs': seq_depth_obs_dict}
 
 
 def process_actions(
-    episode: Dict[str, np.ndarray],
+    episode: dict[str, np.ndarray],
     observation_space: DictConfig,
-    transforms: Dict,
+    transforms: dict,
     seq_idx: int = 0,
     window_size: int = 0,
-) -> Dict[str, torch.Tensor]:
+) -> dict[str, torch.Tensor]:
     # shape: (N_actions)
     # if len(action_keys) != 1:
     #     raise NotImplementedError
     action_key = observation_space
     if window_size == 0 and seq_idx == 0:  # single file loader
         action = episode[action_key]
-        if "actions" in transforms:
-            action = transforms["actions"]((action, episode["robot_obs"]))
+        if 'actions' in transforms:
+            action = transforms['actions']((action, episode['robot_obs']))
         seq_acts = torch.from_numpy(action).float()
     else:  # episode loader
-        seq_acts = torch.from_numpy(episode[action_keys[0]][seq_idx : seq_idx + window_size]).float()
-        rel_seq_acts = torch.from_numpy(episode[action_keys[1]][seq_idx : seq_idx + window_size]).float()
+        seq_acts = torch.from_numpy(
+            episode[action_keys[0]][seq_idx : seq_idx + window_size]
+        ).float()
+        rel_seq_acts = torch.from_numpy(
+            episode[action_keys[1]][seq_idx : seq_idx + window_size]
+        ).float()
 
-    return {"actions": seq_acts}
+    return {'actions': seq_acts}
 
 
-def process_language(episode: Dict[str, np.ndarray], transforms: Dict, with_lang: bool) -> Dict[str, torch.Tensor]:
-    seq_lang = {"lang": torch.empty(0)}
+def process_language(
+    episode: dict[str, np.ndarray], transforms: dict, with_lang: bool
+) -> dict[str, torch.Tensor]:
+    seq_lang = {'lang': torch.empty(0)}
     if with_lang:
-        lang = torch.from_numpy(episode["language"]).float()
-        if "language" in transforms:
-            lang = transforms["language"](lang)
-        seq_lang["lang"] = lang
+        lang = torch.from_numpy(episode['language']).float()
+        if 'language' in transforms:
+            lang = transforms['language'](lang)
+        seq_lang['lang'] = lang
     return seq_lang
 
 
-def get_state_info_dict(episode: Dict[str, np.ndarray]) -> Dict[str, Dict[str, torch.Tensor]]:
+def get_state_info_dict(episode: dict[str, np.ndarray]) -> dict[str, dict[str, torch.Tensor]]:
     """
     Create a dictionary with raw state observations for environment resets.
 
@@ -196,9 +223,9 @@ def get_state_info_dict(episode: Dict[str, np.ndarray]) -> Dict[str, Dict[str, t
          Info dict of full robot and scene state (for env resets).
     """
     return {
-        "state_info": {
-            "robot_obs": torch.from_numpy(episode["robot_obs"]),
-            "scene_obs": torch.from_numpy(episode["scene_obs"]),
+        'state_info': {
+            'robot_obs': torch.from_numpy(episode['robot_obs']),
+            'scene_obs': torch.from_numpy(episode['scene_obs']),
         }
     }
 
@@ -216,12 +243,14 @@ def load_dataset_statistics(train_dataset_dir, val_dataset_dir, transforms):
     Returns:
         transforms: potentially updated transforms
     """
-    paths = {"train": train_dataset_dir, "val": val_dataset_dir}
-    for dataset_type in ["train", "val"]:
+    paths = {'train': train_dataset_dir, 'val': val_dataset_dir}
+    for dataset_type in ['train', 'val']:
         try:
-            statistics = OmegaConf.load(Path(paths[dataset_type]) / "statistics.yaml")
+            statistics = OmegaConf.load(Path(paths[dataset_type]) / 'statistics.yaml')
             # Hack for maintaining two repositories with transforms
-            statistics = OmegaConf.create(OmegaConf.to_yaml(statistics).replace("calvin_models.", ""))
+            statistics = OmegaConf.create(
+                OmegaConf.to_yaml(statistics).replace('calvin_models.', '')
+            )
             # this ugly piece of code only exists because OmegaConf actually can't merge ListConfigs.
             # we do not want to override everything, but just the transforms that are specified in both
             # see https://stackoverflow.com/questions/61315623/omegaconf-can-i-influence-how-lists-are-merged
@@ -232,18 +261,20 @@ def load_dataset_statistics(train_dataset_dir, val_dataset_dir, transforms):
                     for dataset_trans in dataset_transforms:
                         exists = False
                         for i, conf_trans in enumerate(conf_transforms):
-                            if dataset_trans["_target_"] == conf_trans["_target_"]:
+                            if dataset_trans['_target_'] == conf_trans['_target_']:
                                 exists = True
                                 transforms[dataset_type][modality][i] = dataset_trans
                                 break
                         if not exists:
-                            transforms[dataset_type][modality] = ListConfig([*conf_transforms, dataset_trans])
+                            transforms[dataset_type][modality] = ListConfig(
+                                [*conf_transforms, dataset_trans]
+                            )
         except FileNotFoundError:
-            logger.warning("Could not load statistics.yaml")
+            logger.warning('Could not load statistics.yaml')
     return transforms
 
 
-def lookup_naming_pattern(dataset_dir: Path, save_format: str) -> Tuple[Tuple[Path, str], int]:
+def lookup_naming_pattern(dataset_dir: Path, save_format: str) -> tuple[tuple[Path, str], int]:
     """
     Check naming pattern of dataset files.
 
@@ -260,34 +291,33 @@ def lookup_naming_pattern(dataset_dir: Path, save_format: str) -> Tuple[Tuple[Pa
         filename = Path(next(it))
         if save_format in filename.suffix:
             break
-    aux_naming_pattern = re.split(r"\d+", filename.stem)
+    aux_naming_pattern = re.split(r'\d+', filename.stem)
     naming_pattern = (filename.parent / aux_naming_pattern[0], filename.suffix)
-    n_digits = len(re.findall(r"\d+", filename.stem)[0])
+    n_digits = len(re.findall(r'\d+', filename.stem)[0])
     assert len(naming_pattern) == 2
     assert n_digits > 0
     return naming_pattern, n_digits
-
 
 
 logger = logging.getLogger(__name__)
 
 obs_config = DictConfig(
     {
-        "rgb_obs": ["rgb_static", 'rgb_gripper', 'rgb_tactile'],
-        "depth_obs": ["depth_static", "depth_gripper"],
-        "state_obs": ["robot_obs"],
-        "actions": ["actions", "rel_actions"], #rel_actions
-        "language": ["language"],
+        'rgb_obs': ['rgb_static', 'rgb_gripper', 'rgb_tactile'],
+        'depth_obs': ['depth_static', 'depth_gripper'],
+        'state_obs': ['robot_obs'],
+        'actions': ['actions', 'rel_actions'],  # rel_actions
+        'language': ['language'],
     }
 )
 
 prop_state = DictConfig(
     {
-        "n_state_obs": 15,
-        "keep_indices": [[0, 15]],
-        "robot_orientation_idx": [3, 6],
-        "normalize": True,
-        "normalize_robot_orientation": True,
+        'n_state_obs': 15,
+        'keep_indices': [[0, 15]],
+        'robot_orientation_idx': [3, 6],
+        'normalize': True,
+        'normalize_robot_orientation': True,
     }
 )
 
@@ -316,11 +346,11 @@ class BaseCalvinDataset(Dataset):
         self,
         datasets_dir: Path,
         proprio_state: DictConfig = prop_state,
-        lang_folder: str = "lang_annotations",
+        lang_folder: str = 'lang_annotations',
         num_workers: int = 0,
-        key: str = "lang",
+        key: str = 'lang',
         obs_space: DictConfig = obs_config,
-        transforms: Dict = {},
+        transforms: dict = {},
         batch_size: int = 32,
         window_size: int = 16,
         min_window_size: int = 12,
@@ -331,33 +361,33 @@ class BaseCalvinDataset(Dataset):
         text_aug=False,
         dif_ws=False,
         act_step=1,
-        sampling_step = 1,
-        image_size = 224,
-        with_depth = False,
-        action_tokenizer = None,
-        base_tokenizer = None,
-        image_transform = None,
-        prompt_builder_fn = None,
+        sampling_step=1,
+        image_size=224,
+        with_depth=False,
+        action_tokenizer=None,
+        base_tokenizer=None,
+        image_transform=None,
+        prompt_builder_fn=None,
     ) -> None:
         self.action_tokenizer = action_tokenizer
         self.base_tokenizer = base_tokenizer
         self.image_transform = image_transform
         self.prompt_builder_fn = prompt_builder_fn
-    
+
         self.observation_space = obs_space
         self.proprio_state = proprio_state
         self.transforms = transforms
 
-        self.with_lang = key == "lang"
-        self.relative_actions = "rel_actions" in self.observation_space["actions"]
+        self.with_lang = key == 'lang'
+        self.relative_actions = 'rel_actions' in self.observation_space['actions']
 
         self.pad = pad
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.window_size = window_size
 
-        self.min_window_size = min_window_size 
-        self.max_window_size = max_window_size 
+        self.min_window_size = min_window_size
+        self.max_window_size = max_window_size
 
         self.resize_img = torchvision.transforms.Resize(image_size)
         self.image_transform_lam = torchvision.transforms.ToTensor()
@@ -366,30 +396,29 @@ class BaseCalvinDataset(Dataset):
         self.act_step = act_step
 
         self.abs_datasets_dir = datasets_dir
-        self.lang_folder = lang_folder  
+        self.lang_folder = lang_folder
         self.aux_lang_loss_window = aux_lang_loss_window
         self.traj_cons = traj_cons
         self.text_aug = text_aug
 
-
         assert (
-            "validation" in self.abs_datasets_dir.as_posix()
-            or "training" in self.abs_datasets_dir.as_posix()
+            'validation' in self.abs_datasets_dir.as_posix()
+            or 'training' in self.abs_datasets_dir.as_posix()
         )
-        self.validation = "validation" in self.abs_datasets_dir.as_posix()
+        self.validation = 'validation' in self.abs_datasets_dir.as_posix()
         assert self.abs_datasets_dir.is_dir()
-        print(f"loading dataset at {self.abs_datasets_dir}")
-        logger.info("finished loading dataset")
+        print(f'loading dataset at {self.abs_datasets_dir}')
+        logger.info('finished loading dataset')
 
     def process_rgb(
         self,
-        episode: Dict[str, np.ndarray],
+        episode: dict[str, np.ndarray],
         observation_space: DictConfig,
-        transforms: Dict,
+        transforms: dict,
         seq_idx: int = 0,
         window_size: int = 0,
-    ) -> Dict[str, Dict[str, torch.Tensor]]:
-        rgb_obs_keys = observation_space["rgb_obs"]
+    ) -> dict[str, dict[str, torch.Tensor]]:
+        rgb_obs_keys = observation_space['rgb_obs']
         seq_rgb_obs_dict = {}
         for _, rgb_obs_key in enumerate(rgb_obs_keys):
             rgb_obs = episode[rgb_obs_key]
@@ -401,26 +430,22 @@ class BaseCalvinDataset(Dataset):
                 # To Square image
                 seq_rgb_obs_ = torch.from_numpy(rgb_obs).byte()
             else:  # episode loader
-                seq_rgb_obs_ = torch.from_numpy(
-                    rgb_obs[seq_idx : seq_idx + window_size]
-                ).byte()
-            
+                seq_rgb_obs_ = torch.from_numpy(rgb_obs[seq_idx : seq_idx + window_size]).byte()
+
             if rgb_obs_key in transforms:
                 seq_rgb_obs_ = transforms[rgb_obs_key](seq_rgb_obs_)
             seq_rgb_obs_dict[rgb_obs_key] = seq_rgb_obs_
         # shape: N_rgb_obs x (BxHxWxC)
-        return {"rgb_obs": seq_rgb_obs_dict}
+        return {'rgb_obs': seq_rgb_obs_dict}
 
-    def process_language(
-        self, episode: Dict[str, np.ndarray], transforms: Dict, with_lang: bool
-    ):
-        return {"lang": episode["language"]}
+    def process_language(self, episode: dict[str, np.ndarray], transforms: dict, with_lang: bool):
+        return {'lang': episode['language']}
 
     def get_openvla_prompt(self, instruction: str, tokenized_action: str = None) -> str:
-    # print(tokenized_action)
-        return f"In: What action should the robot take to {instruction.lower()}?\nOut:" #+ tokenized_action + "</s>"
+        # print(tokenized_action)
+        return f'In: What action should the robot take to {instruction.lower()}?\nOut:'  # + tokenized_action + "</s>"
 
-    def __getitem__(self, idx: Union[int, Tuple[int, int]], fixed_seed=False) -> Dict:
+    def __getitem__(self, idx: int | tuple[int, int], fixed_seed=False) -> dict:
         """
         Get sequence of dataset.
 
@@ -439,18 +464,17 @@ class BaseCalvinDataset(Dataset):
                 window_size = self._get_window_size(idx)
             else:
                 logger.error(
-                    f"min_window_size {self.min_window_size} > max_window_size {self.max_window_size}"
+                    f'min_window_size {self.min_window_size} > max_window_size {self.max_window_size}'
                 )
                 raise ValueError
         else:
             idx, window_size = idx
-        
 
         extra_frame_num = window_size - self.min_window_size
         sequence = self._get_sequences(idx, window_size, head=False)
 
         # Prepare image inputs for UniVLA
-        image = copy.deepcopy(sequence["rgb_obs"]["rgb_static"].numpy())
+        image = copy.deepcopy(sequence['rgb_obs']['rgb_static'].numpy())
         image_vla = Image.fromarray(image[extra_frame_num].astype(np.uint8))
         goal_image = Image.fromarray(image[-1].astype(np.uint8))
         pixel_values = self.image_transform(image_vla)
@@ -472,19 +496,26 @@ class BaseCalvinDataset(Dataset):
         proprio = torch.cat([proprio[0, :6], proprio[0, [-1]]], dim=-1)
 
         # Get action
-        action = sequence['rel_actions'][extra_frame_num:] 
+        action = sequence['rel_actions'][extra_frame_num:]
 
         # Get task instruction
-        instruction = sequence["lang"]
+        instruction = sequence['lang']
 
         dataset_name = 'calvin'
 
-        return dict(pixel_values=pixel_values, initial_pixel_values=initial_pixel_values, target_pixel_values=target_pixel_values, 
-                    initial_pixel_values_hist=initial_pixel_values_hist, target_pixel_values_hist=target_pixel_values_hist,
-                    dataset_name=dataset_name, actions=action, lang=instruction, proprio=proprio)
+        return dict(
+            pixel_values=pixel_values,
+            initial_pixel_values=initial_pixel_values,
+            target_pixel_values=target_pixel_values,
+            initial_pixel_values_hist=initial_pixel_values_hist,
+            target_pixel_values_hist=target_pixel_values_hist,
+            dataset_name=dataset_name,
+            actions=action,
+            lang=instruction,
+            proprio=proprio,
+        )
 
-
-    def _get_sequences(self, idx: int, window_size: int, head: bool=False) -> Dict:
+    def _get_sequences(self, idx: int, window_size: int, head: bool = False) -> dict:
         """
         Load sequence of length window_size.
 
@@ -518,11 +549,11 @@ class BaseCalvinDataset(Dataset):
             **info,
             **seq_lang,
         }  # type:ignore
-        seq_dict["idx"] = idx  # type:ignore
+        seq_dict['idx'] = idx  # type:ignore
 
         return seq_dict
 
-    def _load_episode(self, idx: int, window_size: int) -> Dict[str, np.ndarray]:
+    def _load_episode(self, idx: int, window_size: int) -> dict[str, np.ndarray]:
         raise NotImplementedError
 
     def _get_window_size(self, idx: int) -> int:
@@ -539,10 +570,7 @@ class BaseCalvinDataset(Dataset):
         if len(self.episode_lookup) <= idx + window_diff:
             # last episode
             max_window = self.min_window_size + len(self.episode_lookup) - idx - 1
-        elif (
-            self.episode_lookup[idx + window_diff]
-            != self.episode_lookup[idx] + window_diff
-        ):
+        elif self.episode_lookup[idx + window_diff] != self.episode_lookup[idx] + window_diff:
             # less than max_episode steps until next episode
             steps_to_next_episode = int(
                 np.nonzero(
@@ -569,7 +597,7 @@ class BaseCalvinDataset(Dataset):
         """
         return len(self.episode_lookup)
 
-    def _get_pad_size(self, sequence: Dict) -> int:
+    def _get_pad_size(self, sequence: dict) -> int:
         """
         Determine how many frames to append to end of the sequence
 
@@ -579,9 +607,9 @@ class BaseCalvinDataset(Dataset):
         Returns:
             Number of frames to pad.
         """
-        return self.max_window_size - len(sequence["actions"])
+        return self.max_window_size - len(sequence['actions'])
 
-    def _pad_sequence(self, seq: Dict, pad_size: int, head: bool=False) -> Dict:
+    def _pad_sequence(self, seq: dict, pad_size: int, head: bool = False) -> dict:
         """
         Pad a sequence by repeating the last frame.
 
@@ -594,35 +622,37 @@ class BaseCalvinDataset(Dataset):
         """
         if not self.relative_actions:
             if head:
-                seq_acts = self._pad_with_zeros(seq["actions"], pad_size, head)
+                seq_acts = self._pad_with_zeros(seq['actions'], pad_size, head)
             else:
                 # repeat action for world coordinates action space
-                seq.update({"actions": self._pad_with_repetition(seq["actions"], pad_size, head)})
+                seq.update({'actions': self._pad_with_repetition(seq['actions'], pad_size, head)})
         else:
             # for relative actions zero pad all but the last action dims and repeat last action dim (gripper action)
             if head:
-                seq_acts = self._pad_with_zeros(seq["actions"], pad_size, head)
+                seq_acts = self._pad_with_zeros(seq['actions'], pad_size, head)
             else:
                 seq_acts = torch.cat(
                     [
-                        self._pad_with_zeros(seq["actions"][..., :-1], pad_size, head),
-                        self._pad_with_repetition(seq["actions"][..., -1:], pad_size, head),
+                        self._pad_with_zeros(seq['actions'][..., :-1], pad_size, head),
+                        self._pad_with_repetition(seq['actions'][..., -1:], pad_size, head),
                     ],
                     dim=-1,
                 )
-            seq.update({"actions": seq_acts})
+            seq.update({'actions': seq_acts})
         seq.update(
             {
-                "state_info": {
+                'state_info': {
                     k: self._pad_with_repetition(v, pad_size, head)
-                    for k, v in seq["state_info"].items()
+                    for k, v in seq['state_info'].items()
                 }
             }
         )
         return seq
 
     @staticmethod
-    def _pad_with_repetition(input_tensor: torch.Tensor, pad_size: int, head: bool = False) -> torch.Tensor:
+    def _pad_with_repetition(
+        input_tensor: torch.Tensor, pad_size: int, head: bool = False
+    ) -> torch.Tensor:
         """
         Pad a sequence Tensor by repeating last element pad_size times.
 
@@ -646,7 +676,9 @@ class BaseCalvinDataset(Dataset):
         return padded
 
     @staticmethod
-    def _pad_with_zeros(input_tensor: torch.Tensor, pad_size: int, head: bool = False) -> torch.Tensor:
+    def _pad_with_zeros(
+        input_tensor: torch.Tensor, pad_size: int, head: bool = False
+    ) -> torch.Tensor:
         """
         Pad a Tensor with zeros.
 
@@ -668,7 +700,7 @@ class BaseCalvinDataset(Dataset):
             padded = torch.vstack((input_tensor, zeros_repeated))
         return padded
 
-    def _add_language_info(self, info: Dict, idx: int) -> Dict:
+    def _add_language_info(self, info: dict, idx: int) -> dict:
         """
         If dataset contains language, add info to determine if this sequence will be used for the auxiliary losses.
 
@@ -685,15 +717,20 @@ class BaseCalvinDataset(Dataset):
             idx + self.aux_lang_loss_window >= len(self.lang_lookup)
             or self.lang_lookup[idx] < self.lang_lookup[idx + self.aux_lang_loss_window]
         )
-        info["use_for_aux_lang_loss"] = use_for_aux_lang_loss
+        info['use_for_aux_lang_loss'] = use_for_aux_lang_loss
         return info
 
 
 class DebugDataset(Dataset):
-    def __init__(self, **kwargs: Any,):
+    def __init__(
+        self,
+        **kwargs: Any,
+    ):
         super().__init__()
+
     def __len__(self) -> int:
         return 10000
+
     def __getitem__(self, index):
         window_size = 8
         rgb = torch.randn(window_size, 3, 200, 200)
@@ -716,7 +753,7 @@ class DiskCalvinDataset(BaseCalvinDataset):
         text_fn: Callable,
         *args: Any,
         skip_frames: int = 1,
-        save_format: str = "npz",
+        save_format: str = 'npz',
         pretrain: bool = False,
         partial_data=False,
         imagenet_norm=True,
@@ -727,9 +764,9 @@ class DiskCalvinDataset(BaseCalvinDataset):
         self.image_fn = image_fn
         self.text_fn = text_fn
         self.partial_data = partial_data
-        if self.save_format == "pkl":
+        if self.save_format == 'pkl':
             self.load_file = load_pkl
-        elif self.save_format == "npz":
+        elif self.save_format == 'npz':
             self.load_file = load_npz
         else:
             raise NotImplementedError
@@ -737,12 +774,9 @@ class DiskCalvinDataset(BaseCalvinDataset):
         self.skip_frames = skip_frames
         self.imagenet_norm = imagenet_norm
         if self.with_lang:
-            (
-                self.episode_lookup,
-                self.lang_lookup,
-                self.lang_ann,
-                self.lang_task
-            ) = self._build_file_indices_lang(self.abs_datasets_dir)
+            (self.episode_lookup, self.lang_lookup, self.lang_ann, self.lang_task) = (
+                self._build_file_indices_lang(self.abs_datasets_dir)
+            )
         else:
             self.episode_lookup = self._build_file_indices(self.abs_datasets_dir)
 
@@ -751,14 +785,37 @@ class DiskCalvinDataset(BaseCalvinDataset):
         )
 
         self.dataset_statistics = {
-            "calvin": {
-                "action": {
-                    "q01": np.array([[-0.709374189376831, -0.5701979398727417, -0.4474960544705391, -0.4189372956752777, -0.46931618452072144, -1.0, -1.0]]),
-                    "q99": np.array([[0.6778383851051331, 0.5456381440162659, 0.5794259309768677, 0.41331127285957336, 0.4224340233206751, 1.0, 1.0]])
-              }
+            'calvin': {
+                'action': {
+                    'q01': np.array(
+                        [
+                            [
+                                -0.709374189376831,
+                                -0.5701979398727417,
+                                -0.4474960544705391,
+                                -0.4189372956752777,
+                                -0.46931618452072144,
+                                -1.0,
+                                -1.0,
+                            ]
+                        ]
+                    ),
+                    'q99': np.array(
+                        [
+                            [
+                                0.6778383851051331,
+                                0.5456381440162659,
+                                0.5794259309768677,
+                                0.41331127285957336,
+                                0.4224340233206751,
+                                1.0,
+                                1.0,
+                            ]
+                        ]
+                    ),
+                }
             }
         }
-
 
     def _get_episode_name(self, file_idx: int) -> Path:
         """
@@ -768,11 +825,9 @@ class DiskCalvinDataset(BaseCalvinDataset):
         Returns:
             Path to file.
         """
-        return Path(
-            f"{self.naming_pattern[0]}{file_idx:0{self.n_digits}d}{self.naming_pattern[1]}"
-        )
+        return Path(f'{self.naming_pattern[0]}{file_idx:0{self.n_digits}d}{self.naming_pattern[1]}')
 
-    def _load_episode(self, idx: int, window_size: int) -> Dict[str, np.ndarray]:
+    def _load_episode(self, idx: int, window_size: int) -> dict[str, np.ndarray]:
         """
         Load consecutive frames saved as individual files on disk and combine to episode dict.
         Args:
@@ -782,10 +837,10 @@ class DiskCalvinDataset(BaseCalvinDataset):
             episode: Dict of numpy arrays containing the episode where keys are the names of modalities.
         """
         start_idx = self.episode_lookup[idx]
-        end_idx = start_idx + window_size #* self.sampling_step + self.sampling_step
+        end_idx = start_idx + window_size  # * self.sampling_step + self.sampling_step
         keys = list(chain(*self.observation_space.values()))
-        keys.remove("language")
-        keys.append("scene_obs")
+        keys.remove('language')
+        keys.append('scene_obs')
 
         try:
             episodes = [
@@ -803,16 +858,14 @@ class DiskCalvinDataset(BaseCalvinDataset):
         episode = {key: np.stack([ep[key] for ep in episodes]) for key in keys}
 
         if self.with_lang:
-            episode["language"] = self.lang_ann[self.lang_lookup[idx]]
+            episode['language'] = self.lang_ann[self.lang_lookup[idx]]
             if self.text_aug:
                 task = self.lang_task[self.lang_lookup[idx]]
-                enrich_lang = random.choice(self.enrich_lang[task] + [episode["language"]])
-                episode["language"] = enrich_lang
+                enrich_lang = random.choice(self.enrich_lang[task] + [episode['language']])
+                episode['language'] = enrich_lang
         return episode
 
-    def _build_file_indices_lang(
-        self, abs_datasets_dir: Path
-    ):
+    def _build_file_indices_lang(self, abs_datasets_dir: Path):
         """
         This method builds the mapping from index to file_name used for loading the episodes of the language dataset.
         Args:
@@ -828,25 +881,23 @@ class DiskCalvinDataset(BaseCalvinDataset):
 
         try:
             print(
-                "trying to load lang data from: ",
-                abs_datasets_dir / self.lang_folder / "auto_lang_ann.npy",
+                'trying to load lang data from: ',
+                abs_datasets_dir / self.lang_folder / 'auto_lang_ann.npy',
             )
             lang_data = np.load(
-                abs_datasets_dir / self.lang_folder / "auto_lang_ann.npy",
+                abs_datasets_dir / self.lang_folder / 'auto_lang_ann.npy',
                 allow_pickle=True,
             ).item()
         except Exception:
             print(
-                "Exception, trying to load lang data from: ",
-                abs_datasets_dir / "auto_lang_ann.npy",
+                'Exception, trying to load lang data from: ',
+                abs_datasets_dir / 'auto_lang_ann.npy',
             )
-            lang_data = np.load(
-                abs_datasets_dir / "auto_lang_ann.npy", allow_pickle=True
-            ).item()
+            lang_data = np.load(abs_datasets_dir / 'auto_lang_ann.npy', allow_pickle=True).item()
 
-        ep_start_end_ids = lang_data["info"]["indx"]  # each of them are 64
-        lang_ann = lang_data["language"]["ann"]  # length total number of annotations
-        lang_task = lang_data["language"]["task"]
+        ep_start_end_ids = lang_data['info']['indx']  # each of them are 64
+        lang_ann = lang_data['language']['ann']  # length total number of annotations
+        lang_task = lang_data['language']['task']
         lang_lookup = []
 
         total_eps = len(ep_start_end_ids)
@@ -858,7 +909,7 @@ class DiskCalvinDataset(BaseCalvinDataset):
                 )
             assert end_idx >= self.max_window_size
             cnt = 0
-            
+
             for idx in range(start_idx, end_idx + 1 - self.min_window_size):
                 if cnt % self.skip_frames == 0:
                     lang_lookup.append(i)
@@ -880,22 +931,19 @@ class DiskCalvinDataset(BaseCalvinDataset):
 
         episode_lookup = []
 
-        ep_start_end_ids = np.load(abs_datasets_dir / "ep_start_end_ids.npy")
-        print(
-            f'Found "ep_start_end_ids.npy" with {len(ep_start_end_ids)} episodes.'
-        )
+        ep_start_end_ids = np.load(abs_datasets_dir / 'ep_start_end_ids.npy')
+        print(f'Found "ep_start_end_ids.npy" with {len(ep_start_end_ids)} episodes.')
         for start_idx, end_idx in ep_start_end_ids:
             assert end_idx > self.max_window_size
             for idx in range(start_idx, end_idx + 1 - self.min_window_size):
                 episode_lookup.append(idx)
         return np.array(episode_lookup)
 
-def load_pkl(filename: Path) -> Dict[str, np.ndarray]:
-    with open(filename, "rb") as f:
+
+def load_pkl(filename: Path) -> dict[str, np.ndarray]:
+    with open(filename, 'rb') as f:
         return pickle.load(f)
 
 
-def load_npz(filename: Path) -> Dict[str, np.ndarray]:
+def load_npz(filename: Path) -> dict[str, np.ndarray]:
     return np.load(filename.as_posix())
-
-

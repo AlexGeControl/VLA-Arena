@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 base_llm.py
 
@@ -14,8 +28,9 @@ utilities around different types of decoding/generation strategies.
 
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from functools import partial
-from typing import Callable, List, Optional, Sequence, Type
+from typing import List, Optional, Type
 
 import torch
 import torch.nn as nn
@@ -26,8 +41,9 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from vla_arena.models.openvla_oft.prismatic.models.backbones.llm.prompting import PromptBuilder
 from vla_arena.models.openvla_oft.prismatic.overwatch import initialize_overwatch
 
+
 # Suppress HF Deprecation Warnings
-warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
@@ -55,16 +71,16 @@ class LLMBackbone(nn.Module, ABC):
     @abstractmethod
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[torch.FloatTensor]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: torch.LongTensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        past_key_values: list[torch.FloatTensor] | None = None,
+        inputs_embeds: torch.FloatTensor | None = None,
+        labels: torch.LongTensor | None = None,
+        use_cache: bool | None = None,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        return_dict: bool | None = None,
     ) -> CausalLMOutputWithPast:
         """Run a forward pass through the LLM given targets (labels), returning the scalar Cross-Entropy Loss"""
         raise NotImplementedError
@@ -74,11 +90,11 @@ class LLMBackbone(nn.Module, ABC):
 
     @property
     @abstractmethod
-    def prompt_builder_fn(self) -> Type[PromptBuilder]: ...
+    def prompt_builder_fn(self) -> type[PromptBuilder]: ...
 
     @property
     @abstractmethod
-    def transformer_layer_cls(self) -> Type[nn.Module]: ...
+    def transformer_layer_cls(self) -> type[nn.Module]: ...
 
     @property
     @abstractmethod
@@ -103,10 +119,10 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
         self,
         llm_backbone_id: str,
         llm_family: str,
-        llm_cls: Type[PreTrainedModel],
+        llm_cls: type[PreTrainedModel],
         hf_hub_path: str,
         llm_max_length: int = 2048,
-        hf_token: Optional[str] = None,
+        hf_token: str | None = None,
         inference_mode: bool = False,
         use_flash_attention_2: bool = False,
     ) -> None:
@@ -118,7 +134,9 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
         # Initialize LLM (downloading from HF Hub if necessary) --> `llm_cls` is the actual {Model}ForCausalLM class!
         #   => Note: We're eschewing use of the AutoModel API so that we can be more explicit about LLM-specific details
         if not self.inference_mode:
-            overwatch.info(f"Loading [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
+            overwatch.info(
+                f'Loading [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]', ctx_level=1
+            )
             self.llm = llm_cls.from_pretrained(
                 hf_hub_path,
                 token=hf_token,
@@ -131,7 +149,10 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
 
         # [Contract] `inference_mode` means we're loading from a pretrained checkpoint; no need to load base weights!
         else:
-            overwatch.info(f"Building empty [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]", ctx_level=1)
+            overwatch.info(
+                f'Building empty [bold]{llm_family}[/] LLM from [underline]`{hf_hub_path}`[/]',
+                ctx_level=1,
+            )
             llm_config = AutoConfig.from_pretrained(hf_hub_path, token=hf_token)
             self.llm = llm_cls._from_config(llm_config)
 
@@ -148,9 +169,11 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
             self.llm.enable_input_require_grads()
 
         # Load (Fast) Tokenizer
-        overwatch.info(f"Loading [bold]{llm_family}[/] (Fast) Tokenizer via the AutoTokenizer API", ctx_level=1)
+        overwatch.info(
+            f'Loading [bold]{llm_family}[/] (Fast) Tokenizer via the AutoTokenizer API', ctx_level=1
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(
-            hf_hub_path, model_max_length=self.llm_max_length, token=hf_token, padding_side="right"
+            hf_hub_path, model_max_length=self.llm_max_length, token=hf_token, padding_side='right'
         )
 
         # Validation =>> Our VLM logic currently operates under the assumption that the tokenization of a new input
@@ -166,17 +189,21 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
             #   =>> We'll prepend BOS to first input (to play nicely with image token insertion logic; verified that
             #       this works well with base LLM generation.
             #   =>> Like Llama-2 Tokenizers -- we'll add a special PAD token for training purposes.
-            "phi-2-3b",
+            'phi-2-3b',
         }
         if self.identifier in SPECIAL_CASES:
             return
 
         # Note =>> this assert should hold for all Llama-derived tokenizers (`LlamaTokenizerFast` ==> includes Mistral!
-        assert (self.tokenizer("Test 123", add_special_tokens=True).input_ids[0] == self.tokenizer.bos_token_id) and (
-            self.tokenizer("Test 123", add_special_tokens=False).input_ids[0] != self.tokenizer.bos_token_id
+        assert (
+            self.tokenizer('Test 123', add_special_tokens=True).input_ids[0]
+            == self.tokenizer.bos_token_id
+        ) and (
+            self.tokenizer('Test 123', add_special_tokens=False).input_ids[0]
+            != self.tokenizer.bos_token_id
         ), (
-            f"Default Tokenizer of type `{type(self.tokenizer)}` does not automatically prefix inputs with BOS token!\n"
-            "Please read the comment in `base_llm.py` for more information!"
+            f'Default Tokenizer of type `{type(self.tokenizer)}` does not automatically prefix inputs with BOS token!\n'
+            'Please read the comment in `base_llm.py` for more information!'
         )
 
     def get_fsdp_wrapping_policy(self) -> Callable:
@@ -197,16 +224,16 @@ class HFCausalLLMBackbone(LLMBackbone, ABC):
     # [Contract] Should match the `forward` call of the underlying `llm` instance!
     def forward(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[List[torch.FloatTensor]] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        input_ids: torch.LongTensor | None = None,
+        attention_mask: torch.Tensor | None = None,
+        position_ids: torch.LongTensor | None = None,
+        past_key_values: list[torch.FloatTensor] | None = None,
+        inputs_embeds: torch.FloatTensor | None = None,
+        labels: torch.LongTensor | None = None,
+        use_cache: bool | None = None,
+        output_attentions: bool | None = None,
+        output_hidden_states: bool | None = None,
+        return_dict: bool | None = None,
     ) -> CausalLMOutputWithPast:
         output: CausalLMOutputWithPast = self.llm(
             input_ids=input_ids,

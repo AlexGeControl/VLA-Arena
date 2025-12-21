@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 nn_utils.py
 
@@ -19,26 +33,28 @@ class LinearProjector(nn.Module):
 
 
 class MLPProjector(nn.Module):
-    def __init__(self, vision_dim: int, llm_dim: int, mlp_type: str = "gelu-mlp") -> None:
+    def __init__(self, vision_dim: int, llm_dim: int, mlp_type: str = 'gelu-mlp') -> None:
         super().__init__()
-        if mlp_type == "gelu-mlp":
+        if mlp_type == 'gelu-mlp':
             self.projector = nn.Sequential(
                 nn.Linear(vision_dim, llm_dim, bias=True),
                 nn.GELU(),
                 nn.Linear(llm_dim, llm_dim, bias=True),
             )
         else:
-            raise ValueError(f"Projector with `{mlp_type = }` is not supported!")
+            raise ValueError(f'Projector with `{mlp_type = }` is not supported!')
 
     def forward(self, img_patches: torch.Tensor) -> torch.Tensor:
         return self.projector(img_patches)
 
 
 class FusedMLPProjector(nn.Module):
-    def __init__(self, fused_vision_dim: int, llm_dim: int, mlp_type: str = "fused-gelu-mlp") -> None:
+    def __init__(
+        self, fused_vision_dim: int, llm_dim: int, mlp_type: str = 'fused-gelu-mlp'
+    ) -> None:
         super().__init__()
         self.initial_projection_dim = fused_vision_dim * 4
-        if mlp_type == "fused-gelu-mlp":
+        if mlp_type == 'fused-gelu-mlp':
             self.projector = nn.Sequential(
                 nn.Linear(fused_vision_dim, self.initial_projection_dim, bias=True),
                 nn.GELU(),
@@ -47,7 +63,7 @@ class FusedMLPProjector(nn.Module):
                 nn.Linear(llm_dim, llm_dim, bias=True),
             )
         else:
-            raise ValueError(f"Fused Projector with `{mlp_type = }` is not supported!")
+            raise ValueError(f'Fused Projector with `{mlp_type = }` is not supported!')
 
     def forward(self, fused_img_patches: torch.Tensor) -> torch.Tensor:
         return self.projector(fused_img_patches)

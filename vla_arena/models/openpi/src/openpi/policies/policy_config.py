@@ -1,16 +1,29 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 import os
 import pathlib
 from typing import Any
 
 import jax.numpy as jnp
-
 import openpi.models.model as _model
 import openpi.policies.policy as _policy
 import openpi.shared.download as download
+import openpi.transforms as transforms
 from openpi.training import checkpoints as _checkpoints
 from openpi.training import config as _config
-import openpi.transforms as transforms
 
 
 def create_trained_policy(
@@ -46,31 +59,33 @@ def create_trained_policy(
     checkpoint_dir = download.maybe_download(str(checkpoint_dir))
 
     # Check if this is a PyTorch model by looking for model.safetensors
-    weight_path = os.path.join(checkpoint_dir, "model.safetensors")
+    weight_path = os.path.join(checkpoint_dir, 'model.safetensors')
     is_pytorch = os.path.exists(weight_path)
 
-    logging.info("Loading model...")
+    logging.info('Loading model...')
     if is_pytorch:
         model = train_config.model.load_pytorch(train_config, weight_path)
-        model.paligemma_with_expert.to_bfloat16_for_selected_params("bfloat16")
+        model.paligemma_with_expert.to_bfloat16_for_selected_params('bfloat16')
     else:
-        model = train_config.model.load(_model.restore_params(checkpoint_dir / "params", dtype=jnp.bfloat16))
+        model = train_config.model.load(
+            _model.restore_params(checkpoint_dir / 'params', dtype=jnp.bfloat16)
+        )
     data_config = train_config.data.create(train_config.assets_dirs, train_config.model)
     if norm_stats is None:
         # We are loading the norm stats from the checkpoint instead of the config assets dir to make sure
         # that the policy is using the same normalization stats as the original training process.
         if data_config.asset_id is None:
-            raise ValueError("Asset id is required to load norm stats.")
-        norm_stats = _checkpoints.load_norm_stats(checkpoint_dir / "assets", data_config.asset_id)
+            raise ValueError('Asset id is required to load norm stats.')
+        norm_stats = _checkpoints.load_norm_stats(checkpoint_dir / 'assets', data_config.asset_id)
 
     # Determine the device to use for PyTorch models
     if is_pytorch and pytorch_device is None:
         try:
             import torch
 
-            pytorch_device = "cuda" if torch.cuda.is_available() else "cpu"
+            pytorch_device = 'cuda' if torch.cuda.is_available() else 'cpu'
         except ImportError:
-            pytorch_device = "cpu"
+            pytorch_device = 'cpu'
 
     return _policy.Policy(
         model,

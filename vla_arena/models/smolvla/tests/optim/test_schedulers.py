@@ -1,3 +1,26 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from lerobot.constants import SCHEDULER_STATE
+from lerobot.optim.schedulers import (
+    CosineDecayWithWarmupSchedulerConfig,
+    DiffuserSchedulerConfig,
+    VQBeTSchedulerConfig,
+    load_scheduler_state,
+    save_scheduler_state,
+)
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,30 +36,21 @@
 # limitations under the License.
 from torch.optim.lr_scheduler import LambdaLR
 
-from lerobot.constants import SCHEDULER_STATE
-from lerobot.optim.schedulers import (
-    CosineDecayWithWarmupSchedulerConfig,
-    DiffuserSchedulerConfig,
-    VQBeTSchedulerConfig,
-    load_scheduler_state,
-    save_scheduler_state,
-)
-
 
 def test_diffuser_scheduler(optimizer):
-    config = DiffuserSchedulerConfig(name="cosine", num_warmup_steps=5)
+    config = DiffuserSchedulerConfig(name='cosine', num_warmup_steps=5)
     scheduler = config.build(optimizer, num_training_steps=100)
     assert isinstance(scheduler, LambdaLR)
 
     optimizer.step()  # so that we don't get torch warning
     scheduler.step()
     expected_state_dict = {
-        "_get_lr_called_within_step": False,
-        "_last_lr": [0.0002],
-        "_step_count": 2,
-        "base_lrs": [0.001],
-        "last_epoch": 1,
-        "lr_lambdas": [None],
+        '_get_lr_called_within_step': False,
+        '_last_lr': [0.0002],
+        '_step_count': 2,
+        'base_lrs': [0.001],
+        'last_epoch': 1,
+        'lr_lambdas': [None],
     }
     assert scheduler.state_dict() == expected_state_dict
 
@@ -49,12 +63,12 @@ def test_vqbet_scheduler(optimizer):
     optimizer.step()
     scheduler.step()
     expected_state_dict = {
-        "_get_lr_called_within_step": False,
-        "_last_lr": [0.001],
-        "_step_count": 2,
-        "base_lrs": [0.001],
-        "last_epoch": 1,
-        "lr_lambdas": [None],
+        '_get_lr_called_within_step': False,
+        '_last_lr': [0.001],
+        '_step_count': 2,
+        'base_lrs': [0.001],
+        'last_epoch': 1,
+        'lr_lambdas': [None],
     }
     assert scheduler.state_dict() == expected_state_dict
 
@@ -69,12 +83,12 @@ def test_cosine_decay_with_warmup_scheduler(optimizer):
     optimizer.step()
     scheduler.step()
     expected_state_dict = {
-        "_get_lr_called_within_step": False,
-        "_last_lr": [0.0001818181818181819],
-        "_step_count": 2,
-        "base_lrs": [0.001],
-        "last_epoch": 1,
-        "lr_lambdas": [None],
+        '_get_lr_called_within_step': False,
+        '_last_lr': [0.0001818181818181819],
+        '_step_count': 2,
+        'base_lrs': [0.001],
+        'last_epoch': 1,
+        'lr_lambdas': [None],
     }
     assert scheduler.state_dict() == expected_state_dict
 

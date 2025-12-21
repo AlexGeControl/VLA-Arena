@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.utils import hw_to_dataset_features
 from lerobot.record import record_loop
@@ -9,15 +23,18 @@ from lerobot.utils.control_utils import init_keyboard_listener
 from lerobot.utils.utils import log_say
 from lerobot.utils.visualization_utils import _init_rerun
 
+
 NUM_EPISODES = 3
 FPS = 30
 EPISODE_TIME_SEC = 30
 RESET_TIME_SEC = 10
-TASK_DESCRIPTION = "My task description"
+TASK_DESCRIPTION = 'My task description'
 
 # Create the robot and teleoperator configurations
-robot_config = LeKiwiClientConfig(remote_ip="172.18.134.136", id="lekiwi")
-leader_arm_config = SO100LeaderConfig(port="/dev/tty.usbmodem585A0077581", id="my_awesome_leader_arm")
+robot_config = LeKiwiClientConfig(remote_ip='172.18.134.136', id='lekiwi')
+leader_arm_config = SO100LeaderConfig(
+    port='/dev/tty.usbmodem585A0077581', id='my_awesome_leader_arm'
+)
 keyboard_config = KeyboardTeleopConfig()
 
 robot = LeKiwiClient(robot_config)
@@ -25,13 +42,13 @@ leader_arm = SO100Leader(leader_arm_config)
 keyboard = KeyboardTeleop(keyboard_config)
 
 # Configure the dataset features
-action_features = hw_to_dataset_features(robot.action_features, "action")
-obs_features = hw_to_dataset_features(robot.observation_features, "observation")
+action_features = hw_to_dataset_features(robot.action_features, 'action')
+obs_features = hw_to_dataset_features(robot.observation_features, 'observation')
 dataset_features = {**action_features, **obs_features}
 
 # Create the dataset
 dataset = LeRobotDataset.create(
-    repo_id="<hf_username>/<dataset_repo_id>",
+    repo_id='<hf_username>/<dataset_repo_id>',
     fps=FPS,
     features=dataset_features,
     robot_type=robot.name,
@@ -44,16 +61,16 @@ robot.connect()
 leader_arm.connect()
 keyboard.connect()
 
-_init_rerun(session_name="lekiwi_record")
+_init_rerun(session_name='lekiwi_record')
 
 listener, events = init_keyboard_listener()
 
 if not robot.is_connected or not leader_arm.is_connected or not keyboard.is_connected:
-    raise ValueError("Robot, leader arm of keyboard is not connected!")
+    raise ValueError('Robot, leader arm of keyboard is not connected!')
 
 recorded_episodes = 0
-while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
-    log_say(f"Recording episode {recorded_episodes}")
+while recorded_episodes < NUM_EPISODES and not events['stop_recording']:
+    log_say(f'Recording episode {recorded_episodes}')
 
     # Run the record loop
     record_loop(
@@ -68,10 +85,10 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
     )
 
     # Logic for reset env
-    if not events["stop_recording"] and (
-        (recorded_episodes < NUM_EPISODES - 1) or events["rerecord_episode"]
+    if not events['stop_recording'] and (
+        (recorded_episodes < NUM_EPISODES - 1) or events['rerecord_episode']
     ):
-        log_say("Reset the environment")
+        log_say('Reset the environment')
         record_loop(
             robot=robot,
             events=events,
@@ -82,10 +99,10 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
             display_data=True,
         )
 
-    if events["rerecord_episode"]:
-        log_say("Re-record episode")
-        events["rerecord_episode"] = False
-        events["exit_early"] = False
+    if events['rerecord_episode']:
+        log_say('Re-record episode')
+        events['rerecord_episode'] = False
+        events['exit_early'] = False
         dataset.clear_episode_buffer()
         continue
 

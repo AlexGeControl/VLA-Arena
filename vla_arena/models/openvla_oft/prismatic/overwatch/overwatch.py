@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 overwatch.py
 
@@ -7,41 +21,48 @@ Utility class for creating a centralized/standardized logger (built on Rich) and
 import logging
 import logging.config
 import os
+from collections.abc import Callable, MutableMapping
 from contextlib import nullcontext
 from logging import LoggerAdapter
-from typing import Any, Callable, ClassVar, Dict, MutableMapping, Tuple, Union
+from typing import Any, ClassVar, Dict, Tuple, Union
+
 
 # Overwatch Default Format String
-RICH_FORMATTER, DATEFMT = "| >> %(message)s", "%m/%d [%H:%M:%S]"
+RICH_FORMATTER, DATEFMT = '| >> %(message)s', '%m/%d [%H:%M:%S]'
 
 # Set Logging Configuration
 LOG_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": True,
-    "formatters": {"simple-console": {"format": RICH_FORMATTER, "datefmt": DATEFMT}},
-    "handlers": {
-        "console": {
-            "class": "rich.logging.RichHandler",
-            "formatter": "simple-console",
-            "markup": True,
-            "rich_tracebacks": True,
-            "show_level": True,
-            "show_path": True,
-            "show_time": True,
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {'simple-console': {'format': RICH_FORMATTER, 'datefmt': DATEFMT}},
+    'handlers': {
+        'console': {
+            'class': 'rich.logging.RichHandler',
+            'formatter': 'simple-console',
+            'markup': True,
+            'rich_tracebacks': True,
+            'show_level': True,
+            'show_path': True,
+            'show_time': True,
         }
     },
-    "root": {"level": "INFO", "handlers": ["console"]},
+    'root': {'level': 'INFO', 'handlers': ['console']},
 }
 logging.config.dictConfig(LOG_CONFIG)
 
 
 # === Custom Contextual Logging Logic ===
 class ContextAdapter(LoggerAdapter):
-    CTX_PREFIXES: ClassVar[Dict[int, str]] = {**{0: "[*] "}, **{idx: "|=> ".rjust(4 + (idx * 4)) for idx in [1, 2, 3]}}
+    CTX_PREFIXES: ClassVar[dict[int, str]] = {
+        **{0: '[*] '},
+        **{idx: '|=> '.rjust(4 + (idx * 4)) for idx in [1, 2, 3]},
+    }
 
-    def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> Tuple[str, MutableMapping[str, Any]]:
-        ctx_level = kwargs.pop("ctx_level", 0)
-        return f"{self.CTX_PREFIXES[ctx_level]}{msg}", kwargs
+    def process(
+        self, msg: str, kwargs: MutableMapping[str, Any]
+    ) -> tuple[str, MutableMapping[str, Any]]:
+        ctx_level = kwargs.pop('ctx_level', 0)
+        return f'{self.CTX_PREFIXES[ctx_level]}{msg}', kwargs
 
 
 class DistributedOverwatch:
@@ -51,7 +72,10 @@ class DistributedOverwatch:
 
         # Note that PartialState is always safe to initialize regardless of `accelerate launch` or `torchrun`
         #   =>> However, might be worth actually figuring out if we need the `accelerate` dependency at all!
-        self.logger, self.distributed_state = ContextAdapter(logging.getLogger(name), extra={}), PartialState()
+        self.logger, self.distributed_state = (
+            ContextAdapter(logging.getLogger(name), extra={}),
+            PartialState(),
+        )
 
         # Logger Delegation (for convenience; would be nice to just compose & dynamic dispatch eventually)
         self.debug = self.logger.debug
@@ -61,7 +85,9 @@ class DistributedOverwatch:
         self.critical = self.logger.critical
 
         # Logging Defaults =>> only Log `INFO` on Main Process, `ERROR` on others!
-        self.logger.setLevel(logging.INFO if self.distributed_state.is_main_process else logging.ERROR)
+        self.logger.setLevel(
+            logging.INFO if self.distributed_state.is_main_process else logging.ERROR
+        )
 
     @property
     def rank_zero_only(self) -> Callable[..., Any]:
@@ -143,5 +169,9 @@ class PureOverwatch:
         return 1
 
 
-def initialize_overwatch(name: str) -> Union[DistributedOverwatch, PureOverwatch]:
-    return DistributedOverwatch(name) if int(os.environ.get("WORLD_SIZE", -1)) != -1 else PureOverwatch(name)
+def initialize_overwatch(name: str) -> DistributedOverwatch | PureOverwatch:
+    return (
+        DistributedOverwatch(name)
+        if int(os.environ.get('WORLD_SIZE', -1)) != -1
+        else PureOverwatch(name)
+    )

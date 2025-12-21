@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,10 +34,8 @@ from typing import Any
 
 import torch
 from torchvision.transforms import v2
-from torchvision.transforms.v2 import (
-    Transform,
-    functional as F,  # noqa: N812
-)
+from torchvision.transforms.v2 import Transform
+from torchvision.transforms.v2 import functional as F  # noqa: N812
 
 
 class RandomSubsetApply(Transform):
@@ -48,7 +60,7 @@ class RandomSubsetApply(Transform):
     ) -> None:
         super().__init__()
         if not isinstance(transforms, Sequence):
-            raise TypeError("Argument transforms should be a sequence of callables")
+            raise TypeError('Argument transforms should be a sequence of callables')
         if p is None:
             p = [1] * len(transforms)
         elif len(p) != len(transforms):
@@ -59,9 +71,9 @@ class RandomSubsetApply(Transform):
         if n_subset is None:
             n_subset = len(transforms)
         elif not isinstance(n_subset, int):
-            raise TypeError("n_subset should be an int or None")
+            raise TypeError('n_subset should be an int or None')
         elif not (1 <= n_subset <= len(transforms)):
-            raise ValueError(f"n_subset should be in the interval [1, {len(transforms)}]")
+            raise ValueError(f'n_subset should be in the interval [1, {len(transforms)}]')
 
         self.transforms = transforms
         total = sum(p)
@@ -88,10 +100,10 @@ class RandomSubsetApply(Transform):
 
     def extra_repr(self) -> str:
         return (
-            f"transforms={self.transforms}, "
-            f"p={self.p}, "
-            f"n_subset={self.n_subset}, "
-            f"random_order={self.random_order}"
+            f'transforms={self.transforms}, '
+            f'p={self.p}, '
+            f'n_subset={self.n_subset}, '
+            f'random_order={self.random_order}'
         )
 
 
@@ -122,25 +134,25 @@ class SharpnessJitter(Transform):
     def _check_input(self, sharpness):
         if isinstance(sharpness, (int, float)):
             if sharpness < 0:
-                raise ValueError("If sharpness is a single number, it must be non negative.")
+                raise ValueError('If sharpness is a single number, it must be non negative.')
             sharpness = [1.0 - sharpness, 1.0 + sharpness]
             sharpness[0] = max(sharpness[0], 0.0)
         elif isinstance(sharpness, collections.abc.Sequence) and len(sharpness) == 2:
             sharpness = [float(v) for v in sharpness]
         else:
-            raise TypeError(f"{sharpness=} should be a single number or a sequence with length 2.")
+            raise TypeError(f'{sharpness=} should be a single number or a sequence with length 2.')
 
         if not 0.0 <= sharpness[0] <= sharpness[1]:
-            raise ValueError(f"sharpness values should be between (0., inf), but got {sharpness}.")
+            raise ValueError(f'sharpness values should be between (0., inf), but got {sharpness}.')
 
         return float(sharpness[0]), float(sharpness[1])
 
     def make_params(self, flat_inputs: list[Any]) -> dict[str, Any]:
         sharpness_factor = torch.empty(1).uniform_(self.sharpness[0], self.sharpness[1]).item()
-        return {"sharpness_factor": sharpness_factor}
+        return {'sharpness_factor': sharpness_factor}
 
     def transform(self, inpt: Any, params: dict[str, Any]) -> Any:
-        sharpness_factor = params["sharpness_factor"]
+        sharpness_factor = params['sharpness_factor']
         return self._call_kernel(F.adjust_sharpness, inpt, sharpness_factor=sharpness_factor)
 
 
@@ -158,7 +170,7 @@ class ImageTransformConfig:
     """
 
     weight: float = 1.0
-    type: str = "Identity"
+    type: str = 'Identity'
     kwargs: dict[str, Any] = field(default_factory=dict)
 
 
@@ -181,41 +193,41 @@ class ImageTransformsConfig:
     random_order: bool = False
     tfs: dict[str, ImageTransformConfig] = field(
         default_factory=lambda: {
-            "brightness": ImageTransformConfig(
+            'brightness': ImageTransformConfig(
                 weight=1.0,
-                type="ColorJitter",
-                kwargs={"brightness": (0.8, 1.2)},
+                type='ColorJitter',
+                kwargs={'brightness': (0.8, 1.2)},
             ),
-            "contrast": ImageTransformConfig(
+            'contrast': ImageTransformConfig(
                 weight=1.0,
-                type="ColorJitter",
-                kwargs={"contrast": (0.8, 1.2)},
+                type='ColorJitter',
+                kwargs={'contrast': (0.8, 1.2)},
             ),
-            "saturation": ImageTransformConfig(
+            'saturation': ImageTransformConfig(
                 weight=1.0,
-                type="ColorJitter",
-                kwargs={"saturation": (0.5, 1.5)},
+                type='ColorJitter',
+                kwargs={'saturation': (0.5, 1.5)},
             ),
-            "hue": ImageTransformConfig(
+            'hue': ImageTransformConfig(
                 weight=1.0,
-                type="ColorJitter",
-                kwargs={"hue": (-0.05, 0.05)},
+                type='ColorJitter',
+                kwargs={'hue': (-0.05, 0.05)},
             ),
-            "sharpness": ImageTransformConfig(
+            'sharpness': ImageTransformConfig(
                 weight=1.0,
-                type="SharpnessJitter",
-                kwargs={"sharpness": (0.5, 1.5)},
+                type='SharpnessJitter',
+                kwargs={'sharpness': (0.5, 1.5)},
             ),
         }
     )
 
 
 def make_transform_from_config(cfg: ImageTransformConfig):
-    if cfg.type == "Identity":
+    if cfg.type == 'Identity':
         return v2.Identity(**cfg.kwargs)
-    elif cfg.type == "ColorJitter":
+    elif cfg.type == 'ColorJitter':
         return v2.ColorJitter(**cfg.kwargs)
-    elif cfg.type == "SharpnessJitter":
+    elif cfg.type == 'SharpnessJitter':
         return SharpnessJitter(**cfg.kwargs)
     else:
         raise ValueError(f"Transform '{cfg.type}' is not valid.")

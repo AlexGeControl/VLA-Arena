@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +30,6 @@
 import logging
 from pathlib import Path
 
-from termcolor import colored
-from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LRScheduler
-
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.constants import (
     CHECKPOINTS_DIR,
@@ -33,15 +43,18 @@ from lerobot.optim.optimizers import load_optimizer_state, save_optimizer_state
 from lerobot.optim.schedulers import load_scheduler_state, save_scheduler_state
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.utils.random_utils import load_rng_state, save_rng_state
+from termcolor import colored
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 
 def log_output_dir(out_dir):
-    logging.info(colored("Output dir:", "yellow", attrs=["bold"]) + f" {out_dir}")
+    logging.info(colored('Output dir:', 'yellow', attrs=['bold']) + f' {out_dir}')
 
 
 def get_step_identifier(step: int, total_steps: int) -> str:
     num_digits = max(6, len(str(total_steps)))
-    return f"{step:0{num_digits}d}"
+    return f'{step:0{num_digits}d}'
 
 
 def get_step_checkpoint_dir(output_dir: Path, total_steps: int, step: int) -> Path:
@@ -51,12 +64,12 @@ def get_step_checkpoint_dir(output_dir: Path, total_steps: int, step: int) -> Pa
 
 
 def save_training_step(step: int, save_dir: Path) -> None:
-    write_json({"step": step}, save_dir / TRAINING_STEP)
+    write_json({'step': step}, save_dir / TRAINING_STEP)
 
 
 def load_training_step(save_dir: Path) -> int:
     training_step = load_json(save_dir / TRAINING_STEP)
-    return training_step["step"]
+    return training_step['step']
 
 
 def update_last_checkpoint(checkpoint_dir: Path) -> Path:

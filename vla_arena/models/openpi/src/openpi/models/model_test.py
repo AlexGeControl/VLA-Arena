@@ -1,12 +1,23 @@
-from flax import nnx
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import jax
 import pytest
-
+from flax import nnx
 from openpi.models import model as _model
-from openpi.models import pi0_config
-from openpi.models import pi0_fast
-from openpi.shared import download
-from openpi.shared import nnx_utils
+from openpi.models import pi0_config, pi0_fast
+from openpi.shared import download, nnx_utils
 
 
 def test_pi0_model():
@@ -26,7 +37,7 @@ def test_pi0_model():
 
 def test_pi0_lora_model():
     key = jax.random.key(0)
-    config = pi0_config.Pi0Config(paligemma_variant="gemma_2b_lora")
+    config = pi0_config.Pi0Config(paligemma_variant='gemma_2b_lora')
     model = config.create(key)
 
     batch_size = 2
@@ -56,7 +67,7 @@ def test_pi0_fast_model():
 
 def test_pi0_fast_lora_model():
     key = jax.random.key(0)
-    config = pi0_fast.Pi0FASTConfig(paligemma_variant="gemma_2b_lora")
+    config = pi0_fast.Pi0FASTConfig(paligemma_variant='gemma_2b_lora')
     model = config.create(key)
 
     batch_size = 2
@@ -68,7 +79,7 @@ def test_pi0_fast_lora_model():
     actions = nnx_utils.module_jit(model.sample_actions)(key, obs)
     assert actions.shape == (batch_size, 256)
 
-    lora_filter = nnx_utils.PathRegex(".*lora.*")
+    lora_filter = nnx_utils.PathRegex('.*lora.*')
     model_state = nnx.state(model)
 
     lora_state_elems = list(model_state.filter(lora_filter))
@@ -84,7 +95,9 @@ def test_model_restore():
     obs, act = config.fake_obs(batch_size), config.fake_act(batch_size)
 
     model = config.load(
-        _model.restore_params(download.maybe_download("gs://openpi-assets/checkpoints/pi0_base/params"))
+        _model.restore_params(
+            download.maybe_download('gs://openpi-assets/checkpoints/pi0_base/params')
+        )
     )
 
     loss = model.compute_loss(key, obs, act)

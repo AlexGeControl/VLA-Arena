@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +30,11 @@ import math
 import os
 from dataclasses import dataclass
 
-os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
 from lerobot.motors import MotorCalibration, MotorsBus
+
 
 BAR_LEN, BAR_THICKNESS = 450, 8
 HANDLE_R = 10
@@ -143,13 +159,20 @@ class RangeSlider:
         name_surf = self.font.render(self.motor, True, TEXT_COLOR)
         surf.blit(
             name_surf,
-            (self.min_btn.right - name_surf.get_width(), self.min_btn.y - name_surf.get_height() - 4),
+            (
+                self.min_btn.right - name_surf.get_width(),
+                self.min_btn.y - name_surf.get_height() - 4,
+            ),
         )
 
         # bar + active section
-        pygame.draw.rect(surf, BAR_RED, (self.x0, self.y - BAR_THICKNESS // 2, BAR_LEN, BAR_THICKNESS))
         pygame.draw.rect(
-            surf, BAR_GREEN, (self.min_x, self.y - BAR_THICKNESS // 2, self.max_x - self.min_x, BAR_THICKNESS)
+            surf, BAR_RED, (self.x0, self.y - BAR_THICKNESS // 2, BAR_LEN, BAR_THICKNESS)
+        )
+        pygame.draw.rect(
+            surf,
+            BAR_GREEN,
+            (self.min_x, self.y - BAR_THICKNESS // 2, self.max_x - self.min_x, BAR_THICKNESS),
         )
 
         # tick
@@ -207,8 +230,8 @@ class RangeSlider:
             surf.blit(s, (x - s.get_width() // 2, y))
 
         # buttons
-        self._draw_button(surf, self.min_btn, "set min")
-        self._draw_button(surf, self.max_btn, "set max")
+        self._draw_button(surf, self.min_btn, 'set min')
+        self._draw_button(surf, self.max_btn, 'set max')
 
     # external
     def values(self) -> RangeValues:
@@ -220,7 +243,7 @@ class RangeFinderGUI:
         import pygame
 
         self.bus = bus
-        self.groups = groups if groups is not None else {"all": list(bus.motors)}
+        self.groups = groups if groups is not None else {'all': list(bus.motors)}
         self.group_names = list(groups)
         self.current_group = self.group_names[0]
 
@@ -230,7 +253,9 @@ class RangeFinderGUI:
         self.calibration = bus.read_calibration()
         self.res_table = bus.model_resolution_table
         self.present_cache = {
-            m: bus.read("Present_Position", m, normalize=False) for motors in groups.values() for m in motors
+            m: bus.read('Present_Position', m, normalize=False)
+            for motors in groups.values()
+            for m in motors
         }
 
         pygame.init()
@@ -244,7 +269,7 @@ class RangeFinderGUI:
         height = self.base_y + PADDING_Y * len(groups[self.current_group]) + 40
 
         self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("Motors range finder")
+        pygame.display.set_caption('Motors range finder')
 
         # ui rects
         self.save_btn = pygame.Rect(width - SAVE_W - 10, 10, SAVE_W, SAVE_H)
@@ -286,11 +311,17 @@ class RangeFinderGUI:
 
         # collapsed box
         hover = self.dd_btn.collidepoint(pygame.mouse.get_pos())
-        pygame.draw.rect(self.screen, DD_COLOR_HL if hover else DD_COLOR, self.dd_btn, border_radius=6)
+        pygame.draw.rect(
+            self.screen, DD_COLOR_HL if hover else DD_COLOR, self.dd_btn, border_radius=6
+        )
 
         txt = self.font.render(self.current_group, True, TEXT_COLOR)
         self.screen.blit(
-            txt, (self.dd_btn.centerx - txt.get_width() // 2, self.dd_btn.centery - txt.get_height() // 2)
+            txt,
+            (
+                self.dd_btn.centerx - txt.get_width() // 2,
+                self.dd_btn.centery - txt.get_height() // 2,
+            ),
         )
 
         tri_w, tri_h = 12, 6
@@ -299,7 +330,11 @@ class RangeFinderGUI:
         pygame.draw.polygon(
             self.screen,
             TEXT_COLOR,
-            [(cx - tri_w // 2, cy - tri_h // 2), (cx + tri_w // 2, cy - tri_h // 2), (cx, cy + tri_h // 2)],
+            [
+                (cx - tri_w // 2, cy - tri_h // 2),
+                (cx + tri_w // 2, cy - tri_h // 2),
+                (cx, cy + tri_h // 2),
+            ],
         )
 
         if not self.dd_open:
@@ -324,7 +359,9 @@ class RangeFinderGUI:
                 return True
             if self.dd_open:
                 for i, name in enumerate(self.group_names):
-                    item_rect = pygame.Rect(self.dd_btn.left, self.dd_btn.bottom + i * DD_H, DD_W, DD_H)
+                    item_rect = pygame.Rect(
+                        self.dd_btn.left, self.dd_btn.bottom + i * DD_H, DD_W, DD_H
+                    )
                     if item_rect.collidepoint(e.pos):
                         if name != self.current_group:
                             self.current_group = name
@@ -375,11 +412,11 @@ class RangeFinderGUI:
             # live goal write while dragging
             for s in self.sliders:
                 if s.drag_pos:
-                    self.bus.write("Goal_Position", s.motor, s.pos_v, normalize=False)
+                    self.bus.write('Goal_Position', s.motor, s.pos_v, normalize=False)
 
             # tick update
             for s in self.sliders:
-                pos = self.bus.read("Present_Position", s.motor, normalize=False)
+                pos = self.bus.read('Present_Position', s.motor, normalize=False)
                 s.set_tick(pos)
                 self.present_cache[s.motor] = pos
 
@@ -391,11 +428,13 @@ class RangeFinderGUI:
             self._draw_dropdown()
 
             # load / save buttons
-            for rect, text in ((self.load_btn, "LOAD"), (self.save_btn, "SAVE")):
+            for rect, text in ((self.load_btn, 'LOAD'), (self.save_btn, 'SAVE')):
                 clr = BTN_COLOR_HL if rect.collidepoint(pygame.mouse.get_pos()) else BTN_COLOR
                 pygame.draw.rect(self.screen, clr, rect, border_radius=6)
                 t = self.font.render(text, True, TEXT_COLOR)
-                self.screen.blit(t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2))
+                self.screen.blit(
+                    t, (rect.centerx - t.get_width() // 2, rect.centery - t.get_height() // 2)
+                )
 
             pygame.display.flip()
             self.clock.tick(FPS)

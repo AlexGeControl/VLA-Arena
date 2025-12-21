@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 preprocess.py
 
@@ -16,8 +30,14 @@ from pathlib import Path
 
 import draccus
 
-from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.overwatch import initialize_overwatch
-from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.preprocessing import convert_to_jpg, download_extract
+from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.overwatch import (
+    initialize_overwatch,
+)
+from vla_arena.models.openvla.vla_arena.models.openvla.prismatic.preprocessing import (
+    convert_to_jpg,
+    download_extract,
+)
+
 
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
@@ -26,8 +46,8 @@ overwatch = initialize_overwatch(__name__)
 @dataclass
 class PreprocessConfig:
     # fmt: off
-    dataset_id: str = "llava-v1.5-instruct"                     # Unique identifier for dataset to process (see above)
-    root_dir: Path = Path("data")                               # Path to root directory for storing datasets
+    dataset_id: str = 'llava-v1.5-instruct'                     # Unique identifier for dataset to process (see above)
+    root_dir: Path = Path('data')                               # Path to root directory for storing datasets
 
     # fmt: on
 
@@ -38,9 +58,9 @@ def preprocess(cfg: PreprocessConfig) -> None:
     download_extract(cfg.dataset_id, root_dir=cfg.root_dir)
 
     # Special Handling for OCR VQA Images (for `llava-v1.5-instruct`) --> convert GIFs/PNGs to JPG
-    if cfg.dataset_id == "llava-v1.5-instruct":
-        convert_to_jpg(cfg.root_dir / "download" / cfg.dataset_id / "ocr_vqa" / "images")
+    if cfg.dataset_id == 'llava-v1.5-instruct':
+        convert_to_jpg(cfg.root_dir / 'download' / cfg.dataset_id / 'ocr_vqa' / 'images')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     preprocess()

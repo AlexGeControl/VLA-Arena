@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,16 +38,17 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from lerobot.cameras.configs import Cv2Rotation
 from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
-pytest.importorskip("pyrealsense2")
+
+pytest.importorskip('pyrealsense2')
 
 from lerobot.cameras.realsense import RealSenseCamera, RealSenseCameraConfig
 
-TEST_ARTIFACTS_DIR = Path(__file__).parent.parent / "artifacts" / "cameras"
-BAG_FILE_PATH = TEST_ARTIFACTS_DIR / "test_rs.bag"
+
+TEST_ARTIFACTS_DIR = Path(__file__).parent.parent / 'artifacts' / 'cameras'
+BAG_FILE_PATH = TEST_ARTIFACTS_DIR / 'test_rs.bag'
 
 # NOTE(Steven): For some reason these tests take ~20sec in macOS but only ~2sec in Linux.
 
@@ -43,26 +58,26 @@ def mock_rs_config_enable_device_from_file(rs_config_instance, _sn):
 
 
 def mock_rs_config_enable_device_bad_file(rs_config_instance, _sn):
-    return rs_config_instance.enable_device_from_file("non_existent_file.bag", repeat_playback=True)
+    return rs_config_instance.enable_device_from_file('non_existent_file.bag', repeat_playback=True)
 
 
-@pytest.fixture(name="patch_realsense", autouse=True)
+@pytest.fixture(name='patch_realsense', autouse=True)
 def fixture_patch_realsense():
     """Automatically mock pyrealsense2.config.enable_device for all tests."""
     with patch(
-        "pyrealsense2.config.enable_device", side_effect=mock_rs_config_enable_device_from_file
+        'pyrealsense2.config.enable_device', side_effect=mock_rs_config_enable_device_from_file
     ) as mock:
         yield mock
 
 
 def test_abc_implementation():
     """Instantiation should raise an error if the class doesn't implement abstract methods/properties."""
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     _ = RealSenseCamera(config)
 
 
 def test_connect():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
 
     camera.connect(warmup=False)
@@ -70,7 +85,7 @@ def test_connect():
 
 
 def test_connect_already_connected():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
@@ -80,7 +95,7 @@ def test_connect_already_connected():
 
 def test_connect_invalid_camera_path(patch_realsense):
     patch_realsense.side_effect = mock_rs_config_enable_device_bad_file
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
 
     with pytest.raises(ConnectionError):
@@ -88,7 +103,7 @@ def test_connect_invalid_camera_path(patch_realsense):
 
 
 def test_invalid_width_connect():
-    config = RealSenseCameraConfig(serial_number_or_name="042", width=99999, height=480, fps=30)
+    config = RealSenseCameraConfig(serial_number_or_name='042', width=99999, height=480, fps=30)
     camera = RealSenseCamera(config)
 
     with pytest.raises(ConnectionError):
@@ -96,7 +111,7 @@ def test_invalid_width_connect():
 
 
 def test_read():
-    config = RealSenseCameraConfig(serial_number_or_name="042", width=640, height=480, fps=30)
+    config = RealSenseCameraConfig(serial_number_or_name='042', width=640, height=480, fps=30)
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
@@ -105,18 +120,22 @@ def test_read():
 
 
 # TODO(Steven): Fix this test for the latest version of pyrealsense2.
-@pytest.mark.skip("Skipping test: pyrealsense2 version > 2.55.1.6486")
+@pytest.mark.skip('Skipping test: pyrealsense2 version > 2.55.1.6486')
 def test_read_depth():
-    config = RealSenseCameraConfig(serial_number_or_name="042", width=640, height=480, fps=30, use_depth=True)
+    config = RealSenseCameraConfig(
+        serial_number_or_name='042', width=640, height=480, fps=30, use_depth=True
+    )
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
-    img = camera.read_depth(timeout_ms=2000)  # NOTE(Steven): Reading depth takes longer in CI environments.
+    img = camera.read_depth(
+        timeout_ms=2000
+    )  # NOTE(Steven): Reading depth takes longer in CI environments.
     assert isinstance(img, np.ndarray)
 
 
 def test_read_before_connect():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
 
     with pytest.raises(DeviceNotConnectedError):
@@ -124,7 +143,7 @@ def test_read_before_connect():
 
 
 def test_disconnect():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
@@ -134,7 +153,7 @@ def test_disconnect():
 
 
 def test_disconnect_before_connect():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
 
     with pytest.raises(DeviceNotConnectedError):
@@ -142,7 +161,7 @@ def test_disconnect_before_connect():
 
 
 def test_async_read():
-    config = RealSenseCameraConfig(serial_number_or_name="042", width=640, height=480, fps=30)
+    config = RealSenseCameraConfig(serial_number_or_name='042', width=640, height=480, fps=30)
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
@@ -158,7 +177,7 @@ def test_async_read():
 
 
 def test_async_read_timeout():
-    config = RealSenseCameraConfig(serial_number_or_name="042", width=640, height=480, fps=30)
+    config = RealSenseCameraConfig(serial_number_or_name='042', width=640, height=480, fps=30)
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 
@@ -171,7 +190,7 @@ def test_async_read_timeout():
 
 
 def test_async_read_before_connect():
-    config = RealSenseCameraConfig(serial_number_or_name="042")
+    config = RealSenseCameraConfig(serial_number_or_name='042')
     camera = RealSenseCamera(config)
 
     with pytest.raises(DeviceNotConnectedError):
@@ -179,17 +198,17 @@ def test_async_read_before_connect():
 
 
 @pytest.mark.parametrize(
-    "rotation",
+    'rotation',
     [
         Cv2Rotation.NO_ROTATION,
         Cv2Rotation.ROTATE_90,
         Cv2Rotation.ROTATE_180,
         Cv2Rotation.ROTATE_270,
     ],
-    ids=["no_rot", "rot90", "rot180", "rot270"],
+    ids=['no_rot', 'rot90', 'rot180', 'rot270'],
 )
 def test_rotation(rotation):
-    config = RealSenseCameraConfig(serial_number_or_name="042", rotation=rotation)
+    config = RealSenseCameraConfig(serial_number_or_name='042', rotation=rotation)
     camera = RealSenseCamera(config)
     camera.connect(warmup=False)
 

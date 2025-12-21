@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,11 +40,12 @@ from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from ..teleoperator import Teleoperator
 from .configuration_keyboard import KeyboardEndEffectorTeleopConfig, KeyboardTeleopConfig
 
+
 PYNPUT_AVAILABLE = True
 try:
-    if ("DISPLAY" not in os.environ) and ("linux" in sys.platform):
-        logging.info("No DISPLAY set. Skipping pynput import.")
-        raise ImportError("pynput blocked intentionally due to no display.")
+    if ('DISPLAY' not in os.environ) and ('linux' in sys.platform):
+        logging.info('No DISPLAY set. Skipping pynput import.')
+        raise ImportError('pynput blocked intentionally due to no display.')
 
     from pynput import keyboard
 except ImportError:
@@ -39,7 +54,7 @@ except ImportError:
 except Exception as e:
     keyboard = None
     PYNPUT_AVAILABLE = False
-    logging.info(f"Could not import pynput: {e}")
+    logging.info(f'Could not import pynput: {e}')
 
 
 class KeyboardTeleop(Teleoperator):
@@ -48,7 +63,7 @@ class KeyboardTeleop(Teleoperator):
     """
 
     config_class = KeyboardTeleopConfig
-    name = "keyboard"
+    name = 'keyboard'
 
     def __init__(self, config: KeyboardTeleopConfig):
         super().__init__(config)
@@ -63,9 +78,9 @@ class KeyboardTeleop(Teleoperator):
     @property
     def action_features(self) -> dict:
         return {
-            "dtype": "float32",
-            "shape": (len(self.arm),),
-            "names": {"motors": list(self.arm.motors)},
+            'dtype': 'float32',
+            'shape': (len(self.arm),),
+            'names': {'motors': list(self.arm.motors)},
         }
 
     @property
@@ -74,7 +89,11 @@ class KeyboardTeleop(Teleoperator):
 
     @property
     def is_connected(self) -> bool:
-        return PYNPUT_AVAILABLE and isinstance(self.listener, keyboard.Listener) and self.listener.is_alive()
+        return (
+            PYNPUT_AVAILABLE
+            and isinstance(self.listener, keyboard.Listener)
+            and self.listener.is_alive()
+        )
 
     @property
     def is_calibrated(self) -> bool:
@@ -83,32 +102,32 @@ class KeyboardTeleop(Teleoperator):
     def connect(self) -> None:
         if self.is_connected:
             raise DeviceAlreadyConnectedError(
-                "Keyboard is already connected. Do not run `robot.connect()` twice."
+                'Keyboard is already connected. Do not run `robot.connect()` twice.'
             )
 
         if PYNPUT_AVAILABLE:
-            logging.info("pynput is available - enabling local keyboard listener.")
+            logging.info('pynput is available - enabling local keyboard listener.')
             self.listener = keyboard.Listener(
                 on_press=self._on_press,
                 on_release=self._on_release,
             )
             self.listener.start()
         else:
-            logging.info("pynput not available - skipping local keyboard listener.")
+            logging.info('pynput not available - skipping local keyboard listener.')
             self.listener = None
 
     def calibrate(self) -> None:
         pass
 
     def _on_press(self, key):
-        if hasattr(key, "char"):
+        if hasattr(key, 'char'):
             self.event_queue.put((key.char, True))
 
     def _on_release(self, key):
-        if hasattr(key, "char"):
+        if hasattr(key, 'char'):
             self.event_queue.put((key.char, False))
         if key == keyboard.Key.esc:
-            logging.info("ESC pressed, disconnecting.")
+            logging.info('ESC pressed, disconnecting.')
             self.disconnect()
 
     def _drain_pressed_keys(self):
@@ -124,14 +143,14 @@ class KeyboardTeleop(Teleoperator):
 
         if not self.is_connected:
             raise DeviceNotConnectedError(
-                "KeyboardTeleop is not connected. You need to run `connect()` before `get_action()`."
+                'KeyboardTeleop is not connected. You need to run `connect()` before `get_action()`.'
             )
 
         self._drain_pressed_keys()
 
         # Generate action based on current key states
         action = {key for key, val in self.current_pressed.items() if val}
-        self.logs["read_pos_dt_s"] = time.perf_counter() - before_read_t
+        self.logs['read_pos_dt_s'] = time.perf_counter() - before_read_t
 
         return dict.fromkeys(action, None)
 
@@ -141,7 +160,7 @@ class KeyboardTeleop(Teleoperator):
     def disconnect(self) -> None:
         if not self.is_connected:
             raise DeviceNotConnectedError(
-                "KeyboardTeleop is not connected. You need to run `robot.connect()` before `disconnect()`."
+                'KeyboardTeleop is not connected. You need to run `robot.connect()` before `disconnect()`.'
             )
         if self.listener is not None:
             self.listener.stop()
@@ -154,7 +173,7 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
     """
 
     config_class = KeyboardEndEffectorTeleopConfig
-    name = "keyboard_ee"
+    name = 'keyboard_ee'
 
     def __init__(self, config: KeyboardEndEffectorTeleopConfig):
         super().__init__(config)
@@ -165,31 +184,31 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
     def action_features(self) -> dict:
         if self.config.use_gripper:
             return {
-                "dtype": "float32",
-                "shape": (4,),
-                "names": {"delta_x": 0, "delta_y": 1, "delta_z": 2, "gripper": 3},
+                'dtype': 'float32',
+                'shape': (4,),
+                'names': {'delta_x': 0, 'delta_y': 1, 'delta_z': 2, 'gripper': 3},
             }
         else:
             return {
-                "dtype": "float32",
-                "shape": (3,),
-                "names": {"delta_x": 0, "delta_y": 1, "delta_z": 2},
+                'dtype': 'float32',
+                'shape': (3,),
+                'names': {'delta_x': 0, 'delta_y': 1, 'delta_z': 2},
             }
 
     def _on_press(self, key):
-        if hasattr(key, "char"):
+        if hasattr(key, 'char'):
             key = key.char
         self.event_queue.put((key, True))
 
     def _on_release(self, key):
-        if hasattr(key, "char"):
+        if hasattr(key, 'char'):
             key = key.char
         self.event_queue.put((key, False))
 
     def get_action(self) -> dict[str, Any]:
         if not self.is_connected:
             raise DeviceNotConnectedError(
-                "KeyboardTeleop is not connected. You need to run `connect()` before `get_action()`."
+                'KeyboardTeleop is not connected. You need to run `connect()` before `get_action()`.'
             )
 
         self._drain_pressed_keys()
@@ -226,12 +245,12 @@ class KeyboardEndEffectorTeleop(KeyboardTeleop):
         self.current_pressed.clear()
 
         action_dict = {
-            "delta_x": delta_x,
-            "delta_y": delta_y,
-            "delta_z": delta_z,
+            'delta_x': delta_x,
+            'delta_y': delta_y,
+            'delta_z': delta_z,
         }
 
         if self.config.use_gripper:
-            action_dict["gripper"] = gripper_action
+            action_dict['gripper'] = gripper_action
 
         return action_dict

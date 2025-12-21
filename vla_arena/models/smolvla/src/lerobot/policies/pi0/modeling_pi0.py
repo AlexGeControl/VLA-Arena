@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 Physical Intelligence and The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,9 +69,6 @@ from collections import deque
 
 import torch
 import torch.nn.functional as F  # noqa: N812
-from torch import Tensor, nn
-from transformers import AutoTokenizer
-
 from lerobot.constants import ACTION, OBS_STATE
 from lerobot.policies.normalize import Normalize, Unnormalize
 from lerobot.policies.pi0.configuration_pi0 import PI0Config
@@ -68,17 +79,19 @@ from lerobot.policies.pi0.paligemma_with_expert import (
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.utils import log_model_loading_keys
 from lerobot.utils.utils import get_safe_dtype, init_logging
+from torch import Tensor, nn
+from transformers import AutoTokenizer
 
 
 def create_sinusoidal_pos_embedding(
-    time: torch.tensor, dimension: int, min_period: float, max_period: float, device="cpu"
+    time: torch.tensor, dimension: int, min_period: float, max_period: float, device='cpu'
 ) -> Tensor:
     """Computes sine-cosine positional embedding vectors for scalar positions."""
     if dimension % 2 != 0:
-        raise ValueError(f"dimension ({dimension}) must be divisible by 2")
+        raise ValueError(f'dimension ({dimension}) must be divisible by 2')
 
     if time.ndim != 1:
-        raise ValueError("The time tensor is expected to be of shape `(batch_size, )`.")
+        raise ValueError('The time tensor is expected to be of shape `(batch_size, )`.')
 
     dtype = get_safe_dtype(torch.float64, device.type)
     fraction = torch.linspace(0.0, 1.0, dimension // 2, dtype=dtype, device=device)
@@ -127,7 +140,7 @@ def make_att_2d_masks(pad_masks, att_masks):
 def resize_with_pad(img, width, height, pad_value=-1):
     # assume no-op when width height fits already
     if img.ndim != 4:
-        raise ValueError(f"(b,c,h,w) expected, but {img.shape}")
+        raise ValueError(f'(b,c,h,w) expected, but {img.shape}')
 
     cur_height, cur_width = img.shape[2:]
 
@@ -135,7 +148,7 @@ def resize_with_pad(img, width, height, pad_value=-1):
     resized_height = int(cur_height / ratio)
     resized_width = int(cur_width / ratio)
     resized_img = F.interpolate(
-        img, size=(resized_height, resized_width), mode="bilinear", align_corners=False
+        img, size=(resized_height, resized_width), mode='bilinear', align_corners=False
     )
 
     pad_height = max(0, int(height - resized_height))
@@ -185,7 +198,9 @@ def aloha_gripper_to_angular(value):
 
     # This is the inverse of the angular to linear transformation inside the Interbotix code.
     def linear_to_radian(linear_position, arm_length, horn_radius):
-        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (2 * horn_radius * linear_position)
+        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (
+            2 * horn_radius * linear_position
+        )
         return safe_arcsin(value)
 
     # The constants are taken from the Interbotix code.
@@ -218,7 +233,7 @@ class PI0Policy(PreTrainedPolicy):
     """Wrapper class around PI0FlowMatching model to train and run inference within LeRobot."""
 
     config_class = PI0Config
-    name = "pi0"
+    name = 'pi0'
 
     def __init__(
         self,
@@ -236,7 +251,9 @@ class PI0Policy(PreTrainedPolicy):
         super().__init__(config)
         config.validate_features()
         self.config = config
-        self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
+        self.normalize_inputs = Normalize(
+            config.input_features, config.normalization_mapping, dataset_stats
+        )
         self.normalize_targets = Normalize(
             config.output_features, config.normalization_mapping, dataset_stats
         )
@@ -244,7 +261,7 @@ class PI0Policy(PreTrainedPolicy):
             config.output_features, config.normalization_mapping, dataset_stats
         )
 
-        self.language_tokenizer = AutoTokenizer.from_pretrained("google/paligemma-3b-pt-224")
+        self.language_tokenizer = AutoTokenizer.from_pretrained('google/paligemma-3b-pt-224')
         self.model = PI0FlowMatching(config)
 
         self.reset()
@@ -277,20 +294,20 @@ class PI0Policy(PreTrainedPolicy):
 
         transformations = [
             (
-                re.compile(r"\.paligemma_with_expert\.paligemma\.language_model\.lm_head"),
-                ".paligemma_with_expert.paligemma.lm_head",
+                re.compile(r'\.paligemma_with_expert\.paligemma\.language_model\.lm_head'),
+                '.paligemma_with_expert.paligemma.lm_head',
             ),
             (
-                re.compile(r"\.paligemma_with_expert\.paligemma\.language_model\.model"),
-                ".paligemma_with_expert.paligemma.model.language_model",
+                re.compile(r'\.paligemma_with_expert\.paligemma\.language_model\.model'),
+                '.paligemma_with_expert.paligemma.model.language_model',
             ),
             (
-                re.compile(r"\.paligemma_with_expert\.paligemma\.vision_tower"),
-                ".paligemma_with_expert.paligemma.model.vision_tower",
+                re.compile(r'\.paligemma_with_expert\.paligemma\.vision_tower'),
+                '.paligemma_with_expert.paligemma.model.vision_tower',
             ),
             (
-                re.compile(r"\.paligemma_with_expert\.paligemma\.multi_modal_projector"),
-                ".paligemma_with_expert.paligemma.model.multi_modal_projector",
+                re.compile(r'\.paligemma_with_expert\.paligemma\.multi_modal_projector'),
+                '.paligemma_with_expert.paligemma.model.multi_modal_projector',
             ),
         ]
 
@@ -305,21 +322,23 @@ class PI0Policy(PreTrainedPolicy):
         embed_tokens_key = None
 
         for key in transformed_dict:
-            if key.endswith(".paligemma_with_expert.paligemma.lm_head.weight"):
+            if key.endswith('.paligemma_with_expert.paligemma.lm_head.weight'):
                 lm_head_key = key
-            elif key.endswith(".paligemma_with_expert.paligemma.model.language_model.embed_tokens.weight"):
+            elif key.endswith(
+                '.paligemma_with_expert.paligemma.model.language_model.embed_tokens.weight'
+            ):
                 embed_tokens_key = key
             if lm_head_key and embed_tokens_key:
                 break
 
         if lm_head_key and not embed_tokens_key:
             embed_tokens_key = lm_head_key.replace(
-                ".lm_head.weight", ".model.language_model.embed_tokens.weight"
+                '.lm_head.weight', '.model.language_model.embed_tokens.weight'
             )
             transformed_dict[embed_tokens_key] = transformed_dict[lm_head_key]
         elif embed_tokens_key and not lm_head_key:
             lm_head_key = embed_tokens_key.replace(
-                ".model.language_model.embed_tokens.weight", ".lm_head.weight"
+                '.model.language_model.embed_tokens.weight', '.lm_head.weight'
             )
             transformed_dict[lm_head_key] = transformed_dict[embed_tokens_key]
 
@@ -327,8 +346,8 @@ class PI0Policy(PreTrainedPolicy):
 
     @classmethod
     def _load_as_safetensor(
-        cls, model: "PI0Policy", model_file: str, map_location: str, strict: bool
-    ) -> "PI0Policy":
+        cls, model: 'PI0Policy', model_file: str, map_location: str, strict: bool
+    ) -> 'PI0Policy':
         """Override to apply key transformations before loading."""
         from safetensors.torch import load_file
 
@@ -353,16 +372,16 @@ class PI0Policy(PreTrainedPolicy):
     def from_pretrained(cls, *args, **kwargs):
         """Override the from_pretrained method to display important disclaimer."""
         print(
-            "⚠️  DISCLAIMER: The PI0 model is ported from JAX by the Hugging Face team. \n"
-            "   It is not expected to perform as well as the original implementation. \n"
-            "   Original implementation: https://github.com/Physical-Intelligence/openpi"
+            '⚠️  DISCLAIMER: The PI0 model is ported from JAX by the Hugging Face team. \n'
+            '   It is not expected to perform as well as the original implementation. \n'
+            '   Original implementation: https://github.com/Physical-Intelligence/openpi'
         )
         return super().from_pretrained(*args, **kwargs)
 
     @torch.no_grad()
     def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
         """Predict a chunk of actions given environment observations."""
-        raise NotImplementedError("Currently not implemented for PI0")
+        raise NotImplementedError('Currently not implemented for PI0')
 
     @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor], noise: Tensor | None = None) -> Tensor:
@@ -394,7 +413,7 @@ class PI0Policy(PreTrainedPolicy):
             original_action_dim = self.config.action_feature.shape[0]
             actions = actions[:, :, :original_action_dim]
 
-            actions = self.unnormalize_outputs({"action": actions})["action"]
+            actions = self.unnormalize_outputs({'action': actions})['action']
 
             if self.config.adapt_to_pi_aloha:
                 actions = self._pi_aloha_encode_actions(actions)
@@ -404,7 +423,9 @@ class PI0Policy(PreTrainedPolicy):
             self._action_queue.extend(actions.transpose(0, 1))
         return self._action_queue.popleft()
 
-    def forward(self, batch: dict[str, Tensor], noise=None, time=None) -> tuple[Tensor, dict[str, Tensor]]:
+    def forward(
+        self, batch: dict[str, Tensor], noise=None, time=None
+    ) -> tuple[Tensor, dict[str, Tensor]]:
         """Do a full training forward pass to compute the loss"""
         if self.config.adapt_to_pi_aloha:
             batch[OBS_STATE] = self._pi_aloha_decode_state(batch[OBS_STATE])
@@ -417,25 +438,27 @@ class PI0Policy(PreTrainedPolicy):
         state = self.prepare_state(batch)
         lang_tokens, lang_masks = self.prepare_language(batch)
         actions = self.prepare_action(batch)
-        actions_is_pad = batch.get("action_is_pad")
+        actions_is_pad = batch.get('action_is_pad')
 
         loss_dict = {}
-        losses = self.model.forward(images, img_masks, lang_tokens, lang_masks, state, actions, noise, time)
-        loss_dict["losses_after_forward"] = losses.clone()
+        losses = self.model.forward(
+            images, img_masks, lang_tokens, lang_masks, state, actions, noise, time
+        )
+        loss_dict['losses_after_forward'] = losses.clone()
 
         if actions_is_pad is not None:
             in_episode_bound = ~actions_is_pad
             losses = losses * in_episode_bound.unsqueeze(-1)
-            loss_dict["losses_after_in_ep_bound"] = losses.clone()
+            loss_dict['losses_after_in_ep_bound'] = losses.clone()
 
         # Remove padding
         losses = losses[:, :, : self.config.max_action_dim]
-        loss_dict["losses_after_rm_padding"] = losses.clone()
+        loss_dict['losses_after_rm_padding'] = losses.clone()
 
         # For backward pass
         loss = losses.mean()
         # For logging
-        loss_dict["l2_loss"] = loss.item()
+        loss_dict['l2_loss'] = loss.item()
 
         return loss, loss_dict
 
@@ -451,7 +474,7 @@ class PI0Policy(PreTrainedPolicy):
 
         if len(present_img_keys) == 0:
             raise ValueError(
-                f"All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})"
+                f'All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})'
             )
 
         # Preprocess image features present in the batch
@@ -485,20 +508,20 @@ class PI0Policy(PreTrainedPolicy):
     def prepare_language(self, batch) -> tuple[Tensor, Tensor]:
         """Tokenize the text input"""
         device = batch[OBS_STATE].device
-        tasks = batch["task"]
+        tasks = batch['task']
 
         # PaliGemma prompt has to end with a new line
-        tasks = [task if task.endswith("\n") else f"{task}\n" for task in tasks]
+        tasks = [task if task.endswith('\n') else f'{task}\n' for task in tasks]
 
         tokenized_prompt = self.language_tokenizer.__call__(
             tasks,
-            padding="max_length",
-            padding_side="right",
+            padding='max_length',
+            padding_side='right',
             max_length=self.config.tokenizer_max_length,
-            return_tensors="pt",
+            return_tensors='pt',
         )
-        lang_tokens = tokenized_prompt["input_ids"].to(device=device)
-        lang_masks = tokenized_prompt["attention_mask"].to(device=device, dtype=torch.bool)
+        lang_tokens = tokenized_prompt['input_ids'].to(device=device)
+        lang_masks = tokenized_prompt['attention_mask'].to(device=device, dtype=torch.bool)
 
         return lang_tokens, lang_masks
 
@@ -629,7 +652,9 @@ class PI0FlowMatching(nn.Module):
 
             # Normalize image embeddings
             img_emb_dim = img_emb.shape[-1]
-            img_emb = img_emb * torch.tensor(img_emb_dim**0.5, dtype=img_emb.dtype, device=img_emb.device)
+            img_emb = img_emb * torch.tensor(
+                img_emb_dim**0.5, dtype=img_emb.dtype, device=img_emb.device
+            )
 
             bsize, num_img_embs = img_emb.shape[:2]
             img_mask = img_mask[:, None].expand(bsize, num_img_embs)
@@ -751,10 +776,12 @@ class PI0FlowMatching(nn.Module):
         suffix_out = suffix_out.to(dtype=torch.float32)
         v_t = self.action_out_proj(suffix_out)
 
-        losses = F.mse_loss(u_t, v_t, reduction="none")
+        losses = F.mse_loss(u_t, v_t, reduction='none')
         return losses
 
-    def sample_actions(self, images, img_masks, lang_tokens, lang_masks, state, noise=None) -> Tensor:
+    def sample_actions(
+        self, images, img_masks, lang_tokens, lang_masks, state, noise=None
+    ) -> Tensor:
         """Do a full inference forward and compute the action (batch_size x num_steps x num_motors)"""
         bsize = state.shape[0]
         device = state.device
@@ -813,7 +840,9 @@ class PI0FlowMatching(nn.Module):
         suffix_len = suffix_pad_masks.shape[1]
         batch_size = prefix_pad_masks.shape[0]
         prefix_len = prefix_pad_masks.shape[1]
-        prefix_pad_2d_masks = prefix_pad_masks[:, None, :].expand(batch_size, suffix_len, prefix_len)
+        prefix_pad_2d_masks = prefix_pad_masks[:, None, :].expand(
+            batch_size, suffix_len, prefix_len
+        )
 
         suffix_att_2d_masks = make_att_2d_masks(suffix_pad_masks, suffix_att_masks)
 

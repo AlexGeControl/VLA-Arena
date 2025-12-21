@@ -14,7 +14,7 @@ services:
     volumes:
       - $PWD:/app
     environment:
-      - SERVER_ARGS  
+      - SERVER_ARGS
 
   openpi_server:
     image: openpi_server

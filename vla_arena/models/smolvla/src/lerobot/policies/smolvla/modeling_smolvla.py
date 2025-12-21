@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -60,24 +74,19 @@ from collections import deque
 import safetensors
 import torch
 import torch.nn.functional as F  # noqa: N812
-from torch import Tensor, nn
-from transformers import AutoProcessor
-
 from lerobot.constants import ACTION, OBS_STATE
-from lerobot.policies.normalize import (
-    Normalize,
-    Unnormalize,
-)
+from lerobot.policies.normalize import Normalize, Unnormalize
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
 from lerobot.policies.smolvla.smolvlm_with_expert import SmolVLMWithExpertModel
-from lerobot.policies.utils import (
-    populate_queues,
-)
+from lerobot.policies.utils import populate_queues
 from lerobot.utils.utils import get_safe_dtype
+from torch import Tensor, nn
+from transformers import AutoProcessor
+
 
 # Matches ".soNNN", optionally followed by "-something", up to the "_buffer_" marker
-_VARIANT_RE = re.compile(r"\.so\d+(?:-[\w]+)?_buffer_")
+_VARIANT_RE = re.compile(r'\.so\d+(?:-[\w]+)?_buffer_')
 
 
 def canonicalise(k: str) -> str:
@@ -85,7 +94,7 @@ def canonicalise(k: str) -> str:
     Remove dataset-variant markers like '.so100-blue_' or '.so100_' from a
     normalisation-buffer key.
     """
-    return _VARIANT_RE.sub(".buffer_", k)
+    return _VARIANT_RE.sub('.buffer_', k)
 
 
 def standardise_state_dict(
@@ -113,7 +122,7 @@ def standardise_state_dict(
         for canon, variants in collisions.items():
             print(f"[standardise_state_dict] '{canon}'  ←  {variants}")
         if unmatched:
-            print(f"[standardise_state_dict] kept {len(unmatched)} unmatched keys")
+            print(f'[standardise_state_dict] kept {len(unmatched)} unmatched keys')
 
     out.update({k: checkpoint[k] for k in unmatched})
     return out, unmatched
@@ -131,7 +140,7 @@ def rename_checkpoint_keys(checkpoint: dict, rename_str: str):
         dict: The modified checkpoint with renamed keys.
     """
 
-    rename_dict = dict(pair.split("//") for pair in rename_str.split(","))
+    rename_dict = dict(pair.split('//') for pair in rename_str.split(','))
 
     new_checkpoint = {}
     for k, v in checkpoint.items():
@@ -146,26 +155,26 @@ def load_smolvla(
     model: torch.nn.Module,
     filename: str | os.PathLike,
     *,
-    device: str = "cpu",
-    checkpoint_keys_mapping: str = "",
+    device: str = 'cpu',
+    checkpoint_keys_mapping: str = '',
 ) -> torch.nn.Module:
     state_dict = safetensors.torch.load_file(filename, device=device)
 
     # Optional user-supplied renames (e.g. "model._orig_mod.//model.")
-    if checkpoint_keys_mapping and "//" in checkpoint_keys_mapping:
+    if checkpoint_keys_mapping and '//' in checkpoint_keys_mapping:
         state_dict = rename_checkpoint_keys(state_dict, checkpoint_keys_mapping)
 
     state_dict, _ = standardise_state_dict(state_dict, set(model.state_dict().keys()))
 
     # HACK(aliberts): to not overwrite normalization parameters as they should come from the dataset
-    norm_keys = ("normalize_inputs", "normalize_targets", "unnormalize_outputs")
+    norm_keys = ('normalize_inputs', 'normalize_targets', 'unnormalize_outputs')
     state_dict = {k: v for k, v in state_dict.items() if not k.startswith(norm_keys)}
 
     missing, unexpected = model.load_state_dict(state_dict, strict=False)
 
     if not all(key.startswith(norm_keys) for key in missing) or unexpected:
         raise RuntimeError(
-            "SmolVLA %d missing / %d unexpected keys",
+            'SmolVLA %d missing / %d unexpected keys',
             len(missing),
             len(unexpected),
         )
@@ -174,14 +183,14 @@ def load_smolvla(
 
 
 def create_sinusoidal_pos_embedding(
-    time: torch.tensor, dimension: int, min_period: float, max_period: float, device="cpu"
+    time: torch.tensor, dimension: int, min_period: float, max_period: float, device='cpu'
 ) -> Tensor:
     """Computes sine-cosine positional embedding vectors for scalar positions."""
     if dimension % 2 != 0:
-        raise ValueError(f"dimension ({dimension}) must be divisible by 2")
+        raise ValueError(f'dimension ({dimension}) must be divisible by 2')
 
     if time.ndim != 1:
-        raise ValueError("The time tensor is expected to be of shape `(batch_size, )`.")
+        raise ValueError('The time tensor is expected to be of shape `(batch_size, )`.')
 
     dtype = get_safe_dtype(torch.float64, device.type)
     fraction = torch.linspace(0.0, 1.0, dimension // 2, dtype=dtype, device=device)
@@ -230,7 +239,7 @@ def make_att_2d_masks(pad_masks, att_masks):
 def resize_with_pad(img, width, height, pad_value=-1):
     # assume no-op when width height fits already
     if img.ndim != 4:
-        raise ValueError(f"(b,c,h,w) expected, but {img.shape}")
+        raise ValueError(f'(b,c,h,w) expected, but {img.shape}')
 
     cur_height, cur_width = img.shape[2:]
 
@@ -238,7 +247,7 @@ def resize_with_pad(img, width, height, pad_value=-1):
     resized_height = int(cur_height / ratio)
     resized_width = int(cur_width / ratio)
     resized_img = F.interpolate(
-        img, size=(resized_height, resized_width), mode="bilinear", align_corners=False
+        img, size=(resized_height, resized_width), mode='bilinear', align_corners=False
     )
 
     pad_height = max(0, int(height - resized_height))
@@ -288,7 +297,9 @@ def aloha_gripper_to_angular(value):
 
     # This is the inverse of the angular to linear transformation inside the Interbotix code.
     def linear_to_radian(linear_position, arm_length, horn_radius):
-        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (2 * horn_radius * linear_position)
+        value = (horn_radius**2 + linear_position**2 - arm_length**2) / (
+            2 * horn_radius * linear_position
+        )
         return safe_arcsin(value)
 
     # The constants are taken from the Interbotix code.
@@ -321,7 +332,7 @@ class SmolVLAPolicy(PreTrainedPolicy):
     """Wrapper class around VLAFlowMatching model to train and run inference within LeRobot."""
 
     config_class = SmolVLAConfig
-    name = "smolvla"
+    name = 'smolvla'
 
     def __init__(
         self,
@@ -339,7 +350,9 @@ class SmolVLAPolicy(PreTrainedPolicy):
         super().__init__(config)
         config.validate_features()
         self.config = config
-        self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
+        self.normalize_inputs = Normalize(
+            config.input_features, config.normalization_mapping, dataset_stats
+        )
         self.normalize_targets = Normalize(
             config.output_features, config.normalization_mapping, dataset_stats
         )
@@ -347,7 +360,9 @@ class SmolVLAPolicy(PreTrainedPolicy):
             config.output_features, config.normalization_mapping, dataset_stats
         )
 
-        self.language_tokenizer = AutoProcessor.from_pretrained(self.config.vlm_model_name).tokenizer
+        self.language_tokenizer = AutoProcessor.from_pretrained(
+            self.config.vlm_model_name
+        ).tokenizer
         self.model = VLAFlowMatching(config)
         self.reset()
 
@@ -361,7 +376,7 @@ class SmolVLAPolicy(PreTrainedPolicy):
     @classmethod
     def _load_as_safetensor(
         cls,
-        model: "SmolVLAPolicy",
+        model: 'SmolVLAPolicy',
         model_file: str,
         map_location: str,
         strict: bool,
@@ -371,7 +386,7 @@ class SmolVLAPolicy(PreTrainedPolicy):
             model,
             model_file,
             device=map_location,
-            checkpoint_keys_mapping="model._orig_mod.//model.",
+            checkpoint_keys_mapping='model._orig_mod.//model.',
         )
 
     def get_optim_params(self) -> dict:
@@ -391,7 +406,9 @@ class SmolVLAPolicy(PreTrainedPolicy):
         state = self.prepare_state(batch)
         lang_tokens, lang_masks = self.prepare_language(batch)
 
-        actions = self.model.sample_actions(images, img_masks, lang_tokens, lang_masks, state, noise=noise)
+        actions = self.model.sample_actions(
+            images, img_masks, lang_tokens, lang_masks, state, noise=noise
+        )
 
         # Unpad actions
         original_action_dim = self.config.action_feature.shape[0]
@@ -456,24 +473,26 @@ class SmolVLAPolicy(PreTrainedPolicy):
         state = self.prepare_state(batch)
         lang_tokens, lang_masks = self.prepare_language(batch)
         actions = self.prepare_action(batch)
-        actions_is_pad = batch.get("actions_id_pad")
+        actions_is_pad = batch.get('actions_id_pad')
         loss_dict = {}
-        losses = self.model.forward(images, img_masks, lang_tokens, lang_masks, state, actions, noise, time)
-        loss_dict["losses_after_forward"] = losses.clone()
+        losses = self.model.forward(
+            images, img_masks, lang_tokens, lang_masks, state, actions, noise, time
+        )
+        loss_dict['losses_after_forward'] = losses.clone()
 
         if actions_is_pad is not None:
             in_episode_bound = ~actions_is_pad
             losses = losses * in_episode_bound.unsqueeze(-1)
-            loss_dict["losses_after_in_ep_bound"] = losses.clone()
+            loss_dict['losses_after_in_ep_bound'] = losses.clone()
 
         # Remove padding
         losses = losses[:, :, : self.config.max_action_dim]
-        loss_dict["losses_after_rm_padding"] = losses.clone()
+        loss_dict['losses_after_rm_padding'] = losses.clone()
 
         # For backward pass
         loss = losses.mean()
         # For backward pass
-        loss_dict["loss"] = loss.item()
+        loss_dict['loss'] = loss.item()
         return loss, loss_dict
 
     def prepare_images(self, batch):
@@ -487,7 +506,7 @@ class SmolVLAPolicy(PreTrainedPolicy):
 
         if len(present_img_keys) == 0:
             raise ValueError(
-                f"All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})"
+                f'All image features are missing from the batch. At least one expected. (batch: {batch.keys()}) (image_features:{self.config.image_features})'
             )
         # Preprocess image features present in the batch
         for key in present_img_keys:
@@ -500,8 +519,8 @@ class SmolVLAPolicy(PreTrainedPolicy):
 
             bsize = img.shape[0]
             device = img.device
-            if f"{key}_padding_mask" in batch:
-                mask = batch[f"{key}_padding_mask"].bool()
+            if f'{key}_padding_mask' in batch:
+                mask = batch[f'{key}_padding_mask'].bool()
             else:
                 mask = torch.ones(bsize, dtype=torch.bool, device=device)
             images.append(img)
@@ -521,24 +540,24 @@ class SmolVLAPolicy(PreTrainedPolicy):
     def prepare_language(self, batch) -> tuple[Tensor, Tensor]:
         """Tokenize the text input"""
         device = batch[OBS_STATE].device
-        tasks = batch["task"]
+        tasks = batch['task']
         if isinstance(tasks, str):
             tasks = [tasks]
 
         if len(tasks) == 1:
             tasks = [tasks[0] for _ in range(batch[OBS_STATE].shape[0])]
 
-        tasks = [task if task.endswith("\n") else f"{task}\n" for task in tasks]
+        tasks = [task if task.endswith('\n') else f'{task}\n' for task in tasks]
 
         tokenized_prompt = self.language_tokenizer.__call__(
             tasks,
             padding=self.config.pad_language_to,
-            padding_side="right",
+            padding_side='right',
             max_length=self.config.tokenizer_max_length,
-            return_tensors="pt",
+            return_tensors='pt',
         )
-        lang_tokens = tokenized_prompt["input_ids"].to(device=device)
-        lang_masks = tokenized_prompt["attention_mask"].to(device=device, dtype=torch.bool)
+        lang_tokens = tokenized_prompt['input_ids'].to(device=device)
+        lang_masks = tokenized_prompt['attention_mask'].to(device=device, dtype=torch.bool)
 
         return lang_tokens, lang_masks
 
@@ -648,8 +667,12 @@ class VLAFlowMatching(nn.Module):
         self.state_proj = nn.Linear(
             self.config.max_state_dim, self.vlm_with_expert.config.text_config.hidden_size
         )
-        self.action_in_proj = nn.Linear(self.config.max_action_dim, self.vlm_with_expert.expert_hidden_size)
-        self.action_out_proj = nn.Linear(self.vlm_with_expert.expert_hidden_size, self.config.max_action_dim)
+        self.action_in_proj = nn.Linear(
+            self.config.max_action_dim, self.vlm_with_expert.expert_hidden_size
+        )
+        self.action_out_proj = nn.Linear(
+            self.vlm_with_expert.expert_hidden_size, self.config.max_action_dim
+        )
 
         self.action_time_mlp_in = nn.Linear(
             self.vlm_with_expert.expert_hidden_size * 2, self.vlm_with_expert.expert_hidden_size
@@ -722,7 +745,9 @@ class VLAFlowMatching(nn.Module):
 
             # Normalize image embeddings
             img_emb_dim = img_emb.shape[-1]
-            img_emb = img_emb * torch.tensor(img_emb_dim**0.5, dtype=img_emb.dtype, device=img_emb.device)
+            img_emb = img_emb * torch.tensor(
+                img_emb_dim**0.5, dtype=img_emb.dtype, device=img_emb.device
+            )
 
             bsize, num_img_embs = img_emb.shape[:2]
             img_mask = img_mask[:, None].expand(bsize, num_img_embs)
@@ -861,10 +886,12 @@ class VLAFlowMatching(nn.Module):
         # Original openpi code, upcast attention output
         suffix_out = suffix_out.to(dtype=torch.float32)
         v_t = self.action_out_proj(suffix_out)
-        losses = F.mse_loss(u_t, v_t, reduction="none")
+        losses = F.mse_loss(u_t, v_t, reduction='none')
         return losses
 
-    def sample_actions(self, images, img_masks, lang_tokens, lang_masks, state, noise=None) -> Tensor:
+    def sample_actions(
+        self, images, img_masks, lang_tokens, lang_masks, state, noise=None
+    ) -> Tensor:
         """Do a full inference forward and compute the action (batch_size x num_steps x num_motors)"""
         bsize = state.shape[0]
         device = state.device
@@ -918,7 +945,9 @@ class VLAFlowMatching(nn.Module):
         suffix_len = suffix_pad_masks.shape[1]
         batch_size = prefix_pad_masks.shape[0]
         prefix_len = prefix_pad_masks.shape[1]
-        prefix_pad_2d_masks = prefix_pad_masks[:, None, :].expand(batch_size, suffix_len, prefix_len)
+        prefix_pad_2d_masks = prefix_pad_masks[:, None, :].expand(
+            batch_size, suffix_len, prefix_len
+        )
 
         suffix_att_2d_masks = make_att_2d_masks(suffix_pad_masks, suffix_att_masks)
 

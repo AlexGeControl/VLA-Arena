@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 materialize.py
 
@@ -15,7 +29,11 @@ from vla_arena.models.openvla.prismatic.models.backbones.llm.prompting import Pr
 from vla_arena.models.openvla.prismatic.models.backbones.vision import ImageTransform
 from vla_arena.models.openvla.prismatic.util.data_utils import PaddedCollatorForActionPrediction
 from vla_arena.models.openvla.prismatic.vla.action_tokenizer import ActionTokenizer
-from vla_arena.models.openvla.prismatic.vla.datasets import EpisodicRLDSDataset, RLDSBatchTransform, RLDSDataset
+from vla_arena.models.openvla.prismatic.vla.datasets import (
+    EpisodicRLDSDataset,
+    RLDSBatchTransform,
+    RLDSDataset,
+)
 
 
 def get_vla_dataset_and_collator(
@@ -23,19 +41,23 @@ def get_vla_dataset_and_collator(
     data_mix: str,
     image_transform: ImageTransform,
     tokenizer: PreTrainedTokenizerBase,
-    prompt_builder_fn: Type[PromptBuilder],
-    default_image_resolution: Tuple[int, int, int],
-    padding_side: str = "right",
+    prompt_builder_fn: type[PromptBuilder],
+    default_image_resolution: tuple[int, int, int],
+    padding_side: str = 'right',
     predict_stop_token: bool = True,
     shuffle_buffer_size: int = 100_000,
     train: bool = True,
     episodic: bool = False,
     image_aug: bool = False,
-) -> Tuple[Dataset, ActionTokenizer, PaddedCollatorForActionPrediction]:
+) -> tuple[Dataset, ActionTokenizer, PaddedCollatorForActionPrediction]:
     """Initialize RLDS Dataset (wraps TFDS), ActionTokenizer, and initialize transform/collation functions."""
     action_tokenizer = ActionTokenizer(tokenizer)
     batch_transform = RLDSBatchTransform(
-        action_tokenizer, tokenizer, image_transform, prompt_builder_fn, predict_stop_token=predict_stop_token
+        action_tokenizer,
+        tokenizer,
+        image_transform,
+        prompt_builder_fn,
+        predict_stop_token=predict_stop_token,
     )
     collator = PaddedCollatorForActionPrediction(
         tokenizer.model_max_length, tokenizer.pad_token_id, padding_side=padding_side

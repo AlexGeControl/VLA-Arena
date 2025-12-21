@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 verify_vla_arena.models.openvla.prismatic.py
 
@@ -11,41 +25,40 @@ import torch
 from PIL import Image
 from transformers import AutoModelForVision2Seq, AutoProcessor
 
-# === Verification Arguments ===
-MODEL_PATH = "TRI-ML/prismatic-siglip-224px-7b"
-DEFAULT_IMAGE_URL = (
-    "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/beignets-task-guide.png"
-)
 
-if "-prism-" in MODEL_PATH:
+# === Verification Arguments ===
+MODEL_PATH = 'TRI-ML/prismatic-siglip-224px-7b'
+DEFAULT_IMAGE_URL = 'https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/beignets-task-guide.png'
+
+if '-prism-' in MODEL_PATH:
     SAMPLE_PROMPTS_FOR_GENERATION = [
-        "In: What is sitting in the coffee?\nOut:",
+        'In: What is sitting in the coffee?\nOut:',
         "In: What's the name of the food on the plate?\nOut:",
-        "In: caption.\nOut:",
-        "In: how many beinets..?\nOut:",
-        "In: Can you give me a lyrical description of the scene\nOut:",
+        'In: caption.\nOut:',
+        'In: how many beinets..?\nOut:',
+        'In: Can you give me a lyrical description of the scene\nOut:',
     ]
 else:
     SYSTEM_PROMPT = (
-        "A chat between a curious user and an artificial intelligence assistant. "
+        'A chat between a curious user and an artificial intelligence assistant. '
         "The assistant gives helpful, detailed, and polite answers to the user's questions."
     )
     SAMPLE_PROMPTS_FOR_GENERATION = [
-        f"{SYSTEM_PROMPT} USER: What is sitting in the coffee? ASSISTANT:",
+        f'{SYSTEM_PROMPT} USER: What is sitting in the coffee? ASSISTANT:',
         f"{SYSTEM_PROMPT} USER: What's the name of the food on the plate? ASSISTANT:",
-        f"{SYSTEM_PROMPT} USER: caption. ASSISTANT:",
-        f"{SYSTEM_PROMPT} USER: how many beinets..? ASSISTANT:",
-        f"{SYSTEM_PROMPT} USER: Can you give me a lyrical description of the scene ASSISTANT:",
+        f'{SYSTEM_PROMPT} USER: caption. ASSISTANT:',
+        f'{SYSTEM_PROMPT} USER: how many beinets..? ASSISTANT:',
+        f'{SYSTEM_PROMPT} USER: Can you give me a lyrical description of the scene ASSISTANT:',
     ]
 
 
 @torch.inference_mode()
 def verify_prismatic() -> None:
-    print(f"[*] Verifying PrismaticForConditionalGeneration using Model `{MODEL_PATH}`")
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print(f'[*] Verifying PrismaticForConditionalGeneration using Model `{MODEL_PATH}`')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Load Processor & VLM
-    print("[*] Instantiating Processor and Pretrained VLM")
+    print('[*] Instantiating Processor and Pretrained VLM')
     processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
 
     # === AUTOCAST MODE ===
@@ -61,10 +74,10 @@ def verify_prismatic() -> None:
     # ).to(device)
 
     # === BFLOAT16 + FLASH-ATTN MODE :: [~14GB of VRAM Passive || 18GB of VRAM Active] ===
-    print("[*] Loading in BF16 with Flash-Attention Enabled")
+    print('[*] Loading in BF16 with Flash-Attention Enabled')
     vlm = AutoModelForVision2Seq.from_pretrained(
         MODEL_PATH,
-        attn_implementation="flash_attention_2",
+        attn_implementation='flash_attention_2',
         torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
         trust_remote_code=True,
@@ -93,10 +106,10 @@ def verify_prismatic() -> None:
     # )
 
     # Iterate over Sample Prompts =>> Generate
-    image = Image.open(requests.get(DEFAULT_IMAGE_URL, stream=True).raw).convert("RGB")
+    image = Image.open(requests.get(DEFAULT_IMAGE_URL, stream=True).raw).convert('RGB')
     num_tokens, total_time = 0, 0.0
 
-    print("[*] Iterating over Sample Prompts\n===\n")
+    print('[*] Iterating over Sample Prompts\n===\n')
     for idx, prompt in enumerate(SAMPLE_PROMPTS_FOR_GENERATION):
         # === AUTOCAST MODE (Reproduces Prismatic `scripts/generate.py`) ===
         # inputs = processor(prompt, image).to(device)
@@ -124,11 +137,13 @@ def verify_prismatic() -> None:
 
         # ===
         gen_text = processor.decode(gen_ids, skip_special_tokens=True).strip()
-        print(f"[{idx + 1}] Input Prompt => {prompt}\n    Generated    => {gen_text}\n")
+        print(f'[{idx + 1}] Input Prompt => {prompt}\n    Generated    => {gen_text}\n')
 
     # Compute Tokens / Second
-    print(f"[*] Generated Tokens per Second = {num_tokens / total_time} w/ {num_tokens = } and {total_time = }")
+    print(
+        f'[*] Generated Tokens per Second = {num_tokens / total_time} w/ {num_tokens = } and {total_time = }'
+    )
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     verify_prismatic()

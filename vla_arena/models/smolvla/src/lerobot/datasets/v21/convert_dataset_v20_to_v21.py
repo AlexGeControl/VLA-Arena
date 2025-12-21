@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,13 +49,13 @@ import argparse
 import logging
 
 from huggingface_hub import HfApi
-
 from lerobot.datasets.lerobot_dataset import CODEBASE_VERSION, LeRobotDataset
 from lerobot.datasets.utils import EPISODES_STATS_PATH, STATS_PATH, load_stats, write_info
 from lerobot.datasets.v21.convert_stats import check_aggregate_stats, convert_stats
 
-V20 = "v2.0"
-V21 = "v2.1"
+
+V20 = 'v2.0'
+V21 = 'v2.1'
 
 
 class SuppressWarnings:
@@ -68,10 +82,10 @@ def convert_dataset(
     ref_stats = load_stats(dataset.root)
     check_aggregate_stats(dataset, ref_stats)
 
-    dataset.meta.info["codebase_version"] = CODEBASE_VERSION
+    dataset.meta.info['codebase_version'] = CODEBASE_VERSION
     write_info(dataset.meta.info, dataset.root)
 
-    dataset.push_to_hub(branch=branch, tag_version=False, allow_patterns="meta/")
+    dataset.push_to_hub(branch=branch, tag_version=False, allow_patterns='meta/')
 
     # delete old stats.json file
     if (dataset.root / STATS_PATH).is_file:
@@ -79,35 +93,35 @@ def convert_dataset(
 
     hub_api = HfApi()
     if hub_api.file_exists(
-        repo_id=dataset.repo_id, filename=STATS_PATH, revision=branch, repo_type="dataset"
+        repo_id=dataset.repo_id, filename=STATS_PATH, revision=branch, repo_type='dataset'
     ):
         hub_api.delete_file(
-            path_in_repo=STATS_PATH, repo_id=dataset.repo_id, revision=branch, repo_type="dataset"
+            path_in_repo=STATS_PATH, repo_id=dataset.repo_id, revision=branch, repo_type='dataset'
         )
 
-    hub_api.create_tag(repo_id, tag=CODEBASE_VERSION, revision=branch, repo_type="dataset")
+    hub_api.create_tag(repo_id, tag=CODEBASE_VERSION, revision=branch, repo_type='dataset')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--repo-id",
+        '--repo-id',
         type=str,
         required=True,
-        help="Repository identifier on Hugging Face: a community or a user name `/` the name of the dataset "
-        "(e.g. `lerobot/pusht`, `cadene/aloha_sim_insertion_human`).",
+        help='Repository identifier on Hugging Face: a community or a user name `/` the name of the dataset '
+        '(e.g. `lerobot/pusht`, `cadene/aloha_sim_insertion_human`).',
     )
     parser.add_argument(
-        "--branch",
+        '--branch',
         type=str,
         default=None,
-        help="Repo branch to push your dataset. Defaults to the main branch.",
+        help='Repo branch to push your dataset. Defaults to the main branch.',
     )
     parser.add_argument(
-        "--num-workers",
+        '--num-workers',
         type=int,
         default=4,
-        help="Number of workers for parallelizing stats compute. Defaults to 4.",
+        help='Number of workers for parallelizing stats compute. Defaults to 4.',
     )
 
     args = parser.parse_args()

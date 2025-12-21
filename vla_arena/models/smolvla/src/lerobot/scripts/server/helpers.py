@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,15 +34,21 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import torch
-
 from lerobot.configs.types import PolicyFeature
 from lerobot.constants import OBS_IMAGES, OBS_STATE
 from lerobot.datasets.utils import build_dataset_frame, hw_to_dataset_features
 
 # NOTE: Configs need to be loaded for the client to be able to instantiate the policy config
-from lerobot.policies import ACTConfig, DiffusionConfig, PI0Config, SmolVLAConfig, VQBeTConfig  # noqa: F401
+from lerobot.policies import (  # noqa: F401
+    ACTConfig,
+    DiffusionConfig,
+    PI0Config,
+    SmolVLAConfig,
+    VQBeTConfig,
+)
 from lerobot.robots.robot import Robot
 from lerobot.utils.utils import init_logging
+
 
 Action = torch.Tensor
 ActionChunk = torch.Tensor
@@ -47,9 +67,9 @@ def visualize_action_queue_size(action_queue_size: list[int]) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
-    ax.set_title("Action Queue Size Over Time")
-    ax.set_xlabel("Environment steps")
-    ax.set_ylabel("Action Queue Size")
+    ax.set_title('Action Queue Size Over Time')
+    ax.set_xlabel('Environment steps')
+    ax.set_ylabel('Action Queue Size')
     ax.set_ylim(0, max(action_queue_size) * 1.1)
     ax.grid(True, alpha=0.3)
     ax.plot(range(len(action_queue_size)), action_queue_size)
@@ -60,28 +80,32 @@ def validate_robot_cameras_for_policy(
     lerobot_observation_features: dict[str, dict], policy_image_features: dict[str, PolicyFeature]
 ) -> None:
     image_keys = list(filter(is_image_key, lerobot_observation_features))
-    assert set(image_keys) == set(policy_image_features.keys()), (
-        f"Policy image features must match robot cameras! Received {list(policy_image_features.keys())} != {image_keys}"
-    )
+    assert set(image_keys) == set(
+        policy_image_features.keys()
+    ), f'Policy image features must match robot cameras! Received {list(policy_image_features.keys())} != {image_keys}'
 
 
 def map_robot_keys_to_lerobot_features(robot: Robot) -> dict[str, dict]:
-    return hw_to_dataset_features(robot.observation_features, "observation", use_video=False)
+    return hw_to_dataset_features(robot.observation_features, 'observation', use_video=False)
 
 
 def is_image_key(k: str) -> bool:
     return k.startswith(OBS_IMAGES)
 
 
-def resize_robot_observation_image(image: torch.tensor, resize_dims: tuple[int, int, int]) -> torch.tensor:
-    assert image.ndim == 3, f"Image must be (C, H, W)! Received {image.shape}"
+def resize_robot_observation_image(
+    image: torch.tensor, resize_dims: tuple[int, int, int]
+) -> torch.tensor:
+    assert image.ndim == 3, f'Image must be (C, H, W)! Received {image.shape}'
     # (H, W, C) -> (C, H, W) for resizing from robot obsevation resolution to policy image resolution
     image = image.permute(2, 0, 1)
     dims = (resize_dims[1], resize_dims[2])
     # Add batch dimension for interpolate: (C, H, W) -> (1, C, H, W)
     image_batched = image.unsqueeze(0)
     # Interpolate and remove batch dimension: (1, C, H, W) -> (C, H, W)
-    resized = torch.nn.functional.interpolate(image_batched, size=dims, mode="bilinear", align_corners=False)
+    resized = torch.nn.functional.interpolate(
+        image_batched, size=dims, mode='bilinear', align_corners=False
+    )
 
     return resized.squeeze(0)
 
@@ -96,8 +120,10 @@ def raw_observation_to_observation(
 
     observation = prepare_raw_observation(raw_observation, lerobot_features, policy_image_features)
     for k, v in observation.items():
-        if isinstance(v, torch.Tensor):  # VLAs present natural-language instructions in observations
-            if "image" in k:
+        if isinstance(
+            v, torch.Tensor
+        ):  # VLAs present natural-language instructions in observations
+            if 'image' in k:
                 # Policy expects images in shape (B, C, H, W)
                 observation[k] = prepare_image(v).unsqueeze(0).to(device)
             else:
@@ -141,7 +167,7 @@ def make_lerobot_observation(
     lerobot_features: dict[str, dict],
 ) -> LeRobotObservation:
     """Make a lerobot observation from a raw observation."""
-    return build_dataset_frame(lerobot_features, robot_obs, prefix="observation")
+    return build_dataset_frame(lerobot_features, robot_obs, prefix='observation')
 
 
 def prepare_raw_observation(
@@ -166,12 +192,14 @@ def prepare_raw_observation(
     # Turns the image features to (C, H, W) with H, W matching the policy image features.
     # This reduces the resolution of the images
     image_dict = {
-        key: resize_robot_observation_image(torch.tensor(lerobot_obs[key]), policy_image_features[key].shape)
+        key: resize_robot_observation_image(
+            torch.tensor(lerobot_obs[key]), policy_image_features[key].shape
+        )
         for key in image_keys
     }
 
-    if "task" in robot_obs:
-        state_dict["task"] = robot_obs["task"]
+    if 'task' in robot_obs:
+        state_dict['task'] = robot_obs['task']
 
     return {**state_dict, **image_dict}
 
@@ -189,8 +217,8 @@ def get_logger(name: str, log_to_file: bool = True) -> logging.Logger:
     """
     # Create logs directory if logging to file
     if log_to_file:
-        os.makedirs("logs", exist_ok=True)
-        log_file = Path(f"logs/{name}_{int(time.time())}.log")
+        os.makedirs('logs', exist_ok=True)
+        log_file = Path(f'logs/{name}_{int(time.time())}.log')
     else:
         log_file = None
 
@@ -258,7 +286,7 @@ class FPSTracker:
         total_duration = current_timestamp - self.first_timestamp
         avg_fps = (self.total_obs_count - 1) / total_duration if total_duration > 1e-6 else 0.0
 
-        return {"avg_fps": avg_fps, "target_fps": self.target_fps}
+        return {'avg_fps': avg_fps, 'target_fps': self.target_fps}
 
     def reset(self):
         """Reset the FPS tracker state"""
@@ -272,16 +300,21 @@ class RemotePolicyConfig:
     pretrained_name_or_path: str
     lerobot_features: dict[str, PolicyFeature]
     actions_per_chunk: int
-    device: str = "cpu"
+    device: str = 'cpu'
 
 
-def _compare_observation_states(obs1_state: torch.Tensor, obs2_state: torch.Tensor, atol: float) -> bool:
+def _compare_observation_states(
+    obs1_state: torch.Tensor, obs2_state: torch.Tensor, atol: float
+) -> bool:
     """Check if two observation states are similar, under a tolerance threshold"""
     return bool(torch.linalg.norm(obs1_state - obs2_state) < atol)
 
 
 def observations_similar(
-    obs1: TimedObservation, obs2: TimedObservation, lerobot_features: dict[str, dict], atol: float = 1
+    obs1: TimedObservation,
+    obs2: TimedObservation,
+    lerobot_features: dict[str, dict],
+    atol: float = 1,
 ) -> bool:
     """Check if two observations are similar, under a tolerance threshold. Measures distance between
     observations as the difference in joint-space between the two observations.

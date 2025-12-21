@@ -10,12 +10,12 @@ pip install ego4d
 python -m ego4d.cli.cli --output_directory=<path-to-save-dir> --datasets clips annotations  --metadata --version v2 --benchmarks FHO
 ```
 
-Your directory tree should look like this: 
+Your directory tree should look like this:
 ```
 $<path-to-ego4d-save-dir>
 ├── ego4d.json
 └── v2
-    |—— annotations  
+    |—— annotations
     └── clips
 ```
 
@@ -45,7 +45,7 @@ We first process the citical information about the interaction clips and key fra
 python preprocess_ego4d.py \
     --denseclips_dir /path/to/output/denseclips \           # output dir for processed clips
     --info_clips_json /path/to/info_clips.json \            # metadata of keyframes
-    --source_videos_dir <path-to-ego4d-save-dir>/v2/clips \       # ego4d videos path     
+    --source_videos_dir <path-to-ego4d-save-dir>/v2/clips \       # ego4d videos path
     --frame_interval 15                                     # downsample Ego4D to 2 fps
 ```
 
@@ -75,13 +75,13 @@ The default save path for the dataset is `/root/tensorflow_datasets/ego4d_datase
 ```bash
 cd vla-scripts/extern/ego4d_rlds_dataset_builder/ego4d
 mkdir data/val
-rsync -av --files-from=<(printf "episode_%d.npy\n" {0000..9999}) data/train/ data/val/  
+rsync -av --files-from=<(printf "episode_%d.npy\n" {0000..9999}) data/train/ data/val/
 tfds build --overwrite --beam_pipeline_options="direct_running_mode=multi_processing,direct_num_workers=4"
 mkdir /root/tensorflow_datasets/ego4d_dataset/ego4d_split_1
 mv /root/tensorflow_datasets/ego4d_dataset/1.0.0 /root/tensorflow_datasets/ego4d_dataset/ego4d_split_1/1.0.0
 rm -r data/val
 
-rsync -av --files-from=<(printf "episode_%d.npy\n" {10000..19999}) data/train/ data/val/  
+rsync -av --files-from=<(printf "episode_%d.npy\n" {10000..19999}) data/train/ data/val/
 tfds build --overwrite --beam_pipeline_options="direct_running_mode=multi_processing,direct_num_workers=4"
 mkdir /root/tensorflow_datasets/ego4d_dataset/ego4d_split_2
 mv /root/tensorflow_datasets/ego4d_dataset/1.0.0 /root/tensorflow_datasets/ego4d_dataset/ego4d_split_2/1.0.0

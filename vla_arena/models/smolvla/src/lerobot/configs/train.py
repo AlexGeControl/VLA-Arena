@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +34,6 @@ from pathlib import Path
 import draccus
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import HfHubHTTPError
-
 from lerobot import envs
 from lerobot.configs import parser
 from lerobot.configs.default import DatasetConfig, EvalConfig, WandBConfig
@@ -29,7 +42,8 @@ from lerobot.optim import OptimizerConfig
 from lerobot.optim.schedulers import LRSchedulerConfig
 from lerobot.utils.hub import HubMixin
 
-TRAIN_CONFIG_NAME = "train_config.json"
+
+TRAIN_CONFIG_NAME = 'train_config.json'
 
 
 @dataclass
@@ -69,23 +83,23 @@ class TrainPipelineConfig(HubMixin):
 
     def validate(self):
         # HACK: We parse again the cli args here to get the pretrained paths if there was some.
-        policy_path = parser.get_path_arg("policy")
+        policy_path = parser.get_path_arg('policy')
         if policy_path:
             # Only load the policy config
-            cli_overrides = parser.get_cli_overrides("policy")
+            cli_overrides = parser.get_cli_overrides('policy')
             self.policy = PreTrainedConfig.from_pretrained(policy_path, cli_overrides=cli_overrides)
             self.policy.pretrained_path = policy_path
         elif self.resume:
             # The entire train config is already loaded, we just need to get the checkpoint dir
-            config_path = parser.parse_arg("config_path")
+            config_path = parser.parse_arg('config_path')
             if not config_path:
                 raise ValueError(
-                    f"A config_path is expected when resuming a run. Please specify path to {TRAIN_CONFIG_NAME}"
+                    f'A config_path is expected when resuming a run. Please specify path to {TRAIN_CONFIG_NAME}'
                 )
             if not Path(config_path).resolve().exists():
                 raise NotADirectoryError(
-                    f"{config_path=} is expected to be a local path. "
-                    "Resuming from the hub is not supported for now."
+                    f'{config_path=} is expected to be a local path. '
+                    'Resuming from the hub is not supported for now.'
                 )
             policy_path = Path(config_path).parent
             self.policy.pretrained_path = policy_path
@@ -93,25 +107,29 @@ class TrainPipelineConfig(HubMixin):
 
         if not self.job_name:
             if self.env is None:
-                self.job_name = f"{self.policy.type}"
+                self.job_name = f'{self.policy.type}'
             else:
-                self.job_name = f"{self.env.type}_{self.policy.type}"
+                self.job_name = f'{self.env.type}_{self.policy.type}'
 
         if not self.resume and isinstance(self.output_dir, Path) and self.output_dir.is_dir():
             raise FileExistsError(
-                f"Output directory {self.output_dir} already exists and resume is {self.resume}. "
-                f"Please change your output directory so that {self.output_dir} is not overwritten."
+                f'Output directory {self.output_dir} already exists and resume is {self.resume}. '
+                f'Please change your output directory so that {self.output_dir} is not overwritten.'
             )
         elif not self.output_dir:
             now = dt.datetime.now()
-            train_dir = f"{now:%Y-%m-%d}/{now:%H-%M-%S}_{self.job_name}"
-            self.output_dir = Path("outputs/train") / train_dir
+            train_dir = f'{now:%Y-%m-%d}/{now:%H-%M-%S}_{self.job_name}'
+            self.output_dir = Path('outputs/train') / train_dir
 
         if isinstance(self.dataset.repo_id, list):
-            raise NotImplementedError("LeRobotMultiDataset is not currently implemented.")
+            raise NotImplementedError('LeRobotMultiDataset is not currently implemented.')
 
-        if not self.use_policy_training_preset and (self.optimizer is None or self.scheduler is None):
-            raise ValueError("Optimizer and Scheduler must be set when the policy presets are not used.")
+        if not self.use_policy_training_preset and (
+            self.optimizer is None or self.scheduler is None
+        ):
+            raise ValueError(
+                'Optimizer and Scheduler must be set when the policy presets are not used.'
+            )
         elif self.use_policy_training_preset and not self.resume:
             self.optimizer = self.policy.get_optimizer_preset()
             self.scheduler = self.policy.get_scheduler_preset()
@@ -124,18 +142,18 @@ class TrainPipelineConfig(HubMixin):
     @classmethod
     def __get_path_fields__(cls) -> list[str]:
         """This enables the parser to load config from the policy using `--policy.path=local/dir`"""
-        return ["policy"]
+        return ['policy']
 
     def to_dict(self) -> dict:
         return draccus.encode(self)
 
     def _save_pretrained(self, save_directory: Path) -> None:
-        with open(save_directory / TRAIN_CONFIG_NAME, "w") as f, draccus.config_type("json"):
+        with open(save_directory / TRAIN_CONFIG_NAME, 'w') as f, draccus.config_type('json'):
             draccus.dump(self, f, indent=4)
 
     @classmethod
     def from_pretrained(
-        cls: builtins.type["TrainPipelineConfig"],
+        cls: builtins.type['TrainPipelineConfig'],
         pretrained_name_or_path: str | Path,
         *,
         force_download: bool = False,
@@ -146,14 +164,14 @@ class TrainPipelineConfig(HubMixin):
         local_files_only: bool = False,
         revision: str | None = None,
         **kwargs,
-    ) -> "TrainPipelineConfig":
+    ) -> 'TrainPipelineConfig':
         model_id = str(pretrained_name_or_path)
         config_file: str | None = None
         if Path(model_id).is_dir():
             if TRAIN_CONFIG_NAME in os.listdir(model_id):
                 config_file = os.path.join(model_id, TRAIN_CONFIG_NAME)
             else:
-                print(f"{TRAIN_CONFIG_NAME} not found in {Path(model_id).resolve()}")
+                print(f'{TRAIN_CONFIG_NAME} not found in {Path(model_id).resolve()}')
         elif Path(model_id).is_file():
             config_file = model_id
         else:
@@ -171,11 +189,11 @@ class TrainPipelineConfig(HubMixin):
                 )
             except HfHubHTTPError as e:
                 raise FileNotFoundError(
-                    f"{TRAIN_CONFIG_NAME} not found on the HuggingFace Hub in {model_id}"
+                    f'{TRAIN_CONFIG_NAME} not found on the HuggingFace Hub in {model_id}'
                 ) from e
 
-        cli_args = kwargs.pop("cli_args", [])
-        with draccus.config_type("json"):
+        cli_args = kwargs.pop('cli_args', [])
+        with draccus.config_type('json'):
             return draccus.parse(cls, config_file, args=cli_args)
 
 

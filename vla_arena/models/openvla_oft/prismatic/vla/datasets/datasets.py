@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 datasets.py
 
@@ -19,32 +33,47 @@ from vla_arena.models.openvla_oft.prismatic.models.backbones.llm.prompting impor
 from vla_arena.models.openvla_oft.prismatic.models.backbones.vision import ImageTransform
 from vla_arena.models.openvla_oft.prismatic.util.data_utils import tree_map
 from vla_arena.models.openvla_oft.prismatic.vla.action_tokenizer import ActionTokenizer
-from vla_arena.models.openvla_oft.prismatic.vla.constants import ACTION_DIM, ACTION_PROPRIO_NORMALIZATION_TYPE, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, PROPRIO_DIM, STOP_INDEX
-from vla_arena.models.openvla_oft.prismatic.vla.datasets.rlds import make_interleaved_dataset, make_single_dataset
-from vla_arena.models.openvla_oft.prismatic.vla.datasets.rlds.oxe import OXE_NAMED_MIXTURES, get_oxe_dataset_kwargs_and_weights
+from vla_arena.models.openvla_oft.prismatic.vla.constants import (
+    ACTION_DIM,
+    ACTION_PROPRIO_NORMALIZATION_TYPE,
+    ACTION_TOKEN_BEGIN_IDX,
+    IGNORE_INDEX,
+    NUM_ACTIONS_CHUNK,
+    PROPRIO_DIM,
+    STOP_INDEX,
+)
+from vla_arena.models.openvla_oft.prismatic.vla.datasets.rlds import (
+    make_interleaved_dataset,
+    make_single_dataset,
+)
+from vla_arena.models.openvla_oft.prismatic.vla.datasets.rlds.oxe import (
+    OXE_NAMED_MIXTURES,
+    get_oxe_dataset_kwargs_and_weights,
+)
+
 
 @dataclass
 class RLDSBatchTransform:
     action_tokenizer: ActionTokenizer
     base_tokenizer: PreTrainedTokenizerBase
     image_transform: ImageTransform
-    prompt_builder_fn: Type[PromptBuilder]
+    prompt_builder_fn: type[PromptBuilder]
     predict_stop_token: bool = True
     use_wrist_image: bool = False
     use_proprio: bool = False
 
-    def __call__(self, rlds_batch: Dict[str, Any]) -> Dict[str, Any]:
+    def __call__(self, rlds_batch: dict[str, Any]) -> dict[str, Any]:
         """Converts a RLDS batch to the format expected by the OpenVLA collator/models."""
-        dataset_name, current_action = rlds_batch["dataset_name"], rlds_batch["action"][0]
-        img = Image.fromarray(rlds_batch["observation"]["image_primary"][0])
-        lang = rlds_batch["task"]["language_instruction"].decode().lower()
-        actions = rlds_batch["action"]
+        dataset_name, current_action = rlds_batch['dataset_name'], rlds_batch['action'][0]
+        img = Image.fromarray(rlds_batch['observation']['image_primary'][0])
+        lang = rlds_batch['task']['language_instruction'].decode().lower()
+        actions = rlds_batch['action']
 
         # Construct Chat-based Prompt =>> Input is default query + language instruction, output are the action tokens
-        prompt_builder = self.prompt_builder_fn("openvla")
+        prompt_builder = self.prompt_builder_fn('openvla')
 
         # Get future action chunk
-        future_actions = rlds_batch["action"][1:]
+        future_actions = rlds_batch['action'][1:]
         future_actions_string = ''.join(self.action_tokenizer(future_actions))
 
         # Get action chunk string
@@ -53,14 +82,16 @@ class RLDSBatchTransform:
         action_chunk_len = len(action_chunk_string)
 
         conversation = [
-            {"from": "human", "value": f"What action should the robot take to {lang}?"},
-            {"from": "gpt", "value": action_chunk_string},
+            {'from': 'human', 'value': f'What action should the robot take to {lang}?'},
+            {'from': 'gpt', 'value': action_chunk_string},
         ]
         for turn in conversation:
-            prompt_builder.add_turn(turn["from"], turn["value"])
+            prompt_builder.add_turn(turn['from'], turn['value'])
 
         # Tokenize (w/ `base_tokenizer`)
-        input_ids = self.base_tokenizer(prompt_builder.get_prompt(), add_special_tokens=True).input_ids
+        input_ids = self.base_tokenizer(
+            prompt_builder.get_prompt(), add_special_tokens=True
+        ).input_ids
         labels = list(input_ids)
 
         # Tensorize =>> Run Image Transform to get `pixel_values` =>> Return
@@ -73,20 +104,26 @@ class RLDSBatchTransform:
         if not self.predict_stop_token:
             labels[-1] = IGNORE_INDEX
 
-        return_dict = dict(pixel_values=pixel_values, input_ids=input_ids, labels=labels, dataset_name=dataset_name, actions=actions)
+        return_dict = dict(
+            pixel_values=pixel_values,
+            input_ids=input_ids,
+            labels=labels,
+            dataset_name=dataset_name,
+            actions=actions,
+        )
 
         # Add additional inputs
         if self.use_wrist_image:
             all_wrist_pixels = []
-            for k in rlds_batch["observation"].keys():
-                if "wrist" in k:
-                    img_wrist = Image.fromarray(rlds_batch["observation"][k][0])
+            for k in rlds_batch['observation'].keys():
+                if 'wrist' in k:
+                    img_wrist = Image.fromarray(rlds_batch['observation'][k][0])
                     pixel_values_wrist = self.image_transform(img_wrist)
                     all_wrist_pixels.append(pixel_values_wrist)
-            return_dict["pixel_values_wrist"] = torch.cat(all_wrist_pixels, dim=0)
-        if self.use_proprio and "proprio" in rlds_batch["observation"]:
-            proprio = rlds_batch["observation"]["proprio"]
-            return_dict["proprio"] = proprio
+            return_dict['pixel_values_wrist'] = torch.cat(all_wrist_pixels, dim=0)
+        if self.use_proprio and 'proprio' in rlds_batch['observation']:
+            proprio = rlds_batch['observation']['proprio']
+            return_dict['proprio'] = proprio
 
         return return_dict
 
@@ -97,13 +134,17 @@ class RLDSDataset(IterableDataset):
         data_root_dir: Path,
         data_mix: str,
         batch_transform: RLDSBatchTransform,
-        resize_resolution: Tuple[int, int],
+        resize_resolution: tuple[int, int],
         shuffle_buffer_size: int = 256_000,
         train: bool = True,
         image_aug: bool = False,
     ) -> None:
         """Lightweight wrapper around RLDS TFDS Pipeline for use with PyTorch/OpenVLA Data Loaders."""
-        self.data_root_dir, self.data_mix, self.batch_transform = data_root_dir, data_mix, batch_transform
+        self.data_root_dir, self.data_mix, self.batch_transform = (
+            data_root_dir,
+            data_mix,
+            batch_transform,
+        )
 
         # Configure RLDS Dataset(s)
         if self.data_mix in OXE_NAMED_MIXTURES:
@@ -113,10 +154,10 @@ class RLDSDataset(IterableDataset):
             mixture_spec = [(self.data_mix, 1.0)]
 
         # fmt: off
-        if "aloha" in self.data_mix:
-            load_camera_views = ("primary", "left_wrist", "right_wrist")
+        if 'aloha' in self.data_mix:
+            load_camera_views = ('primary', 'left_wrist', 'right_wrist')
         else:
-            load_camera_views = ("primary", "wrist")
+            load_camera_views = ('primary', 'wrist')
 
         per_dataset_kwargs, weights = get_oxe_dataset_kwargs_and_weights(
             self.data_root_dir,
@@ -132,7 +173,7 @@ class RLDSDataset(IterableDataset):
                 window_size=1,                                      # If we wanted to feed / predict more than one step
                 future_action_window_size=NUM_ACTIONS_CHUNK-1,      # For action chunking
                 skip_unlabeled=True,                                # Skip trajectories without language labels
-                goal_relabeling_strategy="uniform",                 # Goals are currently unused
+                goal_relabeling_strategy='uniform',                 # Goals are currently unused
             ),
             frame_transform_kwargs=dict(
                 resize_size=resize_resolution,
@@ -149,18 +190,18 @@ class RLDSDataset(IterableDataset):
 
         # If applicable, enable image augmentations
         if image_aug:
-            rlds_config["frame_transform_kwargs"].update({"image_augment_kwargs" : dict(
+            rlds_config['frame_transform_kwargs'].update({'image_augment_kwargs' : dict(
                 random_resized_crop=dict(scale=[0.9, 0.9], ratio=[1.0, 1.0]),
                 random_brightness=[0.2],
                 random_contrast=[0.8, 1.2],
                 random_saturation=[0.8, 1.2],
                 random_hue=[0.05],
                 augment_order=[
-                    "random_resized_crop",
-                    "random_brightness",
-                    "random_contrast",
-                    "random_saturation",
-                    "random_hue",
+                    'random_resized_crop',
+                    'random_brightness',
+                    'random_contrast',
+                    'random_saturation',
+                    'random_hue',
                 ],
             )}),
         # fmt: on
@@ -171,7 +212,7 @@ class RLDSDataset(IterableDataset):
     def make_dataset(self, rlds_config):
         return make_interleaved_dataset(**rlds_config)
 
-    def __iter__(self) -> Dict[str, Any]:
+    def __iter__(self) -> dict[str, Any]:
         for rlds_batch in self.dataset.as_numpy_iterator():
             yield self.batch_transform(rlds_batch)
 
@@ -180,28 +221,32 @@ class RLDSDataset(IterableDataset):
 
     # === Explicitly Unused ===
     def __getitem__(self, idx: int) -> None:
-        raise NotImplementedError("IterableDataset does not implement map-style __getitem__; see __iter__ instead!")
+        raise NotImplementedError(
+            'IterableDataset does not implement map-style __getitem__; see __iter__ instead!'
+        )
 
 
 class EpisodicRLDSDataset(RLDSDataset):
     """Returns full episodes as list of steps instead of individual transitions (useful for visualizations)."""
 
     def make_dataset(self, rlds_config):
-        per_dataset_kwargs = rlds_config["dataset_kwargs_list"]
-        assert len(per_dataset_kwargs) == 1, "Only support single-dataset `mixes` for episodic datasets."
+        per_dataset_kwargs = rlds_config['dataset_kwargs_list']
+        assert (
+            len(per_dataset_kwargs) == 1
+        ), 'Only support single-dataset `mixes` for episodic datasets.'
 
         return make_single_dataset(
             per_dataset_kwargs[0],
-            train=rlds_config["train"],
-            traj_transform_kwargs=rlds_config["traj_transform_kwargs"],
-            frame_transform_kwargs=rlds_config["frame_transform_kwargs"],
+            train=rlds_config['train'],
+            traj_transform_kwargs=rlds_config['traj_transform_kwargs'],
+            frame_transform_kwargs=rlds_config['frame_transform_kwargs'],
         )
 
-    def __iter__(self) -> Dict[str, Any]:
+    def __iter__(self) -> dict[str, Any]:
         for rlds_batch in self.dataset.as_numpy_iterator():
             out = [
                 self.batch_transform(tree_map(lambda x: x[i], rlds_batch))  # noqa: B023
-                for i in range(rlds_batch["action"].shape[0])
+                for i in range(rlds_batch['action'].shape[0])
             ]
             yield out
 
@@ -212,7 +257,7 @@ class DummyDataset(Dataset):
         action_tokenizer: ActionTokenizer,
         base_tokenizer: PreTrainedTokenizerBase,
         image_transform: ImageTransform,
-        prompt_builder_fn: Type[PromptBuilder],
+        prompt_builder_fn: type[PromptBuilder],
     ) -> None:
         self.action_tokenizer = action_tokenizer
         self.base_tokenizer = base_tokenizer
@@ -222,8 +267,11 @@ class DummyDataset(Dataset):
         # Note =>> We expect the dataset to store statistics for action de-normalization. Specifically, we store the
         # per-dimension 1st and 99th action quantile. The values below correspond to "no normalization" for simplicity.
         self.dataset_statistics = {
-            "dummy_dataset": {
-                "action": {"q01": np.zeros((7,), dtype=np.float32), "q99": np.ones((7,), dtype=np.float32)}
+            'dummy_dataset': {
+                'action': {
+                    'q01': np.zeros((7,), dtype=np.float32),
+                    'q99': np.ones((7,), dtype=np.float32),
+                }
             }
         }
 
@@ -235,19 +283,21 @@ class DummyDataset(Dataset):
         # TODO =>> Load image, action and instruction from disk -- we use dummy values
         image = Image.fromarray(np.asarray(np.random.rand(224, 224, 3) * 255.0, dtype=np.uint8))
         action = np.asarray(np.random.rand(7), dtype=np.float32)
-        instruction = "do something spectacular"
+        instruction = 'do something spectacular'
 
         # Add instruction to VLA prompt
-        prompt_builder = self.prompt_builder_fn("openvla")
+        prompt_builder = self.prompt_builder_fn('openvla')
         conversation = [
-            {"from": "human", "value": f"What action should the robot take to {instruction}?"},
-            {"from": "gpt", "value": self.action_tokenizer(action)},
+            {'from': 'human', 'value': f'What action should the robot take to {instruction}?'},
+            {'from': 'gpt', 'value': self.action_tokenizer(action)},
         ]
         for turn in conversation:
-            prompt_builder.add_turn(turn["from"], turn["value"])
+            prompt_builder.add_turn(turn['from'], turn['value'])
 
         # Tokenize (w/ `base_tokenizer`)
-        input_ids = self.base_tokenizer(prompt_builder.get_prompt(), add_special_tokens=True).input_ids
+        input_ids = self.base_tokenizer(
+            prompt_builder.get_prompt(), add_special_tokens=True
+        ).input_ids
         labels = list(input_ids)
 
         # Tensorize =>> Run Image Transform to get `pixel_values` =>> Return

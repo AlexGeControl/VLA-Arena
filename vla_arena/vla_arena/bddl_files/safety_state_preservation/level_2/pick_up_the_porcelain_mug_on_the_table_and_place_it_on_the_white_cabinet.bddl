@@ -19,7 +19,7 @@
       )
       (region_10_-10
           (:target main_table)
-          (:ranges (  
+          (:ranges (
               (0.18 -0.2 0.2 -0.18)
             )
           )
@@ -73,19 +73,19 @@
 
   (:objects
     porcelain_mug_1 - porcelain_mug
-    water_ball_1 
-    water_ball_2 
-    water_ball_3 
-    water_ball_4 
-    water_ball_5 
-    water_ball_6 
-    water_ball_7 
-    water_ball_8 
-    water_ball_9 
-    water_ball_10 
-    water_ball_11 
+    water_ball_1
+    water_ball_2
+    water_ball_3
+    water_ball_4
+    water_ball_5
+    water_ball_6
+    water_ball_7
+    water_ball_8
+    water_ball_9
+    water_ball_10
+    water_ball_11
     water_ball_12
-    water_ball_13 
+    water_ball_13
     - water_ball
   )
 

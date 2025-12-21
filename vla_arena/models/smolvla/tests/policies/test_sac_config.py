@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +29,6 @@
 # limitations under the License.
 
 import pytest
-
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.policies.sac.configuration_sac import (
     ActorLearnerConfig,
@@ -31,29 +44,29 @@ def test_sac_config_default_initialization():
     config = SACConfig()
 
     assert config.normalization_mapping == {
-        "VISUAL": NormalizationMode.MEAN_STD,
-        "STATE": NormalizationMode.MIN_MAX,
-        "ENV": NormalizationMode.MIN_MAX,
-        "ACTION": NormalizationMode.MIN_MAX,
+        'VISUAL': NormalizationMode.MEAN_STD,
+        'STATE': NormalizationMode.MIN_MAX,
+        'ENV': NormalizationMode.MIN_MAX,
+        'ACTION': NormalizationMode.MIN_MAX,
     }
     assert config.dataset_stats == {
-        "observation.image": {
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
+        'observation.image': {
+            'mean': [0.485, 0.456, 0.406],
+            'std': [0.229, 0.224, 0.225],
         },
-        "observation.state": {
-            "min": [0.0, 0.0],
-            "max": [1.0, 1.0],
+        'observation.state': {
+            'min': [0.0, 0.0],
+            'max': [1.0, 1.0],
         },
-        "action": {
-            "min": [0.0, 0.0, 0.0],
-            "max": [1.0, 1.0, 1.0],
+        'action': {
+            'min': [0.0, 0.0, 0.0],
+            'max': [1.0, 1.0, 1.0],
         },
     }
 
     # Basic parameters
-    assert config.device == "cpu"
-    assert config.storage_device == "cpu"
+    assert config.device == 'cpu'
+    assert config.storage_device == 'cpu'
     assert config.discount == 0.99
     assert config.temperature_init == 1.0
     assert config.num_critics == 2
@@ -90,17 +103,17 @@ def test_sac_config_default_initialization():
 
     # Dataset stats defaults
     expected_dataset_stats = {
-        "observation.image": {
-            "mean": [0.485, 0.456, 0.406],
-            "std": [0.229, 0.224, 0.225],
+        'observation.image': {
+            'mean': [0.485, 0.456, 0.406],
+            'std': [0.229, 0.224, 0.225],
         },
-        "observation.state": {
-            "min": [0.0, 0.0],
-            "max": [1.0, 1.0],
+        'observation.state': {
+            'min': [0.0, 0.0],
+            'max': [1.0, 1.0],
         },
-        "action": {
-            "min": [0.0, 0.0, 0.0],
-            "max": [1.0, 1.0, 1.0],
+        'action': {
+            'min': [0.0, 0.0, 0.0],
+            'max': [1.0, 1.0, 1.0],
         },
     }
     assert config.dataset_stats == expected_dataset_stats
@@ -126,13 +139,13 @@ def test_sac_config_default_initialization():
     assert config.discrete_critic_network_kwargs.final_activation is None
 
     # Actor learner configuration
-    assert config.actor_learner_config.learner_host == "127.0.0.1"
+    assert config.actor_learner_config.learner_host == '127.0.0.1'
     assert config.actor_learner_config.learner_port == 50051
     assert config.actor_learner_config.policy_parameters_push_frequency == 4
 
     # Concurrency configuration
-    assert config.concurrency.actor == "threads"
-    assert config.concurrency.learner == "threads"
+    assert config.concurrency.actor == 'threads'
+    assert config.concurrency.learner == 'threads'
 
     assert isinstance(config.actor_network_kwargs, ActorNetworkConfig)
     assert isinstance(config.critic_network_kwargs, CriticNetworkConfig)
@@ -164,26 +177,26 @@ def test_policy_kwargs():
 
 def test_actor_learner_config():
     config = ActorLearnerConfig()
-    assert config.learner_host == "127.0.0.1"
+    assert config.learner_host == '127.0.0.1'
     assert config.learner_port == 50051
     assert config.policy_parameters_push_frequency == 4
 
 
 def test_concurrency_config():
     config = ConcurrencyConfig()
-    assert config.actor == "threads"
-    assert config.learner == "threads"
+    assert config.actor == 'threads'
+    assert config.learner == 'threads'
 
 
 def test_sac_config_custom_initialization():
     config = SACConfig(
-        device="cpu",
+        device='cpu',
         discount=0.95,
         temperature_init=0.5,
         num_critics=3,
     )
 
-    assert config.device == "cpu"
+    assert config.device == 'cpu'
     assert config.discount == 0.95
     assert config.temperature_init == 0.5
     assert config.num_critics == 3
@@ -191,16 +204,16 @@ def test_sac_config_custom_initialization():
 
 def test_validate_features():
     config = SACConfig(
-        input_features={"observation.state": PolicyFeature(type=FeatureType.STATE, shape=(10,))},
-        output_features={"action": PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
+        input_features={'observation.state': PolicyFeature(type=FeatureType.STATE, shape=(10,))},
+        output_features={'action': PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
     )
     config.validate_features()
 
 
 def test_validate_features_missing_observation():
     config = SACConfig(
-        input_features={"wrong_key": PolicyFeature(type=FeatureType.STATE, shape=(10,))},
-        output_features={"action": PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
+        input_features={'wrong_key': PolicyFeature(type=FeatureType.STATE, shape=(10,))},
+        output_features={'action': PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
     )
     with pytest.raises(
         ValueError, match="You must provide either 'observation.state' or an image observation"
@@ -210,8 +223,8 @@ def test_validate_features_missing_observation():
 
 def test_validate_features_missing_action():
     config = SACConfig(
-        input_features={"observation.state": PolicyFeature(type=FeatureType.STATE, shape=(10,))},
-        output_features={"wrong_key": PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
+        input_features={'observation.state': PolicyFeature(type=FeatureType.STATE, shape=(10,))},
+        output_features={'wrong_key': PolicyFeature(type=FeatureType.ACTION, shape=(3,))},
     )
     with pytest.raises(ValueError, match="You must provide 'action' in the output features"):
         config.validate_features()

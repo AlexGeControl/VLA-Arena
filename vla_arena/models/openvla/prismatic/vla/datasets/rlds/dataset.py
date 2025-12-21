@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 dataset.py
 
@@ -7,8 +21,9 @@ Core interface script for configuring and initializing RLDS datasets.
 import copy
 import inspect
 import json
+from collections.abc import Callable
 from functools import partial
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import dlimp as dl
 import numpy as np
@@ -17,7 +32,10 @@ import tensorflow_datasets as tfds
 
 from vla_arena.models.openvla.prismatic.overwatch import initialize_overwatch
 from vla_arena.models.openvla.prismatic.vla.datasets.rlds import obs_transforms, traj_transforms
-from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils import goal_relabeling, task_augmentation
+from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils import (
+    goal_relabeling,
+    task_augmentation,
+)
 from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils.data_utils import (
     NormalizationType,
     allocate_threads,
@@ -27,12 +45,13 @@ from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils.data_utils impor
     tree_map,
 )
 
+
 # Initialize Overwatch =>> Wraps `logging.Logger`
 overwatch = initialize_overwatch(__name__)
 
 
 # Configure Tensorflow with *no GPU devices* (to prevent clobber with PyTorch)
-tf.config.set_visible_devices([], "GPU")
+tf.config.set_visible_devices([], 'GPU')
 
 
 # ruff: noqa: B006
@@ -41,19 +60,19 @@ def make_dataset_from_rlds(
     data_dir: str,
     *,
     train: bool,
-    standardize_fn: Optional[Callable[[dict], dict]] = None,
+    standardize_fn: Callable[[dict], dict] | None = None,
     shuffle: bool = True,
-    image_obs_keys: Dict[str, Optional[str]] = {},
-    depth_obs_keys: Dict[str, Optional[str]] = {},
-    state_obs_keys: List[Optional[str]] = (),
-    language_key: Optional[str] = None,
+    image_obs_keys: dict[str, str | None] = {},
+    depth_obs_keys: dict[str, str | None] = {},
+    state_obs_keys: list[str | None] = (),
+    language_key: str | None = None,
     action_proprio_normalization_type: NormalizationType = NormalizationType.NORMAL,
-    dataset_statistics: Optional[Union[dict, str]] = None,
-    absolute_action_mask: Optional[List[bool]] = None,
-    action_normalization_mask: Optional[List[bool]] = None,
+    dataset_statistics: dict | str | None = None,
+    absolute_action_mask: list[bool] | None = None,
+    action_normalization_mask: list[bool] | None = None,
     num_parallel_reads: int = tf.data.AUTOTUNE,
     num_parallel_calls: int = tf.data.AUTOTUNE,
-) -> Tuple[dl.DLataset, dict]:
+) -> tuple[dl.DLataset, dict]:
     """
     This function is responsible for loading a specific RLDS dataset from storage and getting it into a standardized
     format. Yields a dataset of trajectories. Does not include CPU-intensive operations.
@@ -124,7 +143,7 @@ def make_dataset_from_rlds(
         - action                        # action vector
         - dataset_name                  # name of the dataset
     """
-    REQUIRED_KEYS = {"observation", "action"}
+    REQUIRED_KEYS = {'observation', 'action'}
     if language_key is not None:
         REQUIRED_KEYS.add(language_key)
 
@@ -135,27 +154,28 @@ def make_dataset_from_rlds(
 
         if not all(k in traj for k in REQUIRED_KEYS):
             raise ValueError(
-                f"Trajectory is missing keys: {REQUIRED_KEYS - set(traj.keys())}. " "Did you write a `standardize_fn`?"
+                f'Trajectory is missing keys: {REQUIRED_KEYS - set(traj.keys())}. '
+                'Did you write a `standardize_fn`?'
             )
 
         # extracts images, depth images and proprio from the "observation" dict
-        traj_len = tf.shape(traj["action"])[0]
-        old_obs = traj["observation"]
+        traj_len = tf.shape(traj['action'])[0]
+        old_obs = traj['observation']
         new_obs = {}
         for new, old in image_obs_keys.items():
             if old is None:
-                new_obs[f"image_{new}"] = tf.repeat("", traj_len)  # padding
+                new_obs[f'image_{new}'] = tf.repeat('', traj_len)  # padding
             else:
-                new_obs[f"image_{new}"] = old_obs[old]
+                new_obs[f'image_{new}'] = old_obs[old]
 
         for new, old in depth_obs_keys.items():
             if old is None:
-                new_obs[f"depth_{new}"] = tf.repeat("", traj_len)  # padding
+                new_obs[f'depth_{new}'] = tf.repeat('', traj_len)  # padding
             else:
-                new_obs[f"depth_{new}"] = old_obs[old]
+                new_obs[f'depth_{new}'] = old_obs[old]
 
         if state_obs_keys:
-            new_obs["proprio"] = tf.concat(
+            new_obs['proprio'] = tf.concat(
                 [
                     (
                         tf.zeros((traj_len, 1), dtype=tf.float32)  # padding
@@ -168,31 +188,32 @@ def make_dataset_from_rlds(
             )
 
         # add timestep info
-        new_obs["timestep"] = tf.range(traj_len)
+        new_obs['timestep'] = tf.range(traj_len)
 
         # extracts `language_key` into the "task" dict
         task = {}
         if language_key is not None:
             if traj[language_key].dtype != tf.string:
                 raise ValueError(
-                    f"Language key {language_key} has dtype {traj[language_key].dtype}, " "but it must be tf.string."
+                    f'Language key {language_key} has dtype {traj[language_key].dtype}, '
+                    'but it must be tf.string.'
                 )
-            task["language_instruction"] = traj.pop(language_key)
+            task['language_instruction'] = traj.pop(language_key)
 
         traj = {
-            "observation": new_obs,
-            "task": task,
-            "action": tf.cast(traj["action"], tf.float32),
-            "dataset_name": tf.repeat(name, traj_len),
+            'observation': new_obs,
+            'task': task,
+            'action': tf.cast(traj['action'], tf.float32),
+            'dataset_name': tf.repeat(name, traj_len),
         }
 
         if absolute_action_mask is not None:
-            if len(absolute_action_mask) != traj["action"].shape[-1]:
+            if len(absolute_action_mask) != traj['action'].shape[-1]:
                 raise ValueError(
-                    f"Length of absolute_action_mask ({len(absolute_action_mask)}) "
+                    f'Length of absolute_action_mask ({len(absolute_action_mask)}) '
                     f"does not match action dimension ({traj['action'].shape[-1]})."
                 )
-            traj["absolute_action_mask"] = tf.tile(
+            traj['absolute_action_mask'] = tf.tile(
                 tf.convert_to_tensor(absolute_action_mask, dtype=tf.bool)[None],
                 [traj_len, 1],
             )
@@ -203,11 +224,11 @@ def make_dataset_from_rlds(
 
     # load or compute dataset statistics
     if isinstance(dataset_statistics, str):
-        with tf.io.gfile.GFile(dataset_statistics, "r") as f:
+        with tf.io.gfile.GFile(dataset_statistics, 'r') as f:
             dataset_statistics = json.load(f)
     elif dataset_statistics is None:
         full_dataset = dl.DLataset.from_rlds(
-            builder, split="all", shuffle=False, num_parallel_reads=num_parallel_reads
+            builder, split='all', shuffle=False, num_parallel_reads=num_parallel_reads
         ).traj_map(restructure, num_parallel_calls)
         # tries to load from cache, otherwise computes on the fly
         dataset_statistics = get_dataset_statistics(
@@ -215,7 +236,7 @@ def make_dataset_from_rlds(
             hash_dependencies=(
                 str(builder.info),
                 str(state_obs_keys),
-                inspect.getsource(standardize_fn) if standardize_fn is not None else "",
+                inspect.getsource(standardize_fn) if standardize_fn is not None else '',
             ),
             save_dir=builder.data_dir,
         )
@@ -223,20 +244,22 @@ def make_dataset_from_rlds(
 
     # skip normalization for certain action dimensions
     if action_normalization_mask is not None:
-        if len(action_normalization_mask) != dataset_statistics["action"]["mean"].shape[-1]:
+        if len(action_normalization_mask) != dataset_statistics['action']['mean'].shape[-1]:
             raise ValueError(
-                f"Length of skip_normalization_mask ({len(action_normalization_mask)}) "
+                f'Length of skip_normalization_mask ({len(action_normalization_mask)}) '
                 f"does not match action dimension ({dataset_statistics['action']['mean'].shape[-1]})."
             )
-        dataset_statistics["action"]["mask"] = np.array(action_normalization_mask)
+        dataset_statistics['action']['mask'] = np.array(action_normalization_mask)
 
     # construct the dataset
-    if "val" not in builder.info.splits:
-        split = "train[:95%]" if train else "train[95%:]"
+    if 'val' not in builder.info.splits:
+        split = 'train[:95%]' if train else 'train[95%:]'
     else:
-        split = "train" if train else "val"
+        split = 'train' if train else 'val'
 
-    dataset = dl.DLataset.from_rlds(builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads)
+    dataset = dl.DLataset.from_rlds(
+        builder, split=split, shuffle=shuffle, num_parallel_reads=num_parallel_reads
+    )
 
     dataset = dataset.traj_map(restructure, num_parallel_calls)
     dataset = dataset.traj_map(
@@ -255,15 +278,15 @@ def apply_trajectory_transforms(
     dataset: dl.DLataset,
     *,
     train: bool,
-    goal_relabeling_strategy: Optional[str] = None,
+    goal_relabeling_strategy: str | None = None,
     goal_relabeling_kwargs: dict = {},
     window_size: int = 1,
     future_action_window_size: int = 0,
-    subsample_length: Optional[int] = None,
+    subsample_length: int | None = None,
     skip_unlabeled: bool = False,
-    max_action: Optional[float] = None,
-    max_proprio: Optional[float] = None,
-    task_augment_strategy: Optional[str] = None,
+    max_action: float | None = None,
+    max_proprio: float | None = None,
+    task_augment_strategy: str | None = None,
     task_augment_kwargs: dict = {},
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
@@ -299,16 +322,22 @@ def apply_trajectory_transforms(
         num_parallel_calls (int, optional): number of parallel calls for map operations. Default to AUTOTUNE.
     """
     if skip_unlabeled:
-        if "language_instruction" not in dataset.element_spec["task"]:
-            raise ValueError("skip_unlabeled=True but dataset does not have language labels.")
+        if 'language_instruction' not in dataset.element_spec['task']:
+            raise ValueError('skip_unlabeled=True but dataset does not have language labels.')
 
-        dataset = dataset.filter(lambda x: tf.math.reduce_any(x["task"]["language_instruction"] != ""))
+        dataset = dataset.filter(
+            lambda x: tf.math.reduce_any(x['task']['language_instruction'] != '')
+        )
 
     if max_action is not None:
-        dataset = dataset.filter(lambda x: tf.math.reduce_all(tf.math.abs(x["action"]) <= max_action))
+        dataset = dataset.filter(
+            lambda x: tf.math.reduce_all(tf.math.abs(x['action']) <= max_action)
+        )
 
-    if max_proprio is not None and "proprio" in dataset.element_spec["observation"]:
-        dataset = dataset.filter(lambda x: tf.math.reduce_all(tf.math.abs(x["observation"]["proprio"]) <= max_proprio))
+    if max_proprio is not None and 'proprio' in dataset.element_spec['observation']:
+        dataset = dataset.filter(
+            lambda x: tf.math.reduce_all(tf.math.abs(x['observation']['proprio']) <= max_proprio)
+        )
 
     # marks which entires of the observation and task dicts are padding
     dataset = dataset.traj_map(traj_transforms.add_pad_mask_dict, num_parallel_calls)
@@ -353,7 +382,7 @@ def apply_trajectory_transforms(
 
 def apply_per_dataset_frame_transforms(
     dataset: dl.DLataset,
-    chunk_filter_fn: Optional[Callable] = None,
+    chunk_filter_fn: Callable | None = None,
 ):
     """
     Optionally applied *per-dataset* transforms that happen at a frame level.
@@ -370,9 +399,9 @@ def apply_frame_transforms(
     dataset: dl.DLataset,
     *,
     train: bool,
-    image_augment_kwargs: Union[Dict, Dict[str, Dict]] = {},
-    resize_size: Union[Tuple[int, int], Dict[str, Tuple[int, int]]] = {},
-    depth_resize_size: Union[Tuple[int, int], Dict[str, Tuple[int, int]]] = {},
+    image_augment_kwargs: dict | dict[str, dict] = {},
+    resize_size: tuple[int, int] | dict[str, tuple[int, int]] = {},
+    depth_resize_size: tuple[int, int] | dict[str, tuple[int, int]] = {},
     num_parallel_calls: int = tf.data.AUTOTUNE,
 ) -> dl.DLataset:
     """
@@ -398,16 +427,20 @@ def apply_frame_transforms(
 
     # Convenience wrapper that takes a function that operates on a non-chunked "observation" dict and applies
     # it to the chunked "observation" dict as well as the non-chunked "task" dict
-    def apply_obs_transform(fn: Callable[[Dict], Dict], frame: Dict) -> Dict:
-        frame["task"] = fn(frame["task"])
-        frame["observation"] = dl.vmap(fn)(frame["observation"])
+    def apply_obs_transform(fn: Callable[[dict], dict], frame: dict) -> dict:
+        frame['task'] = fn(frame['task'])
+        frame['observation'] = dl.vmap(fn)(frame['observation'])
         return frame
 
     # Decode + resize images (and depth images)
     dataset = dataset.frame_map(
         partial(
             apply_obs_transform,
-            partial(obs_transforms.decode_and_resize, resize_size=resize_size, depth_resize_size=depth_resize_size),
+            partial(
+                obs_transforms.decode_and_resize,
+                resize_size=resize_size,
+                depth_resize_size=depth_resize_size,
+            ),
         ),
         num_parallel_calls,
     )
@@ -450,22 +483,22 @@ def make_single_dataset(
     dataset = dataset.with_ram_budget(1)
 
     # save for later
-    return dataset, dataset_statistics["num_trajectories"], dataset_statistics
+    return dataset, dataset_statistics['num_trajectories'], dataset_statistics
 
 
 # === Core Initializer ===
 def make_interleaved_dataset(
-    dataset_kwargs_list: List[Dict],
-    sample_weights: Optional[List[float]] = None,
+    dataset_kwargs_list: list[dict],
+    sample_weights: list[float] | None = None,
     *,
     train: bool,
     shuffle_buffer_size: int,
-    traj_transform_kwargs: Optional[Dict] = None,
-    frame_transform_kwargs: Optional[Dict] = None,
-    batch_size: Optional[int] = None,
+    traj_transform_kwargs: dict | None = None,
+    frame_transform_kwargs: dict | None = None,
+    batch_size: int | None = None,
     balance_weights: bool = False,
-    traj_transform_threads: Optional[int] = None,
-    traj_read_threads: Optional[int] = None,
+    traj_transform_threads: int | None = None,
+    traj_read_threads: int | None = None,
 ) -> dl.DLataset:
     """
     Creates an interleaved dataset from list of dataset configs (kwargs). Returns a dataset of batched frames.
@@ -495,24 +528,26 @@ def make_interleaved_dataset(
         sample_weights = [1.0] * len(dataset_kwargs_list)
 
     if len(sample_weights) != len(dataset_kwargs_list):
-        raise ValueError(f"sample_weights must be None or have length {len(dataset_kwargs_list)}.")
+        raise ValueError(f'sample_weights must be None or have length {len(dataset_kwargs_list)}.')
 
     # Check valid `traj_transform_kwargs` and `frame_transform_kwargs`
     if (traj_transform_kwargs is None) or (frame_transform_kwargs is None):
-        raise ValueError("Missing `traj_transform_kwargs` and `frame_transform_kwargs`!")
+        raise ValueError('Missing `traj_transform_kwargs` and `frame_transform_kwargs`!')
 
     # Get Dataset Sizes
     dataset_sizes, all_dataset_statistics = [], {}
     for dataset_kwargs in dataset_kwargs_list:
         data_kwargs = copy.deepcopy(dataset_kwargs)
-        if "dataset_frame_transform_kwargs" in data_kwargs:
-            data_kwargs.pop("dataset_frame_transform_kwargs")
+        if 'dataset_frame_transform_kwargs' in data_kwargs:
+            data_kwargs.pop('dataset_frame_transform_kwargs')
         _, dataset_statistics = make_dataset_from_rlds(**data_kwargs, train=train)
-        dataset_sizes.append(dataset_statistics["num_transitions"])
-        all_dataset_statistics[dataset_kwargs["name"]] = dataset_statistics
+        dataset_sizes.append(dataset_statistics['num_transitions'])
+        all_dataset_statistics[dataset_kwargs['name']] = dataset_statistics
 
     # Get the indices of the "primary" datasets (i.e., datasets with sample_weight == 1.0)
-    primary_dataset_indices = np.array([idx for idx in range(len(sample_weights)) if sample_weights[idx] == 1.0])
+    primary_dataset_indices = np.array(
+        [idx for idx in range(len(sample_weights)) if sample_weights[idx] == 1.0]
+    )
 
     # Balance and Normalize Weights
     if balance_weights:
@@ -528,11 +563,11 @@ def make_interleaved_dataset(
     threads_per_dataset = allocate_threads(traj_transform_threads, sample_weights)
     reads_per_dataset = allocate_threads(traj_read_threads, sample_weights)
 
-    overwatch.info("Threads per Dataset: %s", threads_per_dataset)
-    overwatch.info("Reads per Dataset: %s", reads_per_dataset)
+    overwatch.info('Threads per Dataset: %s', threads_per_dataset)
+    overwatch.info('Reads per Dataset: %s', reads_per_dataset)
 
     # Construct Datasets
-    overwatch.info("Constructing datasets...")
+    overwatch.info('Constructing datasets...')
     datasets = []
     for dataset_kwargs, threads, reads in zip(
         dataset_kwargs_list,
@@ -540,8 +575,8 @@ def make_interleaved_dataset(
         reads_per_dataset,
     ):
         dataset_frame_transform_kwargs = (
-            dataset_kwargs.pop("dataset_frame_transform_kwargs")
-            if "dataset_frame_transform_kwargs" in dataset_kwargs
+            dataset_kwargs.pop('dataset_frame_transform_kwargs')
+            if 'dataset_frame_transform_kwargs' in dataset_kwargs
             else {}
         )
         dataset, _ = make_dataset_from_rlds(
@@ -549,7 +584,7 @@ def make_interleaved_dataset(
             train=train,
             num_parallel_calls=threads,
             num_parallel_reads=reads,
-            dataset_statistics=all_dataset_statistics[dataset_kwargs["name"]],
+            dataset_statistics=all_dataset_statistics[dataset_kwargs['name']],
         )
         dataset = apply_trajectory_transforms(
             dataset.repeat(),
@@ -572,7 +607,7 @@ def make_interleaved_dataset(
     dataset = dataset.shuffle(shuffle_buffer_size)
 
     # Apply Frame Transforms
-    overwatch.info("Applying frame transforms on dataset...")
+    overwatch.info('Applying frame transforms on dataset...')
     dataset = apply_frame_transforms(dataset, **frame_transform_kwargs, train=train)
 
     # [Contract] When training VLA Policies, we let the Collator handle Batching!

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +32,7 @@ from lerobot.calibrate import CalibrateConfig, calibrate
 from lerobot.record import DatasetRecordConfig, RecordConfig, record
 from lerobot.replay import DatasetReplayConfig, ReplayConfig, replay
 from lerobot.teleoperate import TeleoperateConfig, teleoperate
+
 from tests.fixtures.constants import DUMMY_REPO_ID
 from tests.mocks.mock_robot import MockRobotConfig
 from tests.mocks.mock_teleop import MockTeleopConfig
@@ -45,8 +60,8 @@ def test_record_and_resume(tmp_path):
     teleop_cfg = MockTeleopConfig()
     dataset_cfg = DatasetRecordConfig(
         repo_id=DUMMY_REPO_ID,
-        single_task="Dummy task",
-        root=tmp_path / "record",
+        single_task='Dummy task',
+        root=tmp_path / 'record',
         num_episodes=1,
         episode_time_s=0.1,
         reset_time_s=0,
@@ -79,8 +94,8 @@ def test_record_and_replay(tmp_path):
     teleop_cfg = MockTeleopConfig()
     record_dataset_cfg = DatasetRecordConfig(
         repo_id=DUMMY_REPO_ID,
-        single_task="Dummy task",
-        root=tmp_path / "record_and_replay",
+        single_task='Dummy task',
+        root=tmp_path / 'record_and_replay',
         num_episodes=1,
         episode_time_s=0.1,
         push_to_hub=False,
@@ -94,7 +109,7 @@ def test_record_and_replay(tmp_path):
     replay_dataset_cfg = DatasetReplayConfig(
         repo_id=DUMMY_REPO_ID,
         episode=0,
-        root=tmp_path / "record_and_replay",
+        root=tmp_path / 'record_and_replay',
     )
     replay_cfg = ReplayConfig(
         robot=robot_cfg,

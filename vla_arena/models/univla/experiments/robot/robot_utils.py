@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Utils for evaluating robot policies in various environments."""
 
 import os
@@ -9,21 +23,22 @@ import torch
 
 from vla_arena.models.univla.experiments.robot.openvla_utils import (
     get_vla,
-    get_vla_for_vla_arena,
     get_vla_action,
+    get_vla_for_vla_arena,
     get_vla_latent_action,
 )
 
+
 # Initialize important constants and pretty-printing mode in NumPy.
 ACTION_DIM = 7
-DATE = time.strftime("%Y_%m_%d")
-DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
+DATE = time.strftime('%Y_%m_%d')
+DATE_TIME = time.strftime('%Y_%m_%d-%H_%M_%S')
+DEVICE = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+np.set_printoptions(formatter={'float': lambda x: f'{x:0.3f}'})
 
 # Initialize system prompt for OpenVLA v0.1.
 OPENVLA_V01_SYSTEM_PROMPT = (
-    "A chat between a curious user and an artificial intelligence assistant. "
+    'A chat between a curious user and an artificial intelligence assistant. '
     "The assistant gives helpful, detailed, and polite answers to the user's questions."
 )
 
@@ -36,25 +51,26 @@ def set_seed_everywhere(seed: int):
     random.seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    os.environ["PYTHONHASHSEED"] = str(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def get_model(cfg, wrap_diffusion_policy_for_droid=False):
     """Load model for evaluation."""
-    if cfg.model_family == "openvla":
+    if cfg.model_family == 'openvla':
         model = get_vla(cfg)
     else:
-        raise ValueError("Unexpected `model_family` found in config.")
-    print(f"Loaded model: {type(model)}")
+        raise ValueError('Unexpected `model_family` found in config.')
+    print(f'Loaded model: {type(model)}')
     return model
+
 
 def get_model_for_vla_arena(cfg, wrap_diffusion_policy_for_droid=False):
     """Load model for evaluation."""
-    if cfg.model_family == "openvla":
+    if cfg.model_family == 'openvla':
         model = get_vla_for_vla_arena(cfg)
     else:
-        raise ValueError("Unexpected `model_family` found in config.")
-    print(f"Loaded model: {type(model)}")
+        raise ValueError('Unexpected `model_family` found in config.')
+    print(f'Loaded model: {type(model)}')
     return model
 
 
@@ -64,29 +80,42 @@ def get_image_resize_size(cfg):
     If `resize_size` is an int, then the resized image will be a square.
     Else, the image will be a rectangle.
     """
-    if cfg.model_family == "openvla":
+    if cfg.model_family == 'openvla':
         resize_size = 224
     else:
-        raise ValueError("Unexpected `model_family` found in config.")
+        raise ValueError('Unexpected `model_family` found in config.')
     return resize_size
 
 
 def get_action(cfg, model, obs, task_label, processor=None):
     """Queries the model to get an action."""
-    if cfg.model_family == "openvla":
+    if cfg.model_family == 'openvla':
         action = get_vla_action(
-            model, processor, cfg.pretrained_checkpoint, obs, task_label, cfg.unnorm_key, center_crop=cfg.center_crop, 
+            model,
+            processor,
+            cfg.pretrained_checkpoint,
+            obs,
+            task_label,
+            cfg.unnorm_key,
+            center_crop=cfg.center_crop,
         )
         assert action.shape == (ACTION_DIM,)
     else:
-        raise ValueError("Unexpected `model_family` found in config.")
+        raise ValueError('Unexpected `model_family` found in config.')
     return action
 
 
 def get_latent_action(cfg, model, obs, task_label, processor=None, hist_action=''):
     """Queries the model to get an action."""
     latent_action = get_vla_latent_action(
-        model, processor, cfg.pretrained_checkpoint, obs, task_label, cfg.unnorm_key, center_crop=cfg.center_crop, hist_action=hist_action,
+        model,
+        processor,
+        cfg.pretrained_checkpoint,
+        obs,
+        task_label,
+        cfg.unnorm_key,
+        center_crop=cfg.center_crop,
+        hist_action=hist_action,
     )
 
     return latent_action

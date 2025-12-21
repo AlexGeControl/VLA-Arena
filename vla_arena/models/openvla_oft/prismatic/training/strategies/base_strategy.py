@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 base_strategy.py
 
@@ -9,8 +23,9 @@ heavy lifting.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 import numpy as np
 import torch
@@ -30,11 +45,21 @@ from vla_arena.models.openvla_oft.prismatic.training.train_utils import (
 )
 from vla_arena.models.openvla_oft.prismatic.util import check_bloat16_supported
 from vla_arena.models.openvla_oft.prismatic.util.batching_utils import SplitModalitySampler
-from vla_arena.models.openvla_oft.prismatic.util.data_utils import PaddedCollatorForActionPrediction, PaddedCollatorForLanguageModeling
+from vla_arena.models.openvla_oft.prismatic.util.data_utils import (
+    PaddedCollatorForActionPrediction,
+    PaddedCollatorForLanguageModeling,
+)
 from vla_arena.models.openvla_oft.prismatic.vla.action_tokenizer import ActionTokenizer
 
 # HuggingFace Default / LLaMa-2 IGNORE_INDEX (for labels)
-from vla_arena.models.openvla_oft.prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, NUM_ACTIONS_CHUNK, IGNORE_INDEX
+from vla_arena.models.openvla_oft.prismatic.vla.constants import (
+    ACTION_DIM,
+    ACTION_TOKEN_BEGIN_IDX,
+    IGNORE_INDEX,
+    NUM_ACTIONS_CHUNK,
+)
+
+
 NEWLINE_INDEX = 13  # '\n'
 STOP_INDEX = 2  # '</s>'
 
@@ -50,7 +75,7 @@ class TrainingStrategy(ABC):
         device_id: int,
         stage: str,
         epochs: int,
-        max_steps: Optional[int],
+        max_steps: int | None,
         global_batch_size: int,
         per_device_batch_size: int,
         learning_rate: float,
@@ -62,20 +87,30 @@ class TrainingStrategy(ABC):
         enable_mixed_precision_training: bool = True,
         reduce_in_full_precision: bool = False,
         mixed_precision_dtype: torch.dtype = torch.bfloat16,
-        worker_init_fn: Optional[Callable[[int], None]] = None,
+        worker_init_fn: Callable[[int], None] | None = None,
         **_: str,
     ) -> None:
         self.vlm, self.device_id, self.stage = vlm, device_id, stage
 
         # Get relevant VLM instance parameters before they get (potentially) wrapped
-        self.all_module_keys, self.trainable_module_keys = self.vlm.all_module_keys, self.vlm.trainable_module_keys
+        self.all_module_keys, self.trainable_module_keys = (
+            self.vlm.all_module_keys,
+            self.vlm.trainable_module_keys,
+        )
         self.llm_transformer_layer_cls = self.vlm.llm_backbone.transformer_layer_cls
 
         # Optimization Parameters
         self.epochs, self.max_steps = epochs, max_steps
-        self.global_batch_size, self.per_device_batch_size = global_batch_size, per_device_batch_size
+        self.global_batch_size, self.per_device_batch_size = (
+            global_batch_size,
+            per_device_batch_size,
+        )
 
-        self.learning_rate, self.weight_decay, self.max_grad_norm = learning_rate, weight_decay, max_grad_norm
+        self.learning_rate, self.weight_decay, self.max_grad_norm = (
+            learning_rate,
+            weight_decay,
+            max_grad_norm,
+        )
         self.lr_scheduler_type, self.warmup_ratio = lr_scheduler_type, warmup_ratio
 
         # Generic Strategy Parameters
@@ -93,11 +128,17 @@ class TrainingStrategy(ABC):
         # Lightweight Validation
         assert (
             self.global_batch_size % self.per_device_batch_size == 0
-        ), "Per-device batch size must evenly divide global batch size!"
-        self.grad_accumulation_steps = self.global_batch_size // self.per_device_batch_size // overwatch.world_size()
+        ), 'Per-device batch size must evenly divide global batch size!'
+        self.grad_accumulation_steps = (
+            self.global_batch_size // self.per_device_batch_size // overwatch.world_size()
+        )
         if self.enable_mixed_precision_training:
-            assert self.mixed_precision_dtype == torch.bfloat16, "Only BF16 mixed precision training is supported!"
-            assert check_bloat16_supported(), "BFloat16 is not supported on this hardware; unset `mixed_precision`"
+            assert (
+                self.mixed_precision_dtype == torch.bfloat16
+            ), 'Only BF16 mixed precision training is supported!'
+            assert (
+                check_bloat16_supported()
+            ), 'BFloat16 is not supported on this hardware; unset `mixed_precision`'
 
     @abstractmethod
     def save_checkpoint(
@@ -105,7 +146,7 @@ class TrainingStrategy(ABC):
         run_dir: Path,
         global_step: int,
         epoch: int,
-        train_loss: Optional[float] = None,
+        train_loss: float | None = None,
         only_trainable: bool = True,
     ) -> None: ...
 
@@ -120,12 +161,12 @@ class TrainingStrategy(ABC):
         dataset: Dataset,
         collator: PaddedCollatorForLanguageModeling,
         metrics: Metrics,
-        stage: str = "finetune",
-        batch_construction_strategy: str = "split-modality",
+        stage: str = 'finetune',
+        batch_construction_strategy: str = 'split-modality',
         seed: int = 7,
     ) -> None:
         """Run the training loop for the given `dataset` and `collator`; log losses, results to `metrics`"""
-        if "finetune" in stage and batch_construction_strategy == "split-modality":
+        if 'finetune' in stage and batch_construction_strategy == 'split-modality':
             # Instantiate the split-modality sampler; if you want to extend with other batch construction schemes,
             #   (e.g., grouping by length) =>> can easily add them here!
             modality_lengths = dataset.get_modality_lengths()
@@ -189,16 +230,16 @@ class TrainingStrategy(ABC):
                 for train_idx, batch in enumerate(dataloader):
                     # [Contract] self.vlm.forward() must automatically compute `loss` and return!
                     with torch.autocast(
-                        "cuda",
+                        'cuda',
                         dtype=self.mixed_precision_dtype,
                         enabled=self.enable_mixed_precision_training,
                     ):
                         output: CausalLMOutputWithPast = self.vlm(
-                            input_ids=batch["input_ids"],
-                            attention_mask=batch["attention_mask"],
-                            pixel_values=batch["pixel_values"],
-                            labels=batch["labels"],
-                            multimodal_indices=batch["multimodal_indices"],
+                            input_ids=batch['input_ids'],
+                            attention_mask=batch['attention_mask'],
+                            pixel_values=batch['pixel_values'],
+                            labels=batch['labels'],
+                            multimodal_indices=batch['multimodal_indices'],
                         )
                         loss = output.loss
 
@@ -233,12 +274,17 @@ class TrainingStrategy(ABC):
                         self.optimizer.zero_grad()
 
                         # Push Metrics
-                        metrics.commit(global_step=metrics.global_step + 1, lr=self.lr_scheduler.get_last_lr()[0])
+                        metrics.commit(
+                            global_step=metrics.global_step + 1,
+                            lr=self.lr_scheduler.get_last_lr()[0],
+                        )
                         status = metrics.push()
 
                         # Check for Termination & Save Final Checkpoint (in case `max_steps` is not None)
                         if self.max_steps is not None and metrics.global_step >= self.max_steps:
-                            self.save_checkpoint(metrics.run_dir, metrics.global_step, epoch, loss.item())
+                            self.save_checkpoint(
+                                metrics.run_dir, metrics.global_step, epoch, loss.item()
+                            )
                             dist.barrier()
 
                             return
@@ -264,8 +310,10 @@ class TrainingStrategy(ABC):
         save_full_model: bool = True,
     ) -> None:
         """Run the VLA training loop for the given `dataset` and `collator`; log losses, action metrics to `metrics`."""
-        assert isinstance(vla_dataset, IterableDataset), "VLA training expects an IterableDataset!"
-        assert self.grad_accumulation_steps == 1, "VLA training does not support gradient accumulation!"
+        assert isinstance(vla_dataset, IterableDataset), 'VLA training expects an IterableDataset!'
+        assert (
+            self.grad_accumulation_steps == 1
+        ), 'VLA training does not support gradient accumulation!'
 
         # Create a DataLoader =>> Set `num_workers` to 0; RLDS loader handles parallelism!
         dataloader = DataLoader(
@@ -297,14 +345,16 @@ class TrainingStrategy(ABC):
                 # Note that we'll unpack batch (and let AMP/FSDP do its thing) in the VLM.forward() call
                 #   => Basically, if we're using mixed precision (or not), autocast()/FSDP will move to device!
                 with torch.autocast(
-                    "cuda", dtype=self.mixed_precision_dtype, enabled=self.enable_mixed_precision_training
+                    'cuda',
+                    dtype=self.mixed_precision_dtype,
+                    enabled=self.enable_mixed_precision_training,
                 ):
                     # [Contract] self.vlm.forward() must automatically compute `loss` and return!
                     output: CausalLMOutputWithPast = self.vlm(
-                        input_ids=batch["input_ids"],
-                        attention_mask=batch["attention_mask"],
-                        pixel_values=batch["pixel_values"],
-                        labels=batch["labels"],
+                        input_ids=batch['input_ids'],
+                        attention_mask=batch['attention_mask'],
+                        pixel_values=batch['pixel_values'],
+                        labels=batch['labels'],
                     )
                     loss = output.loss
 
@@ -313,8 +363,10 @@ class TrainingStrategy(ABC):
                 loss.backward()
 
                 # Get predicted and ground-truth token IDs
-                predicted_token_ids = output.logits[:, self.vlm.vision_backbone.num_patches : -1].argmax(dim=2)
-                ground_truth_token_ids = batch["labels"][:, 1:].to(predicted_token_ids.device)
+                predicted_token_ids = output.logits[
+                    :, self.vlm.vision_backbone.num_patches : -1
+                ].argmax(dim=2)
+                ground_truth_token_ids = batch['labels'][:, 1:].to(predicted_token_ids.device)
 
                 #######################################################################
                 # === Compute Current Action Token Accuracy & L1 Loss ===
@@ -324,10 +376,17 @@ class TrainingStrategy(ABC):
                 current_action_mask = get_current_action_mask(ground_truth_token_ids)
 
                 # Compute Accuracy
-                action_accuracy = compute_token_accuracy(predicted_token_ids, ground_truth_token_ids, mask=current_action_mask)
+                action_accuracy = compute_token_accuracy(
+                    predicted_token_ids, ground_truth_token_ids, mask=current_action_mask
+                )
 
                 # Compute L1 Loss on Predicted (Continuous) Actions
-                action_l1_loss = compute_actions_l1_loss(action_tokenizer, predicted_token_ids, ground_truth_token_ids, mask=current_action_mask)
+                action_l1_loss = compute_actions_l1_loss(
+                    action_tokenizer,
+                    predicted_token_ids,
+                    ground_truth_token_ids,
+                    mask=current_action_mask,
+                )
 
                 #######################################################################
                 # === Compute Next Actions Token Accuracy & L1 Loss ===
@@ -337,10 +396,17 @@ class TrainingStrategy(ABC):
                 next_actions_mask = get_next_actions_mask(ground_truth_token_ids)
 
                 # Compute Accuracy
-                next_actions_accuracy = compute_token_accuracy(predicted_token_ids, ground_truth_token_ids, mask=next_actions_mask)
+                next_actions_accuracy = compute_token_accuracy(
+                    predicted_token_ids, ground_truth_token_ids, mask=next_actions_mask
+                )
 
                 # Compute L1 Loss on Predicted (Continuous) Actions
-                next_actions_l1_loss = compute_actions_l1_loss(action_tokenizer, predicted_token_ids, ground_truth_token_ids, mask=next_actions_mask)
+                next_actions_l1_loss = compute_actions_l1_loss(
+                    action_tokenizer,
+                    predicted_token_ids,
+                    ground_truth_token_ids,
+                    mask=next_actions_mask,
+                )
 
                 #######################################################################
                 # === Log ===
@@ -357,11 +423,13 @@ class TrainingStrategy(ABC):
 
                 # Compute metrics per dataset --> only on rank_zero since we don't log them on other workers anyways
                 if overwatch.is_rank_zero():
-                    datasets = set(batch["dataset_names"])
+                    datasets = set(batch['dataset_names'])
                     if len(datasets) > 1:
                         for ds in datasets:
-                            ds_mask = torch.tensor([elem == ds for elem in batch["dataset_names"]])
-                            action_accuracy_ds = correct_preds[ds_mask].sum().float() / mask[ds_mask].sum().float()
+                            ds_mask = torch.tensor([elem == ds for elem in batch['dataset_names']])
+                            action_accuracy_ds = (
+                                correct_preds[ds_mask].sum().float() / mask[ds_mask].sum().float()
+                            )
                             pred_continuous_actions_ds = torch.tensor(
                                 action_tokenizer.decode_token_ids_to_actions(
                                     predicted_token_ids[ds_mask][mask[ds_mask]].cpu().numpy()
@@ -397,15 +465,25 @@ class TrainingStrategy(ABC):
                 epoch = (metrics.global_step + 1) // (len(vla_dataset) // self.global_batch_size)
 
                 # Push Metrics
-                metrics.commit(global_step=metrics.global_step + 1, epoch=epoch, lr=self.lr_scheduler.get_last_lr()[0])
+                metrics.commit(
+                    global_step=metrics.global_step + 1,
+                    epoch=epoch,
+                    lr=self.lr_scheduler.get_last_lr()[0],
+                )
                 status = metrics.push()
 
                 # Check for Save Interval or Max Steps & Save Checkpoint
-                if (terminate := (self.max_steps is not None and metrics.global_step >= self.max_steps)) or (
-                    (metrics.global_step % save_interval) == 0
-                ):
+                if (
+                    terminate := (
+                        self.max_steps is not None and metrics.global_step >= self.max_steps
+                    )
+                ) or ((metrics.global_step % save_interval) == 0):
                     self.save_checkpoint(
-                        metrics.run_dir, metrics.global_step, epoch, loss.item(), only_trainable=not save_full_model
+                        metrics.run_dir,
+                        metrics.global_step,
+                        epoch,
+                        loss.item(),
+                        only_trainable=not save_full_model,
                     )
                     dist.barrier()
 

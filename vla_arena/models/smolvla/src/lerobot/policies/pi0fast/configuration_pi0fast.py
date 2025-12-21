@@ -1,14 +1,26 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from dataclasses import dataclass, field
 
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
-from lerobot.optim.schedulers import (
-    CosineDecayWithWarmupSchedulerConfig,
-)
+from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
 
 
-@PreTrainedConfig.register_subclass("pi0fast")
+@PreTrainedConfig.register_subclass('pi0fast')
 @dataclass
 class PI0FASTConfig(PreTrainedConfig):
     # Input / output structure.
@@ -18,9 +30,9 @@ class PI0FASTConfig(PreTrainedConfig):
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
-            "VISUAL": NormalizationMode.IDENTITY,
-            "STATE": NormalizationMode.MEAN_STD,
-            "ACTION": NormalizationMode.MEAN_STD,
+            'VISUAL': NormalizationMode.IDENTITY,
+            'STATE': NormalizationMode.MEAN_STD,
+            'ACTION': NormalizationMode.MEAN_STD,
         }
     )
 
@@ -52,7 +64,9 @@ class PI0FASTConfig(PreTrainedConfig):
 
     # Decoding
     max_decoding_steps: int = 256
-    fast_skip_tokens: int = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
+    fast_skip_tokens: int = (
+        128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
+    )
     max_input_seq_len: int = 256  # 512
 
     # Utils
@@ -74,9 +88,9 @@ class PI0FASTConfig(PreTrainedConfig):
 
     checkpoint_path: str = None
 
-    padding_side: str = "right"
+    padding_side: str = 'right'
 
-    precision: str = "bfloat16"
+    precision: str = 'bfloat16'
     grad_clip_norm: float = 1
 
     # Allows padding/truncation of generated action tokens during detokenization to ensure decoding.
@@ -89,17 +103,17 @@ class PI0FASTConfig(PreTrainedConfig):
         """Input validation (not exhaustive)."""
         if self.n_action_steps > self.chunk_size:
             raise ValueError(
-                f"The chunk size is the upper bound for the number of action steps per model invocation. Got "
-                f"{self.n_action_steps} for `n_action_steps` and {self.chunk_size} for `chunk_size`."
+                f'The chunk size is the upper bound for the number of action steps per model invocation. Got '
+                f'{self.n_action_steps} for `n_action_steps` and {self.chunk_size} for `chunk_size`.'
             )
         if self.n_obs_steps != 1:
             raise ValueError(
-                f"Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`"
+                f'Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`'
             )
 
     def validate_features(self) -> None:
         for i in range(self.empty_cameras):
-            key = f"observation.images.empty_camera_{i}"
+            key = f'observation.images.empty_camera_{i}'
             empty_camera = PolicyFeature(
                 type=FeatureType.VISUAL,
                 shape=(3, 480, 640),

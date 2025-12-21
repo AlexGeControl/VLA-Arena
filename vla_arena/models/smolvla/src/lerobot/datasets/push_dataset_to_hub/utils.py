@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +35,6 @@ import datasets
 import numpy
 import PIL
 import torch
-
 from lerobot.datasets.video_utils import encode_video_frames
 
 
@@ -39,8 +52,8 @@ def concatenate_episodes(ep_dicts):
                 for x in ep_dict[key]:
                     data_dict[key].append(x)
 
-    total_frames = data_dict["frame_index"].shape[0]
-    data_dict["index"] = torch.arange(0, total_frames, 1)
+    total_frames = data_dict['frame_index'].shape[0]
+    data_dict['index'] = torch.arange(0, total_frames, 1)
     return data_dict
 
 
@@ -50,7 +63,7 @@ def save_images_concurrently(imgs_array: numpy.array, out_dir: Path, max_workers
 
     def save_image(img_array, i, out_dir):
         img = PIL.Image.fromarray(img_array)
-        img.save(str(out_dir / f"frame_{i:06d}.png"), quality=100)
+        img.save(str(out_dir / f'frame_{i:06d}.png'), quality=100)
 
     num_images = len(imgs_array)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -63,12 +76,12 @@ def get_default_encoding() -> dict:
     return {
         k: v.default
         for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty and k in ["vcodec", "pix_fmt", "g", "crf"]
+        if v.default is not inspect.Parameter.empty and k in ['vcodec', 'pix_fmt', 'g', 'crf']
     }
 
 
 def check_repo_id(repo_id: str) -> None:
-    if len(repo_id.split("/")) != 2:
+    if len(repo_id.split('/')) != 2:
         raise ValueError(
             f"""`repo_id` is expected to contain a community or user id `/` the name of the dataset
             (e.g. 'lerobot/pusht'), but contains '{repo_id}'."""
@@ -88,7 +101,7 @@ def calculate_episode_data_index(hf_dataset: datasets.Dataset) -> dict[str, torc
         - "from": A tensor containing the starting index of each episode.
         - "to": A tensor containing the ending index of each episode.
     """
-    episode_data_index = {"from": [], "to": []}
+    episode_data_index = {'from': [], 'to': []}
 
     current_episode = None
     """
@@ -105,26 +118,26 @@ def calculate_episode_data_index(hf_dataset: datasets.Dataset) -> dict[str, torc
     """
     if len(hf_dataset) == 0:
         episode_data_index = {
-            "from": torch.tensor([]),
-            "to": torch.tensor([]),
+            'from': torch.tensor([]),
+            'to': torch.tensor([]),
         }
         return episode_data_index
-    for idx, episode_idx in enumerate(hf_dataset["episode_index"]):
+    for idx, episode_idx in enumerate(hf_dataset['episode_index']):
         if episode_idx != current_episode:
             # We encountered a new episode, so we append its starting location to the "from" list
-            episode_data_index["from"].append(idx)
+            episode_data_index['from'].append(idx)
             # If this is not the first episode, we append the ending location of the previous episode to the "to" list
             if current_episode is not None:
-                episode_data_index["to"].append(idx)
+                episode_data_index['to'].append(idx)
             # Let's keep track of the current episode index
             current_episode = episode_idx
         else:
             # We are still in the same episode, so there is nothing for us to do here
             pass
     # We have reached the end of the dataset, so we append the ending location of the last episode to the "to" list
-    episode_data_index["to"].append(idx + 1)
+    episode_data_index['to'].append(idx + 1)
 
-    for k in ["from", "to"]:
+    for k in ['from', 'to']:
         episode_data_index[k] = torch.tensor(episode_data_index[k])
 
     return episode_data_index

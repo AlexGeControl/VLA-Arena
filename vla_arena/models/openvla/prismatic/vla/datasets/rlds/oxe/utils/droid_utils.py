@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Episode transforms for DROID dataset."""
 
 from typing import Any, Dict
@@ -63,92 +77,95 @@ def rand_swap_exterior_images(img1, img2):
     return tf.cond(tf.random.uniform(shape=[]) > 0.5, lambda: (img1, img2), lambda: (img2, img1))
 
 
-def droid_baseact_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def droid_baseact_transform(trajectory: dict[str, Any]) -> dict[str, Any]:
     """
     DROID dataset transformation for actions expressed in *base* frame of the robot.
     """
-    dt = trajectory["action_dict"]["cartesian_velocity"][:, :3]
-    dR = trajectory["action_dict"]["cartesian_velocity"][:, 3:6]
+    dt = trajectory['action_dict']['cartesian_velocity'][:, :3]
+    dR = trajectory['action_dict']['cartesian_velocity'][:, 3:6]
 
-    trajectory["action"] = tf.concat(
+    trajectory['action'] = tf.concat(
         (
             dt,
             dR,
-            1 - trajectory["action_dict"]["gripper_position"],
+            1 - trajectory['action_dict']['gripper_position'],
         ),
         axis=-1,
     )
-    trajectory["observation"]["exterior_image_1_left"], trajectory["observation"]["exterior_image_2_left"] = (
-        rand_swap_exterior_images(
-            trajectory["observation"]["exterior_image_1_left"],
-            trajectory["observation"]["exterior_image_2_left"],
-        )
+    (
+        trajectory['observation']['exterior_image_1_left'],
+        trajectory['observation']['exterior_image_2_left'],
+    ) = rand_swap_exterior_images(
+        trajectory['observation']['exterior_image_1_left'],
+        trajectory['observation']['exterior_image_2_left'],
     )
-    trajectory["observation"]["proprio"] = tf.concat(
+    trajectory['observation']['proprio'] = tf.concat(
         (
-            trajectory["observation"]["cartesian_position"],
-            trajectory["observation"]["gripper_position"],
+            trajectory['observation']['cartesian_position'],
+            trajectory['observation']['gripper_position'],
         ),
         axis=-1,
     )
     return trajectory
 
 
-def droid_wristact_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def droid_wristact_transform(trajectory: dict[str, Any]) -> dict[str, Any]:
     """
     DROID dataset transformation for actions expressed in *wrist* frame of the robot.
     """
     wrist_act = velocity_act_to_wrist_frame(
-        trajectory["action_dict"]["cartesian_velocity"], trajectory["observation"]["cartesian_position"]
+        trajectory['action_dict']['cartesian_velocity'],
+        trajectory['observation']['cartesian_position'],
     )
-    trajectory["action"] = tf.concat(
+    trajectory['action'] = tf.concat(
         (
             wrist_act,
-            trajectory["action_dict"]["gripper_position"],
+            trajectory['action_dict']['gripper_position'],
         ),
         axis=-1,
     )
-    trajectory["observation"]["exterior_image_1_left"], trajectory["observation"]["exterior_image_2_left"] = (
-        rand_swap_exterior_images(
-            trajectory["observation"]["exterior_image_1_left"],
-            trajectory["observation"]["exterior_image_2_left"],
-        )
+    (
+        trajectory['observation']['exterior_image_1_left'],
+        trajectory['observation']['exterior_image_2_left'],
+    ) = rand_swap_exterior_images(
+        trajectory['observation']['exterior_image_1_left'],
+        trajectory['observation']['exterior_image_2_left'],
     )
-    trajectory["observation"]["proprio"] = tf.concat(
+    trajectory['observation']['proprio'] = tf.concat(
         (
-            trajectory["observation"]["cartesian_position"],
-            trajectory["observation"]["gripper_position"],
+            trajectory['observation']['cartesian_position'],
+            trajectory['observation']['gripper_position'],
         ),
         axis=-1,
     )
     return trajectory
 
 
-def droid_finetuning_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+def droid_finetuning_transform(trajectory: dict[str, Any]) -> dict[str, Any]:
     """
     DROID dataset transformation for actions expressed in *base* frame of the robot.
     """
-    dt = trajectory["action_dict"]["cartesian_velocity"][:, :3]
-    dR = trajectory["action_dict"]["cartesian_velocity"][:, 3:6]
-    trajectory["action"] = tf.concat(
+    dt = trajectory['action_dict']['cartesian_velocity'][:, :3]
+    dR = trajectory['action_dict']['cartesian_velocity'][:, 3:6]
+    trajectory['action'] = tf.concat(
         (
             dt,
             dR,
-            1 - trajectory["action_dict"]["gripper_position"],
+            1 - trajectory['action_dict']['gripper_position'],
         ),
         axis=-1,
     )
-    trajectory["observation"]["proprio"] = tf.concat(
+    trajectory['observation']['proprio'] = tf.concat(
         (
-            trajectory["observation"]["cartesian_position"],
-            trajectory["observation"]["gripper_position"],
+            trajectory['observation']['cartesian_position'],
+            trajectory['observation']['gripper_position'],
         ),
         axis=-1,
     )
     return trajectory
 
 
-def zero_action_filter(traj: Dict) -> bool:
+def zero_action_filter(traj: dict) -> bool:
     """
     Filters transitions whose actions are all-0 (only relative actions, no gripper action).
     Note: this filter is applied *after* action normalization, so need to compare to "normalized 0".
@@ -173,6 +190,8 @@ def zero_action_filter(traj: Dict) -> bool:
             0.8897542208433151,
         ]
     )
-    DROID_NORM_0_ACT = 2 * (tf.zeros_like(traj["action"][:, :6]) - DROID_Q01) / (DROID_Q99 - DROID_Q01 + 1e-8) - 1
+    DROID_NORM_0_ACT = (
+        2 * (tf.zeros_like(traj['action'][:, :6]) - DROID_Q01) / (DROID_Q99 - DROID_Q01 + 1e-8) - 1
+    )
 
-    return tf.reduce_any(tf.math.abs(traj["action"][:, :6] - DROID_NORM_0_ACT) > 1e-5)
+    return tf.reduce_any(tf.math.abs(traj['action'][:, :6] - DROID_NORM_0_ACT) > 1e-5)

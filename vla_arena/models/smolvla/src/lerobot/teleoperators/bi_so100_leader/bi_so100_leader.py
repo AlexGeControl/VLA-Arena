@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +37,7 @@ from lerobot.teleoperators.so100_leader.so100_leader import SO100Leader
 from ..teleoperator import Teleoperator
 from .config_bi_so100_leader import BiSO100LeaderConfig
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,20 +48,20 @@ class BiSO100Leader(Teleoperator):
     """
 
     config_class = BiSO100LeaderConfig
-    name = "bi_so100_leader"
+    name = 'bi_so100_leader'
 
     def __init__(self, config: BiSO100LeaderConfig):
         super().__init__(config)
         self.config = config
 
         left_arm_config = SO100LeaderConfig(
-            id=f"{config.id}_left" if config.id else None,
+            id=f'{config.id}_left' if config.id else None,
             calibration_dir=config.calibration_dir,
             port=config.left_arm_port,
         )
 
         right_arm_config = SO100LeaderConfig(
-            id=f"{config.id}_right" if config.id else None,
+            id=f'{config.id}_right' if config.id else None,
             calibration_dir=config.calibration_dir,
             port=config.right_arm_port,
         )
@@ -56,8 +71,8 @@ class BiSO100Leader(Teleoperator):
 
     @cached_property
     def action_features(self) -> dict[str, type]:
-        return {f"left_{motor}.pos": float for motor in self.left_arm.bus.motors} | {
-            f"right_{motor}.pos": float for motor in self.right_arm.bus.motors
+        return {f'left_{motor}.pos': float for motor in self.left_arm.bus.motors} | {
+            f'right_{motor}.pos': float for motor in self.right_arm.bus.motors
         }
 
     @cached_property
@@ -93,22 +108,26 @@ class BiSO100Leader(Teleoperator):
 
         # Add "left_" prefix
         left_action = self.left_arm.get_action()
-        action_dict.update({f"left_{key}": value for key, value in left_action.items()})
+        action_dict.update({f'left_{key}': value for key, value in left_action.items()})
 
         # Add "right_" prefix
         right_action = self.right_arm.get_action()
-        action_dict.update({f"right_{key}": value for key, value in right_action.items()})
+        action_dict.update({f'right_{key}': value for key, value in right_action.items()})
 
         return action_dict
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # Remove "left_" prefix
         left_feedback = {
-            key.removeprefix("left_"): value for key, value in feedback.items() if key.startswith("left_")
+            key.removeprefix('left_'): value
+            for key, value in feedback.items()
+            if key.startswith('left_')
         }
         # Remove "right_" prefix
         right_feedback = {
-            key.removeprefix("right_"): value for key, value in feedback.items() if key.startswith("right_")
+            key.removeprefix('right_'): value
+            for key, value in feedback.items()
+            if key.startswith('right_')
         }
 
         if left_feedback:

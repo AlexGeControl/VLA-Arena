@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # !/usr/bin/env python
 
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
@@ -31,9 +45,9 @@ class GripperAction(IntEnum):
 
 
 gripper_action_map = {
-    "close": GripperAction.CLOSE.value,
-    "open": GripperAction.OPEN.value,
-    "stay": GripperAction.STAY.value,
+    'close': GripperAction.CLOSE.value,
+    'open': GripperAction.OPEN.value,
+    'stay': GripperAction.STAY.value,
 }
 
 
@@ -43,7 +57,7 @@ class GamepadTeleop(Teleoperator):
     """
 
     config_class = GamepadTeleopConfig
-    name = "gamepad"
+    name = 'gamepad'
 
     def __init__(self, config: GamepadTeleopConfig):
         super().__init__(config)
@@ -56,15 +70,15 @@ class GamepadTeleop(Teleoperator):
     def action_features(self) -> dict:
         if self.config.use_gripper:
             return {
-                "dtype": "float32",
-                "shape": (4,),
-                "names": {"delta_x": 0, "delta_y": 1, "delta_z": 2, "gripper": 3},
+                'dtype': 'float32',
+                'shape': (4,),
+                'names': {'delta_x': 0, 'delta_y': 1, 'delta_z': 2, 'gripper': 3},
             }
         else:
             return {
-                "dtype": "float32",
-                "shape": (3,),
-                "names": {"delta_x": 0, "delta_y": 1, "delta_z": 2},
+                'dtype': 'float32',
+                'shape': (3,),
+                'names': {'delta_x': 0, 'delta_y': 1, 'delta_z': 2},
             }
 
     @property
@@ -73,7 +87,7 @@ class GamepadTeleop(Teleoperator):
 
     def connect(self) -> None:
         # use HidApi for macos
-        if sys.platform == "darwin":
+        if sys.platform == 'darwin':
             # NOTE: On macOS, pygame doesn’t reliably detect input from some controllers so we fall back to hidapi
             from .gamepad_utils import GamepadControllerHID as Gamepad
         else:
@@ -93,9 +107,9 @@ class GamepadTeleop(Teleoperator):
         gamepad_action = np.array([delta_x, delta_y, delta_z], dtype=np.float32)
 
         action_dict = {
-            "delta_x": gamepad_action[0],
-            "delta_y": gamepad_action[1],
-            "delta_z": gamepad_action[2],
+            'delta_x': gamepad_action[0],
+            'delta_y': gamepad_action[1],
+            'delta_z': gamepad_action[2],
         }
 
         # Default gripper action is to stay
@@ -103,7 +117,7 @@ class GamepadTeleop(Teleoperator):
         if self.config.use_gripper:
             gripper_command = self.gamepad.gripper_command()
             gripper_action = gripper_action_map[gripper_command]
-            action_dict["gripper"] = gripper_action
+            action_dict['gripper'] = gripper_action
 
         return action_dict
 

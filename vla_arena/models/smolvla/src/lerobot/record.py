@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -63,9 +77,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from pprint import pformat
 
-from lerobot.cameras import (  # noqa: F401
-    CameraConfig,  # noqa: F401
-)
+from lerobot.cameras import CameraConfig  # noqa: F401; noqa: F401
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig  # noqa: F401
 from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig  # noqa: F401
 from lerobot.configs import parser
@@ -105,11 +117,7 @@ from lerobot.utils.control_utils import (
     sanity_check_dataset_robot_compatibility,
 )
 from lerobot.utils.robot_utils import busy_wait
-from lerobot.utils.utils import (
-    get_safe_torch_device,
-    init_logging,
-    log_say,
-)
+from lerobot.utils.utils import get_safe_torch_device, init_logging, log_say
 from lerobot.utils.visualization_utils import _init_rerun, log_rerun_data
 
 
@@ -152,7 +160,7 @@ class DatasetRecordConfig:
 
     def __post_init__(self):
         if self.single_task is None:
-            raise ValueError("You need to provide a task as argument in `single_task`.")
+            raise ValueError('You need to provide a task as argument in `single_task`.')
 
 
 @dataclass
@@ -172,19 +180,19 @@ class RecordConfig:
 
     def __post_init__(self):
         # HACK: We parse again the cli args here to get the pretrained path if there was one.
-        policy_path = parser.get_path_arg("policy")
+        policy_path = parser.get_path_arg('policy')
         if policy_path:
-            cli_overrides = parser.get_cli_overrides("policy")
+            cli_overrides = parser.get_cli_overrides('policy')
             self.policy = PreTrainedConfig.from_pretrained(policy_path, cli_overrides=cli_overrides)
             self.policy.pretrained_path = policy_path
 
         if self.teleop is None and self.policy is None:
-            raise ValueError("Choose a policy, a teleoperator or both to control the robot")
+            raise ValueError('Choose a policy, a teleoperator or both to control the robot')
 
     @classmethod
     def __get_path_fields__(cls) -> list[str]:
         """This enables the parser to load config from the policy using `--policy.path=local/dir`"""
-        return ["policy"]
+        return ['policy']
 
 
 @safe_stop_image_writer
@@ -200,7 +208,9 @@ def record_loop(
     display_data: bool = False,
 ):
     if dataset is not None and dataset.fps != fps:
-        raise ValueError(f"The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).")
+        raise ValueError(
+            f'The dataset fps should be equal to requested fps ({dataset.fps} != {fps}).'
+        )
 
     teleop_arm = teleop_keyboard = None
     if isinstance(teleop, list):
@@ -209,14 +219,18 @@ def record_loop(
             (
                 t
                 for t in teleop
-                if isinstance(t, (so100_leader.SO100Leader, so101_leader.SO101Leader, koch_leader.KochLeader))
+                if isinstance(
+                    t, (so100_leader.SO100Leader, so101_leader.SO101Leader, koch_leader.KochLeader)
+                )
             ),
             None,
         )
 
-        if not (teleop_arm and teleop_keyboard and len(teleop) == 2 and robot.name == "lekiwi_client"):
+        if not (
+            teleop_arm and teleop_keyboard and len(teleop) == 2 and robot.name == 'lekiwi_client'
+        ):
             raise ValueError(
-                "For multi-teleop, the list must contain exactly one KeyboardTeleop and one arm teleoperator. Currently only supported for LeKiwi robot."
+                'For multi-teleop, the list must contain exactly one KeyboardTeleop and one arm teleoperator. Currently only supported for LeKiwi robot.'
             )
 
     # if policy is given it needs cleaning up
@@ -228,14 +242,16 @@ def record_loop(
     while timestamp < control_time_s:
         start_loop_t = time.perf_counter()
 
-        if events["exit_early"]:
-            events["exit_early"] = False
+        if events['exit_early']:
+            events['exit_early'] = False
             break
 
         observation = robot.get_observation()
 
         if policy is not None or dataset is not None:
-            observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
+            observation_frame = build_dataset_frame(
+                dataset.features, observation, prefix='observation'
+            )
 
         if policy is not None:
             action_values = predict_action(
@@ -252,7 +268,7 @@ def record_loop(
         elif policy is None and isinstance(teleop, list):
             # TODO(pepijn, steven): clean the record loop for use of multiple robots (possibly with pipeline)
             arm_action = teleop_arm.get_action()
-            arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
+            arm_action = {f'arm_{k}': v for k, v in arm_action.items()}
 
             keyboard_action = teleop_keyboard.get_action()
             base_action = robot._from_keyboard_to_base_action(keyboard_action)
@@ -260,8 +276,8 @@ def record_loop(
             action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
         else:
             logging.info(
-                "No policy or teleoperator provided, skipping action generation."
-                "This is likely to happen when resetting the environment without a teleop device."
+                'No policy or teleoperator provided, skipping action generation.'
+                'This is likely to happen when resetting the environment without a teleop device.'
                 "The robot won't be at its rest position at the start of the next episode."
             )
             continue
@@ -271,7 +287,7 @@ def record_loop(
         sent_action = robot.send_action(action)
 
         if dataset is not None:
-            action_frame = build_dataset_frame(dataset.features, sent_action, prefix="action")
+            action_frame = build_dataset_frame(dataset.features, sent_action, prefix='action')
             frame = {**observation_frame, **action_frame}
             dataset.add_frame(frame, task=single_task)
 
@@ -289,13 +305,15 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     init_logging()
     logging.info(pformat(asdict(cfg)))
     if cfg.display_data:
-        _init_rerun(session_name="recording")
+        _init_rerun(session_name='recording')
 
     robot = make_robot_from_config(cfg.robot)
     teleop = make_teleoperator_from_config(cfg.teleop) if cfg.teleop is not None else None
 
-    action_features = hw_to_dataset_features(robot.action_features, "action", cfg.dataset.video)
-    obs_features = hw_to_dataset_features(robot.observation_features, "observation", cfg.dataset.video)
+    action_features = hw_to_dataset_features(robot.action_features, 'action', cfg.dataset.video)
+    obs_features = hw_to_dataset_features(
+        robot.observation_features, 'observation', cfg.dataset.video
+    )
     dataset_features = {**action_features, **obs_features}
 
     if cfg.resume:
@@ -305,7 +323,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             batch_encoding_size=cfg.dataset.video_encoding_batch_size,
         )
 
-        if hasattr(robot, "cameras") and len(robot.cameras) > 0:
+        if hasattr(robot, 'cameras') and len(robot.cameras) > 0:
             dataset.start_image_writer(
                 num_processes=cfg.dataset.num_image_writer_processes,
                 num_threads=cfg.dataset.num_image_writer_threads_per_camera * len(robot.cameras),
@@ -322,7 +340,8 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             features=dataset_features,
             use_videos=cfg.dataset.video,
             image_writer_processes=cfg.dataset.num_image_writer_processes,
-            image_writer_threads=cfg.dataset.num_image_writer_threads_per_camera * len(robot.cameras),
+            image_writer_threads=cfg.dataset.num_image_writer_threads_per_camera
+            * len(robot.cameras),
             batch_encoding_size=cfg.dataset.video_encoding_batch_size,
         )
 
@@ -337,8 +356,8 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
     with VideoEncodingManager(dataset):
         recorded_episodes = 0
-        while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
-            log_say(f"Recording episode {dataset.num_episodes}", cfg.play_sounds)
+        while recorded_episodes < cfg.dataset.num_episodes and not events['stop_recording']:
+            log_say(f'Recording episode {dataset.num_episodes}', cfg.play_sounds)
             record_loop(
                 robot=robot,
                 events=events,
@@ -353,10 +372,10 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
             # Execute a few seconds without recording to give time to manually reset the environment
             # Skip reset for the last episode to be recorded
-            if not events["stop_recording"] and (
-                (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
+            if not events['stop_recording'] and (
+                (recorded_episodes < cfg.dataset.num_episodes - 1) or events['rerecord_episode']
             ):
-                log_say("Reset the environment", cfg.play_sounds)
+                log_say('Reset the environment', cfg.play_sounds)
                 record_loop(
                     robot=robot,
                     events=events,
@@ -367,17 +386,17 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     display_data=cfg.display_data,
                 )
 
-            if events["rerecord_episode"]:
-                log_say("Re-record episode", cfg.play_sounds)
-                events["rerecord_episode"] = False
-                events["exit_early"] = False
+            if events['rerecord_episode']:
+                log_say('Re-record episode', cfg.play_sounds)
+                events['rerecord_episode'] = False
+                events['exit_early'] = False
                 dataset.clear_episode_buffer()
                 continue
 
             dataset.save_episode()
             recorded_episodes += 1
 
-    log_say("Stop recording", cfg.play_sounds, blocking=True)
+    log_say('Stop recording', cfg.play_sounds, blocking=True)
 
     robot.disconnect()
     if teleop is not None:
@@ -389,7 +408,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     if cfg.dataset.push_to_hub:
         dataset.push_to_hub(tags=cfg.dataset.tags, private=cfg.dataset.private)
 
-    log_say("Exiting", cfg.play_sounds)
+    log_say('Exiting', cfg.play_sounds)
     return dataset
 
 
@@ -397,5 +416,5 @@ def main():
     record()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

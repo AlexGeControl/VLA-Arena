@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 deploy.py
 
@@ -9,38 +23,44 @@ import os.path
 # ruff: noqa: E402
 import json_numpy
 
+
 json_numpy.patch()
 import json
 import logging
-import numpy as np
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import draccus
+import numpy as np
 import torch
 import uvicorn
+from experiments.robot.openvla_utils import (
+    get_action_head,
+    get_processor,
+    get_proprio_projector,
+    get_vla,
+    get_vla_action,
+)
+from experiments.robot.robot_utils import get_image_resize_size
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from PIL import Image
 from transformers import AutoModelForVision2Seq, AutoProcessor
 
-from experiments.robot.openvla_utils import (
-    get_vla,
-    get_vla_action,
-    get_action_head,
-    get_processor,
-    get_proprio_projector,
+from vla_arena.models.openvla_oft.prismatic.vla.constants import (
+    ACTION_DIM,
+    ACTION_TOKEN_BEGIN_IDX,
+    IGNORE_INDEX,
+    NUM_ACTIONS_CHUNK,
+    PROPRIO_DIM,
+    STOP_INDEX,
 )
-from experiments.robot.robot_utils import (
-    get_image_resize_size,
-)
-from vla_arena.models.openvla_oft.prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, PROPRIO_DIM, STOP_INDEX
 
 
-def get_openvla_prompt(instruction: str, openvla_path: Union[str, Path]) -> str:
-    return f"In: What action should the robot take to {instruction.lower()}?\nOut:"
+def get_openvla_prompt(instruction: str, openvla_path: str | Path) -> str:
+    return f'In: What action should the robot take to {instruction.lower()}?\nOut:'
 
 
 # === Server Interface ===
@@ -65,7 +85,9 @@ class OpenVLAServer:
             self.action_head = get_action_head(cfg, self.vla.llm_dim)
 
         # Check that the model contains the action un-normalization key
-        assert cfg.unnorm_key in self.vla.norm_stats, f"Action un-norm key {cfg.unnorm_key} not found in VLA `norm_stats`!"
+        assert (
+            cfg.unnorm_key in self.vla.norm_stats
+        ), f'Action un-norm key {cfg.unnorm_key} not found in VLA `norm_stats`!'
 
         # Get Hugging Face processor
         self.processor = None
@@ -74,19 +96,25 @@ class OpenVLAServer:
         # Get expected image dimensions
         self.resize_size = get_image_resize_size(cfg)
 
-
-    def get_server_action(self, payload: Dict[str, Any]) -> str:
+    def get_server_action(self, payload: dict[str, Any]) -> str:
         try:
-            if double_encode := "encoded" in payload:
+            if double_encode := 'encoded' in payload:
                 # Support cases where `json_numpy` is hard to install, and numpy arrays are "double-encoded" as strings
-                assert len(payload.keys()) == 1, "Only uses encoded payload!"
-                payload = json.loads(payload["encoded"])
+                assert len(payload.keys()) == 1, 'Only uses encoded payload!'
+                payload = json.loads(payload['encoded'])
 
             observation = payload
-            instruction = observation["instruction"]
+            instruction = observation['instruction']
 
             action = get_vla_action(
-                self.cfg, self.vla, self.processor, observation, instruction, action_head=self.action_head, proprio_projector=self.proprio_projector, use_film=self.cfg.use_film,
+                self.cfg,
+                self.vla,
+                self.processor,
+                observation,
+                instruction,
+                action_head=self.action_head,
+                proprio_projector=self.proprio_projector,
+                use_film=self.cfg.use_film,
             )
 
             if double_encode:
@@ -96,14 +124,14 @@ class OpenVLAServer:
         except:  # noqa: E722
             logging.error(traceback.format_exc())
             logging.warning(
-                "Your request threw an error; make sure your request complies with the expected format:\n"
+                'Your request threw an error; make sure your request complies with the expected format:\n'
                 "{'observation': dict, 'instruction': str}\n"
             )
-            return "error"
+            return 'error'
 
-    def run(self, host: str = "0.0.0.0", port: int = 8777) -> None:
+    def run(self, host: str = '0.0.0.0', port: int = 8777) -> None:
         self.app = FastAPI()
-        self.app.post("/act")(self.get_server_action)
+        self.app.post('/act')(self.get_server_action)
         uvicorn.run(self.app, host=host, port=port)
 
 
@@ -112,14 +140,14 @@ class DeployConfig:
     # fmt: off
 
     # Server Configuration
-    host: str = "0.0.0.0"                                               # Host IP Address
+    host: str = '0.0.0.0'                                               # Host IP Address
     port: int = 8777                                                    # Host Port
 
     #################################################################################################################
     # Model-specific parameters
     #################################################################################################################
-    model_family: str = "openvla"                    # Model family
-    pretrained_checkpoint: Union[str, Path] = ""     # Pretrained checkpoint path
+    model_family: str = 'openvla'                    # Model family
+    pretrained_checkpoint: str | Path = ''     # Pretrained checkpoint path
 
     use_l1_regression: bool = True                   # If True, uses continuous action head with L1 regression objective
     use_diffusion: bool = False                      # If True, uses continuous action head with diffusion modeling objective (DDIM)
@@ -133,7 +161,7 @@ class DeployConfig:
 
     lora_rank: int = 32                              # Rank of LoRA weight matrix (MAKE SURE THIS MATCHES TRAINING!)
 
-    unnorm_key: Union[str, Path] = ""                # Action un-normalization key
+    unnorm_key: str | Path = ''                # Action un-normalization key
     use_relative_actions: bool = False               # Whether to use relative actions (delta joint angles)
 
     load_in_8bit: bool = False                       # (For OpenVLA only) Load with 8-bit quantization
@@ -152,5 +180,5 @@ def deploy(cfg: DeployConfig) -> None:
     server.run(cfg.host, port=cfg.port)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     deploy()

@@ -12,7 +12,7 @@
       )
       (distractor_region_1
           (:target main_table)
-          (:ranges (  
+          (:ranges (
               (-0.18 0.27 -0.16 0.29)
             )
           )

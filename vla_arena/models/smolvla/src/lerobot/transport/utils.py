@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team.
 # All rights reserved.
 #
@@ -24,9 +38,9 @@ from queue import Queue
 from typing import Any
 
 import torch
-
 from lerobot.transport import services_pb2
 from lerobot.utils.transition import Transition
+
 
 CHUNK_SIZE = 2 * 1024 * 1024  # 2 MB
 MAX_MESSAGE_SIZE = 4 * 1024 * 1024  # 4 MB
@@ -39,7 +53,9 @@ def bytes_buffer_size(buffer: io.BytesIO) -> int:
     return result
 
 
-def send_bytes_in_chunks(buffer: bytes, message_class: Any, log_prefix: str = "", silent: bool = True):
+def send_bytes_in_chunks(
+    buffer: bytes, message_class: Any, log_prefix: str = '', silent: bool = True
+):
     buffer = io.BytesIO(buffer)
     size_in_bytes = bytes_buffer_size(buffer)
 
@@ -47,7 +63,7 @@ def send_bytes_in_chunks(buffer: bytes, message_class: Any, log_prefix: str = ""
 
     logging_method = logging.info if not silent else logging.debug
 
-    logging_method(f"{log_prefix} Buffer size {size_in_bytes / 1024 / 1024} MB with")
+    logging_method(f'{log_prefix} Buffer size {size_in_bytes / 1024 / 1024} MB with')
 
     while sent_bytes < size_in_bytes:
         transfer_state = services_pb2.TransferState.TRANSFER_MIDDLE
@@ -62,35 +78,41 @@ def send_bytes_in_chunks(buffer: bytes, message_class: Any, log_prefix: str = ""
 
         yield message_class(transfer_state=transfer_state, data=chunk)
         sent_bytes += size_to_read
-        logging_method(f"{log_prefix} Sent {sent_bytes}/{size_in_bytes} bytes with state {transfer_state}")
+        logging_method(
+            f'{log_prefix} Sent {sent_bytes}/{size_in_bytes} bytes with state {transfer_state}'
+        )
 
-    logging_method(f"{log_prefix} Published {sent_bytes / 1024 / 1024} MB")
+    logging_method(f'{log_prefix} Published {sent_bytes / 1024 / 1024} MB')
 
 
-def receive_bytes_in_chunks(iterator, queue: Queue | None, shutdown_event: Event, log_prefix: str = ""):
+def receive_bytes_in_chunks(
+    iterator, queue: Queue | None, shutdown_event: Event, log_prefix: str = ''
+):
     bytes_buffer = io.BytesIO()
     step = 0
 
-    logging.info(f"{log_prefix} Starting receiver")
+    logging.info(f'{log_prefix} Starting receiver')
     for item in iterator:
-        logging.debug(f"{log_prefix} Received item")
+        logging.debug(f'{log_prefix} Received item')
         if shutdown_event.is_set():
-            logging.info(f"{log_prefix} Shutting down receiver")
+            logging.info(f'{log_prefix} Shutting down receiver')
             return
 
         if item.transfer_state == services_pb2.TransferState.TRANSFER_BEGIN:
             bytes_buffer.seek(0)
             bytes_buffer.truncate(0)
             bytes_buffer.write(item.data)
-            logging.debug(f"{log_prefix} Received data at step 0")
+            logging.debug(f'{log_prefix} Received data at step 0')
             step = 0
         elif item.transfer_state == services_pb2.TransferState.TRANSFER_MIDDLE:
             bytes_buffer.write(item.data)
             step += 1
-            logging.debug(f"{log_prefix} Received data at step {step}")
+            logging.debug(f'{log_prefix} Received data at step {step}')
         elif item.transfer_state == services_pb2.TransferState.TRANSFER_END:
             bytes_buffer.write(item.data)
-            logging.debug(f"{log_prefix} Received data at step end size {bytes_buffer_size(bytes_buffer)}")
+            logging.debug(
+                f'{log_prefix} Received data at step end size {bytes_buffer_size(bytes_buffer)}'
+            )
 
             if queue is not None:
                 queue.put(bytes_buffer.getvalue())
@@ -101,10 +123,10 @@ def receive_bytes_in_chunks(iterator, queue: Queue | None, shutdown_event: Event
             bytes_buffer.truncate(0)
             step = 0
 
-            logging.debug(f"{log_prefix} Queue updated")
+            logging.debug(f'{log_prefix} Queue updated')
         else:
-            logging.warning(f"{log_prefix} Received unknown transfer state {item.transfer_state}")
-            raise ValueError(f"Received unknown transfer state {item.transfer_state}")
+            logging.warning(f'{log_prefix} Received unknown transfer state {item.transfer_state}')
+            raise ValueError(f'Received unknown transfer state {item.transfer_state}')
 
 
 def state_to_bytes(state_dict: dict[str, torch.Tensor]) -> bytes:
@@ -151,23 +173,23 @@ def grpc_channel_options(
     max_receive_message_length: int = MAX_MESSAGE_SIZE,
     max_send_message_length: int = MAX_MESSAGE_SIZE,
     enable_retries: bool = True,
-    initial_backoff: str = "0.1s",
+    initial_backoff: str = '0.1s',
     max_attempts: int = 5,
     backoff_multiplier: float = 2,
-    max_backoff: str = "2s",
+    max_backoff: str = '2s',
 ):
     service_config = {
-        "methodConfig": [
+        'methodConfig': [
             {
-                "name": [{}],  # Applies to ALL methods in ALL services
-                "retryPolicy": {
-                    "maxAttempts": max_attempts,  # Max retries (total attempts = 5)
-                    "initialBackoff": initial_backoff,  # First retry after 0.1s
-                    "maxBackoff": max_backoff,  # Max wait time between retries
-                    "backoffMultiplier": backoff_multiplier,  # Exponential backoff factor
-                    "retryableStatusCodes": [
-                        "UNAVAILABLE",
-                        "DEADLINE_EXCEEDED",
+                'name': [{}],  # Applies to ALL methods in ALL services
+                'retryPolicy': {
+                    'maxAttempts': max_attempts,  # Max retries (total attempts = 5)
+                    'initialBackoff': initial_backoff,  # First retry after 0.1s
+                    'maxBackoff': max_backoff,  # Max wait time between retries
+                    'backoffMultiplier': backoff_multiplier,  # Exponential backoff factor
+                    'retryableStatusCodes': [
+                        'UNAVAILABLE',
+                        'DEADLINE_EXCEEDED',
                     ],  # Retries on network failures
                 },
             }
@@ -179,8 +201,8 @@ def grpc_channel_options(
     retries_option = 1 if enable_retries else 0
 
     return [
-        ("grpc.max_receive_message_length", max_receive_message_length),
-        ("grpc.max_send_message_length", max_send_message_length),
-        ("grpc.enable_retries", retries_option),
-        ("grpc.service_config", service_config_json),
+        ('grpc.max_receive_message_length', max_receive_message_length),
+        ('grpc.max_send_message_length', max_send_message_length),
+        ('grpc.enable_retries', retries_option),
+        ('grpc.service_config', service_config_json),
     ]

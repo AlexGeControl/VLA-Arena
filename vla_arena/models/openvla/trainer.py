@@ -1,50 +1,80 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import sys
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union, Dict
+from typing import Dict, Optional, Union
 
 import draccus
 import torch
 import torch.distributed as dist
 import tqdm
+import wandb
 from accelerate import PartialState
 from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
-from transformers import AutoModelForVision2Seq, AutoProcessor, BitsAndBytesConfig
-from transformers import AutoConfig, AutoImageProcessor
+from transformers import (
+    AutoConfig,
+    AutoImageProcessor,
+    AutoModelForVision2Seq,
+    AutoProcessor,
+    BitsAndBytesConfig,
+)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
-import wandb
+from vla_arena.models.openvla.prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
+from vla_arena.models.openvla.prismatic.extern.hf.modeling_prismatic import (
+    OpenVLAForActionPrediction,
+)
+from vla_arena.models.openvla.prismatic.extern.hf.processing_prismatic import (
+    PrismaticImageProcessor,
+    PrismaticProcessor,
+)
+
 # Assume prismatic package is available in the environment
-from vla_arena.models.openvla.prismatic.models.backbones.llm.prompting import PurePromptBuilder, VicunaV15ChatPromptBuilder
+from vla_arena.models.openvla.prismatic.models.backbones.llm.prompting import (
+    PurePromptBuilder,
+    VicunaV15ChatPromptBuilder,
+)
 from vla_arena.models.openvla.prismatic.util.data_utils import PaddedCollatorForActionPrediction
 from vla_arena.models.openvla.prismatic.vla.action_tokenizer import ActionTokenizer
 from vla_arena.models.openvla.prismatic.vla.datasets import RLDSBatchTransform, RLDSDataset
-from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils.data_utils import save_dataset_statistics
+from vla_arena.models.openvla.prismatic.vla.datasets.rlds.utils.data_utils import (
+    save_dataset_statistics,
+)
 
-from vla_arena.models.openvla.prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
-from vla_arena.models.openvla.prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
-from vla_arena.models.openvla.prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
 
 os.environ['WANDB_ENABLED'] = 'false'
 # Sane Defaults
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 
 @dataclass
 class FinetuneConfig:
     # fmt: off
-    vla_path: str = "openvla/openvla-7b"                            # Path to OpenVLA model (on HuggingFace Hub)
+    vla_path: str = 'openvla/openvla-7b'                            # Path to OpenVLA model (on HuggingFace Hub)
 
     # Directory Paths
-    data_root_dir: Path = Path("datasets/open-x-embodiment")        # Path to Open-X dataset directory
-    dataset_name: str = "vla_arena"                                 # Name of fine-tuning dataset (e.g., `droid_wipe`)
-    run_root_dir: Path = Path("runs")                               # Path to directory to store logs & checkpoints
-    adapter_tmp_dir: Path = Path("adapter-tmp")                     # Temporary directory for LoRA weights before fusing
+    data_root_dir: Path = Path('datasets/open-x-embodiment')        # Path to Open-X dataset directory
+    dataset_name: str = 'vla_arena'                                 # Name of fine-tuning dataset (e.g., `droid_wipe`)
+    run_root_dir: Path = Path('runs')                               # Path to directory to store logs & checkpoints
+    adapter_tmp_dir: Path = Path('adapter-tmp')                     # Temporary directory for LoRA weights before fusing
 
     # Fine-tuning Parameters
     batch_size: int = 16                                            # Fine-tuning batch size
@@ -66,14 +96,14 @@ class FinetuneConfig:
                                                                     #   => CAUTION: Reduces memory but hurts performance
 
     # Tracking Parameters
-    wandb_project: str = "openvla"                                  # Name of W&B project to log to (use default!)
-    wandb_entity: str = "stanford-voltron"                          # Name of entity to log under
-    run_id_note: Optional[str] = None                               # Extra note for logging, Weights & Biases
+    wandb_project: str = 'openvla'                                  # Name of W&B project to log to (use default!)
+    wandb_entity: str = 'stanford-voltron'                          # Name of entity to log under
+    run_id_note: str | None = None                               # Extra note for logging, Weights & Biases
 
     # fmt: on
 
 
-def main(config: Union[FinetuneConfig, str, Path]) -> None:
+def main(config: FinetuneConfig | str | Path) -> None:
     """
     Main entry point for training.
     """
@@ -81,25 +111,27 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
     if isinstance(config, (str, Path)):
         config_path = Path(config)
         if not config_path.exists():
-            raise FileNotFoundError(f"Config file not found at: {config_path}")
+            raise FileNotFoundError(f'Config file not found at: {config_path}')
 
-        print(f"Loading configuration from {config_path}...")
-        
+        print(f'Loading configuration from {config_path}...')
+
         # Fix: Use config_path
         cfg = draccus.parse(FinetuneConfig, config_path=str(config_path), args=[])
-        
+
     elif isinstance(config, FinetuneConfig):
         cfg = config
     else:
-        raise ValueError(f"Unsupported config type: {type(config)}. Expected FinetuneConfig or path string.")
-    
+        raise ValueError(
+            f'Unsupported config type: {type(config)}. Expected FinetuneConfig or path string.'
+        )
+
     # ... subsequent logic
 
     # Test print to ensure configuration is loaded
-    print(f"Config loaded successfully. Dataset: {cfg.dataset_name}, Max Steps: {cfg.max_steps}")
+    print(f'Config loaded successfully. Dataset: {cfg.dataset_name}, Max Steps: {cfg.max_steps}')
 
     # [Validate] Ensure GPU Available & Set Device / Distributed Context
-    assert torch.cuda.is_available(), "Fine-tuning assumes at least one GPU is available!"
+    assert torch.cuda.is_available(), 'Fine-tuning assumes at least one GPU is available!'
     distributed_state = PartialState()
     torch.cuda.set_device(device_id := distributed_state.local_process_index)
     torch.cuda.empty_cache()
@@ -107,17 +139,17 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
     # Configure Unique Experiment ID & Log Directory
     exp_id = (
         f"{cfg.vla_path.split('/')[-1]}+{cfg.dataset_name}"
-        f"+b{cfg.batch_size * cfg.grad_accumulation_steps}"
-        f"+lr-{cfg.learning_rate}"
+        f'+b{cfg.batch_size * cfg.grad_accumulation_steps}'
+        f'+lr-{cfg.learning_rate}'
     )
     if cfg.use_lora:
-        exp_id += f"+lora-r{cfg.lora_rank}+dropout-{cfg.lora_dropout}"
+        exp_id += f'+lora-r{cfg.lora_rank}+dropout-{cfg.lora_dropout}'
     if cfg.use_quantization:
-        exp_id += "+q-4bit"
+        exp_id += '+q-4bit'
     if cfg.run_id_note is not None:
-        exp_id += f"--{cfg.run_id_note}"
+        exp_id += f'--{cfg.run_id_note}'
     if cfg.image_aug:
-        exp_id += "--image_aug"
+        exp_id += '--image_aug'
 
     # Start =>> Build Directories
     run_dir, adapter_dir = cfg.run_root_dir / exp_id, cfg.adapter_tmp_dir / exp_id
@@ -126,13 +158,13 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
     # Quantization Config =>> only if LoRA fine-tuning
     quantization_config = None
     if cfg.use_quantization:
-        assert cfg.use_lora, "Quantized training only supported for LoRA fine-tuning!"
+        assert cfg.use_lora, 'Quantized training only supported for LoRA fine-tuning!'
         quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_quant_type="nf4"
+            load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16, bnb_4bit_quant_type='nf4'
         )
 
     # Register OpenVLA model to HF Auto Classes (not needed if the model is on HF Hub)
-    AutoConfig.register("openvla", OpenVLAConfig)
+    AutoConfig.register('openvla', OpenVLAConfig)
     AutoImageProcessor.register(OpenVLAConfig, PrismaticImageProcessor)
     AutoProcessor.register(OpenVLAConfig, PrismaticProcessor)
     AutoModelForVision2Seq.register(OpenVLAConfig, OpenVLAForActionPrediction)
@@ -159,14 +191,16 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
             r=cfg.lora_rank,
             lora_alpha=min(cfg.lora_rank, 16),
             lora_dropout=cfg.lora_dropout,
-            target_modules="all-linear",
-            init_lora_weights="gaussian",
+            target_modules='all-linear',
+            init_lora_weights='gaussian',
         )
         vla = get_peft_model(vla, lora_config)
         vla.print_trainable_parameters()
 
     # Wrap VLA in PyTorch DDP Wrapper for Multi-GPU Training
-    vla = DDP(vla, device_ids=[device_id], find_unused_parameters=True, gradient_as_bucket_view=True)
+    vla = DDP(
+        vla, device_ids=[device_id], find_unused_parameters=True, gradient_as_bucket_view=True
+    )
 
     # Create Optimizer =>> note that we default to a simple constant learning rate!
     trainable_params = [param for param in vla.parameters() if param.requires_grad]
@@ -179,7 +213,9 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
         action_tokenizer,
         processor.tokenizer,
         image_transform=processor.image_processor.apply_transform,
-        prompt_builder_fn=PurePromptBuilder if "v01" not in cfg.vla_path else VicunaV15ChatPromptBuilder,
+        prompt_builder_fn=(
+            PurePromptBuilder if 'v01' not in cfg.vla_path else VicunaV15ChatPromptBuilder
+        ),
     )
     vla_dataset = RLDSDataset(
         cfg.data_root_dir,
@@ -196,7 +232,7 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
 
     # Create Collator and DataLoader
     collator = PaddedCollatorForActionPrediction(
-        processor.tokenizer.model_max_length, processor.tokenizer.pad_token_id, padding_side="right"
+        processor.tokenizer.model_max_length, processor.tokenizer.pad_token_id, padding_side='right'
     )
     dataloader = DataLoader(
         vla_dataset,
@@ -208,7 +244,7 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
 
     # Initialize Logging =>> W&B
     if distributed_state.is_main_process:
-        wandb.init(entity=cfg.wandb_entity, project=cfg.wandb_project, name=f"ft+{exp_id}")
+        wandb.init(entity=cfg.wandb_entity, project=cfg.wandb_project, name=f'ft+{exp_id}')
 
     # Deque to store recent train metrics (used for computing smoothened metrics for gradient accumulation)
     recent_losses = deque(maxlen=cfg.grad_accumulation_steps)
@@ -220,12 +256,12 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
         vla.train()
         optimizer.zero_grad()
         for batch_idx, batch in enumerate(dataloader):
-            with torch.autocast("cuda", dtype=torch.bfloat16):
+            with torch.autocast('cuda', dtype=torch.bfloat16):
                 output: CausalLMOutputWithPast = vla(
-                    input_ids=batch["input_ids"].to(device_id),
-                    attention_mask=batch["attention_mask"].to(device_id),
-                    pixel_values=batch["pixel_values"].to(torch.bfloat16).to(device_id),
-                    labels=batch["labels"],
+                    input_ids=batch['input_ids'].to(device_id),
+                    attention_mask=batch['attention_mask'].to(device_id),
+                    pixel_values=batch['pixel_values'].to(torch.bfloat16).to(device_id),
+                    labels=batch['labels'],
                 )
                 loss = output.loss
 
@@ -236,9 +272,11 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
             normalized_loss.backward()
 
             # Compute Accuracy and L1 Loss for Logging
-            action_logits = output.logits[:, vla.module.vision_backbone.featurizer.patch_embed.num_patches : -1]
+            action_logits = output.logits[
+                :, vla.module.vision_backbone.featurizer.patch_embed.num_patches : -1
+            ]
             action_preds = action_logits.argmax(dim=2)
-            action_gt = batch["labels"][:, 1:].to(action_preds.device)
+            action_gt = batch['labels'][:, 1:].to(action_preds.device)
             mask = action_gt > action_tokenizer.action_token_begin_idx
 
             # Compute Accuracy
@@ -252,7 +290,9 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
             continuous_actions_gt = torch.tensor(
                 action_tokenizer.decode_token_ids_to_actions(action_gt[mask].cpu().numpy())
             )
-            action_l1_loss = torch.nn.functional.l1_loss(continuous_actions_pred, continuous_actions_gt)
+            action_l1_loss = torch.nn.functional.l1_loss(
+                continuous_actions_pred, continuous_actions_gt
+            )
 
             # Store recent train metrics
             recent_losses.append(loss.item())
@@ -264,16 +304,18 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
 
             # Compute smoothened train metrics
             smoothened_loss = sum(recent_losses) / len(recent_losses)
-            smoothened_action_accuracy = sum(recent_action_accuracies) / len(recent_action_accuracies)
+            smoothened_action_accuracy = sum(recent_action_accuracies) / len(
+                recent_action_accuracies
+            )
             smoothened_l1_loss = sum(recent_l1_losses) / len(recent_l1_losses)
 
             # Push Metrics to W&B (every 10 gradient steps)
             if distributed_state.is_main_process and gradient_step_idx % 10 == 0:
                 wandb.log(
                     {
-                        "train_loss": smoothened_loss,
-                        "action_accuracy": smoothened_action_accuracy,
-                        "l1_loss": smoothened_l1_loss,
+                        'train_loss': smoothened_loss,
+                        'action_accuracy': smoothened_action_accuracy,
+                        'l1_loss': smoothened_l1_loss,
                     },
                     step=gradient_step_idx,
                 )
@@ -287,7 +329,7 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
             # Save Model Checkpoint
             if gradient_step_idx > 0 and gradient_step_idx % cfg.save_steps == 0:
                 if distributed_state.is_main_process:
-                    print(f"Saving Model Checkpoint for Step {gradient_step_idx}")
+                    print(f'Saving Model Checkpoint for Step {gradient_step_idx}')
                     save_dir = adapter_dir if cfg.use_lora else run_dir
                     processor.save_pretrained(run_dir)
                     vla.module.save_pretrained(save_dir)
@@ -297,38 +339,47 @@ def main(config: Union[FinetuneConfig, str, Path]) -> None:
                 # Merge LoRA weights
                 if cfg.use_lora:
                     base_vla = OpenVLAForActionPrediction.from_pretrained(
-                        cfg.vla_path, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, trust_remote_code=True
+                        cfg.vla_path,
+                        torch_dtype=torch.bfloat16,
+                        low_cpu_mem_usage=True,
+                        trust_remote_code=True,
                     )
                     merged_vla = PeftModel.from_pretrained(base_vla, adapter_dir)
                     merged_vla = merged_vla.merge_and_unload()
                     if distributed_state.is_main_process:
                         if cfg.save_latest_checkpoint_only:
                             merged_vla.save_pretrained(run_dir)
-                            print(f"Saved Model Checkpoint for Step {gradient_step_idx} at: {run_dir}")
+                            print(
+                                f'Saved Model Checkpoint for Step {gradient_step_idx} at: {run_dir}'
+                            )
                         else:
-                            checkpoint_dir = Path(str(run_dir) + f"--{gradient_step_idx}_chkpt")
+                            checkpoint_dir = Path(str(run_dir) + f'--{gradient_step_idx}_chkpt')
                             os.makedirs(checkpoint_dir, exist_ok=True)
                             save_dataset_statistics(vla_dataset.dataset_statistics, checkpoint_dir)
                             processor.save_pretrained(checkpoint_dir)
                             merged_vla.save_pretrained(checkpoint_dir)
-                            print(f"Saved Model Checkpoint for Step {gradient_step_idx} at: {checkpoint_dir}")
+                            print(
+                                f'Saved Model Checkpoint for Step {gradient_step_idx} at: {checkpoint_dir}'
+                            )
 
                 dist.barrier()
 
             # Stop training
             if gradient_step_idx == cfg.max_steps:
-                print(f"Max step {cfg.max_steps} reached! Stopping training...")
+                print(f'Max step {cfg.max_steps} reached! Stopping training...')
                 break
+
 
 # vla_arena/models/openvla/trainer.py
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import argparse
+
     # Use argparse to parse --config parameter passed by Launcher
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, required=True, help="Path to the config yaml file")
+    parser.add_argument('--config', type=str, required=True, help='Path to the config yaml file')
     # This allows compatibility with other possible parameters (though currently only config is needed)
     args, unknown = parser.parse_known_args()
-    
+
     # Call main with config path string
     main(config=args.config)

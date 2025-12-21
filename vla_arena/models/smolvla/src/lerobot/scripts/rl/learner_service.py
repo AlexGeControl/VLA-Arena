@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # !/usr/bin/env python
 
 # Copyright 2025 The HuggingFace Inc. team.
@@ -22,6 +36,7 @@ from multiprocessing import Event, Queue
 from lerobot.transport import services_pb2, services_pb2_grpc
 from lerobot.transport.utils import receive_bytes_in_chunks, send_bytes_in_chunks
 from lerobot.utils.queue import get_last_item_from_queue
+
 
 MAX_WORKERS = 3  # Stream parameters, send transitions and interactions
 SHUTDOWN_TIMEOUT = 10
@@ -52,7 +67,7 @@ class LearnerService(services_pb2_grpc.LearnerServiceServicer):
 
     def StreamParameters(self, request, context):  # noqa: N802
         # TODO: authorize the request
-        logging.info("[LEARNER] Received request to stream parameters from the Actor")
+        logging.info('[LEARNER] Received request to stream parameters from the Actor')
 
         last_push_time = 0
 
@@ -64,7 +79,7 @@ class LearnerService(services_pb2_grpc.LearnerServiceServicer):
                 # and it's checked in the while loop
                 continue
 
-            logging.info("[LEARNER] Push parameters to the Actor")
+            logging.info('[LEARNER] Push parameters to the Actor')
             buffer = get_last_item_from_queue(
                 self.parameters_queue, block=True, timeout=self.queue_get_timeout
             )
@@ -75,42 +90,42 @@ class LearnerService(services_pb2_grpc.LearnerServiceServicer):
             yield from send_bytes_in_chunks(
                 buffer,
                 services_pb2.Parameters,
-                log_prefix="[LEARNER] Sending parameters",
+                log_prefix='[LEARNER] Sending parameters',
                 silent=True,
             )
 
             last_push_time = time.time()
-            logging.info("[LEARNER] Parameters sent")
+            logging.info('[LEARNER] Parameters sent')
 
-        logging.info("[LEARNER] Stream parameters finished")
+        logging.info('[LEARNER] Stream parameters finished')
         return services_pb2.Empty()
 
     def SendTransitions(self, request_iterator, _context):  # noqa: N802
         # TODO: authorize the request
-        logging.info("[LEARNER] Received request to receive transitions from the Actor")
+        logging.info('[LEARNER] Received request to receive transitions from the Actor')
 
         receive_bytes_in_chunks(
             request_iterator,
             self.transition_queue,
             self.shutdown_event,
-            log_prefix="[LEARNER] transitions",
+            log_prefix='[LEARNER] transitions',
         )
 
-        logging.debug("[LEARNER] Finished receiving transitions")
+        logging.debug('[LEARNER] Finished receiving transitions')
         return services_pb2.Empty()
 
     def SendInteractions(self, request_iterator, _context):  # noqa: N802
         # TODO: authorize the request
-        logging.info("[LEARNER] Received request to receive interactions from the Actor")
+        logging.info('[LEARNER] Received request to receive interactions from the Actor')
 
         receive_bytes_in_chunks(
             request_iterator,
             self.interaction_message_queue,
             self.shutdown_event,
-            log_prefix="[LEARNER] interactions",
+            log_prefix='[LEARNER] interactions',
         )
 
-        logging.debug("[LEARNER] Finished receiving interactions")
+        logging.debug('[LEARNER] Finished receiving interactions')
         return services_pb2.Empty()
 
     def Ready(self, request, context):  # noqa: N802

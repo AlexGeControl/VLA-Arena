@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,10 +38,11 @@ from typing import Any
 import cv2
 import numpy as np
 
+
 try:
     import pyrealsense2 as rs
 except Exception as e:
-    logging.info(f"Could not import realsense: {e}")
+    logging.info(f'Could not import realsense: {e}')
 
 from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
@@ -35,6 +50,7 @@ from ..camera import Camera
 from ..configs import ColorMode
 from ..utils import get_cv2_rotation
 from .configuration_realsense import RealSenseCameraConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +159,7 @@ class RealSenseCamera(Camera):
                 self.capture_width, self.capture_height = self.height, self.width
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}({self.serial_number})"
+        return f'{self.__class__.__name__}({self.serial_number})'
 
     @property
     def is_connected(self) -> bool:
@@ -164,7 +180,7 @@ class RealSenseCamera(Camera):
             RuntimeError: If the pipeline starts but fails to apply requested settings.
         """
         if self.is_connected:
-            raise DeviceAlreadyConnectedError(f"{self} is already connected.")
+            raise DeviceAlreadyConnectedError(f'{self} is already connected.')
 
         self.rs_pipeline = rs.pipeline()
         rs_config = rs.config()
@@ -176,7 +192,7 @@ class RealSenseCamera(Camera):
             self.rs_profile = None
             self.rs_pipeline = None
             raise ConnectionError(
-                f"Failed to open {self}.Run `lerobot-find-cameras realsense` to find available cameras."
+                f'Failed to open {self}.Run `lerobot-find-cameras realsense` to find available cameras.'
             ) from e
 
         self._configure_capture_settings()
@@ -190,7 +206,7 @@ class RealSenseCamera(Camera):
                 self.read()
                 time.sleep(0.1)
 
-        logger.info(f"{self} connected.")
+        logger.info(f'{self} connected.')
 
     @staticmethod
     def find_cameras() -> list[dict[str, Any]]:
@@ -212,14 +228,14 @@ class RealSenseCamera(Camera):
 
         for device in devices:
             camera_info = {
-                "name": device.get_info(rs.camera_info.name),
-                "type": "RealSense",
-                "id": device.get_info(rs.camera_info.serial_number),
-                "firmware_version": device.get_info(rs.camera_info.firmware_version),
-                "usb_type_descriptor": device.get_info(rs.camera_info.usb_type_descriptor),
-                "physical_port": device.get_info(rs.camera_info.physical_port),
-                "product_id": device.get_info(rs.camera_info.product_id),
-                "product_line": device.get_info(rs.camera_info.product_line),
+                'name': device.get_info(rs.camera_info.name),
+                'type': 'RealSense',
+                'id': device.get_info(rs.camera_info.serial_number),
+                'firmware_version': device.get_info(rs.camera_info.firmware_version),
+                'usb_type_descriptor': device.get_info(rs.camera_info.usb_type_descriptor),
+                'physical_port': device.get_info(rs.camera_info.physical_port),
+                'product_id': device.get_info(rs.camera_info.product_id),
+                'product_line': device.get_info(rs.camera_info.product_line),
             }
 
             # Get stream profiles for each sensor
@@ -231,13 +247,13 @@ class RealSenseCamera(Camera):
                     if profile.is_video_stream_profile() and profile.is_default():
                         vprofile = profile.as_video_stream_profile()
                         stream_info = {
-                            "stream_type": vprofile.stream_name(),
-                            "format": vprofile.format().name,
-                            "width": vprofile.width(),
-                            "height": vprofile.height(),
-                            "fps": vprofile.fps(),
+                            'stream_type': vprofile.stream_name(),
+                            'format': vprofile.format().name,
+                            'width': vprofile.width(),
+                            'height': vprofile.height(),
+                            'fps': vprofile.fps(),
                         }
-                        camera_info["default_stream_profile"] = stream_info
+                        camera_info['default_stream_profile'] = stream_info
 
             found_cameras_info.append(camera_info)
 
@@ -246,22 +262,22 @@ class RealSenseCamera(Camera):
     def _find_serial_number_from_name(self, name: str) -> str:
         """Finds the serial number for a given unique camera name."""
         camera_infos = self.find_cameras()
-        found_devices = [cam for cam in camera_infos if str(cam["name"]) == name]
+        found_devices = [cam for cam in camera_infos if str(cam['name']) == name]
 
         if not found_devices:
-            available_names = [cam["name"] for cam in camera_infos]
+            available_names = [cam['name'] for cam in camera_infos]
             raise ValueError(
                 f"No RealSense camera found with name '{name}'. Available camera names: {available_names}"
             )
 
         if len(found_devices) > 1:
-            serial_numbers = [dev["serial_number"] for dev in found_devices]
+            serial_numbers = [dev['serial_number'] for dev in found_devices]
             raise ValueError(
                 f"Multiple RealSense cameras found with name '{name}'. "
-                f"Please use a unique serial number instead. Found SNs: {serial_numbers}"
+                f'Please use a unique serial number instead. Found SNs: {serial_numbers}'
             )
 
-        serial_number = str(found_devices[0]["serial_number"])
+        serial_number = str(found_devices[0]['serial_number'])
         return serial_number
 
     def _configure_rs_pipeline_config(self, rs_config):
@@ -274,7 +290,11 @@ class RealSenseCamera(Camera):
             )
             if self.use_depth:
                 rs_config.enable_stream(
-                    rs.stream.depth, self.capture_width, self.capture_height, rs.format.z16, self.fps
+                    rs.stream.depth,
+                    self.capture_width,
+                    self.capture_height,
+                    rs.format.z16,
+                    self.fps,
                 )
         else:
             rs_config.enable_stream(rs.stream.color)
@@ -291,7 +311,9 @@ class RealSenseCamera(Camera):
             DeviceNotConnectedError: If device is not connected.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"Cannot validate settings for {self} as it is not connected.")
+            raise DeviceNotConnectedError(
+                f'Cannot validate settings for {self} as it is not connected.'
+            )
 
         stream = self.rs_profile.get_stream(rs.stream.color).as_video_stream_profile()
 
@@ -328,7 +350,7 @@ class RealSenseCamera(Camera):
         """
 
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"{self} is not connected.")
+            raise DeviceNotConnectedError(f'{self} is not connected.')
         if not self.use_depth:
             raise RuntimeError(
                 f"Failed to capture depth frame '.read_depth()'. Depth stream is not enabled for {self}."
@@ -339,7 +361,7 @@ class RealSenseCamera(Camera):
         ret, frame = self.rs_pipeline.try_wait_for_frames(timeout_ms=timeout_ms)
 
         if not ret or frame is None:
-            raise RuntimeError(f"{self} read_depth failed (status={ret}).")
+            raise RuntimeError(f'{self} read_depth failed (status={ret}).')
 
         depth_frame = frame.get_depth_frame()
         depth_map = np.asanyarray(depth_frame.get_data())
@@ -347,7 +369,7 @@ class RealSenseCamera(Camera):
         depth_map_processed = self._postprocess_image(depth_map, depth_frame=True)
 
         read_duration_ms = (time.perf_counter() - start_time) * 1e3
-        logger.debug(f"{self} read took: {read_duration_ms:.1f}ms")
+        logger.debug(f'{self} read took: {read_duration_ms:.1f}ms')
 
         return depth_map_processed
 
@@ -372,14 +394,14 @@ class RealSenseCamera(Camera):
         """
 
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"{self} is not connected.")
+            raise DeviceNotConnectedError(f'{self} is not connected.')
 
         start_time = time.perf_counter()
 
         ret, frame = self.rs_pipeline.try_wait_for_frames(timeout_ms=timeout_ms)
 
         if not ret or frame is None:
-            raise RuntimeError(f"{self} read failed (status={ret}).")
+            raise RuntimeError(f'{self} read failed (status={ret}).')
 
         color_frame = frame.get_color_frame()
         color_image_raw = np.asanyarray(color_frame.get_data())
@@ -387,7 +409,7 @@ class RealSenseCamera(Camera):
         color_image_processed = self._postprocess_image(color_image_raw, color_mode)
 
         read_duration_ms = (time.perf_counter() - start_time) * 1e3
-        logger.debug(f"{self} read took: {read_duration_ms:.1f}ms")
+        logger.debug(f'{self} read took: {read_duration_ms:.1f}ms')
 
         return color_image_processed
 
@@ -422,18 +444,24 @@ class RealSenseCamera(Camera):
             h, w, c = image.shape
 
             if c != 3:
-                raise RuntimeError(f"{self} frame channels={c} do not match expected 3 channels (RGB/BGR).")
+                raise RuntimeError(
+                    f'{self} frame channels={c} do not match expected 3 channels (RGB/BGR).'
+                )
 
         if h != self.capture_height or w != self.capture_width:
             raise RuntimeError(
-                f"{self} frame width={w} or height={h} do not match configured width={self.capture_width} or height={self.capture_height}."
+                f'{self} frame width={w} or height={h} do not match configured width={self.capture_width} or height={self.capture_height}.'
             )
 
         processed_image = image
         if self.color_mode == ColorMode.BGR:
             processed_image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        if self.rotation in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE, cv2.ROTATE_180]:
+        if self.rotation in [
+            cv2.ROTATE_90_CLOCKWISE,
+            cv2.ROTATE_90_COUNTERCLOCKWISE,
+            cv2.ROTATE_180,
+        ]:
             processed_image = cv2.rotate(processed_image, self.rotation)
 
         return processed_image
@@ -460,7 +488,7 @@ class RealSenseCamera(Camera):
             except DeviceNotConnectedError:
                 break
             except Exception as e:
-                logger.warning(f"Error reading frame in background thread for {self}: {e}")
+                logger.warning(f'Error reading frame in background thread for {self}: {e}')
 
     def _start_read_thread(self) -> None:
         """Starts or restarts the background read thread if it's not running."""
@@ -470,7 +498,7 @@ class RealSenseCamera(Camera):
             self.stop_event.set()
 
         self.stop_event = Event()
-        self.thread = Thread(target=self._read_loop, args=(), name=f"{self}_read_loop")
+        self.thread = Thread(target=self._read_loop, args=(), name=f'{self}_read_loop')
         self.thread.daemon = True
         self.thread.start()
 
@@ -508,7 +536,7 @@ class RealSenseCamera(Camera):
             RuntimeError: If the background thread died unexpectedly or another error occurs.
         """
         if not self.is_connected:
-            raise DeviceNotConnectedError(f"{self} is not connected.")
+            raise DeviceNotConnectedError(f'{self} is not connected.')
 
         if self.thread is None or not self.thread.is_alive():
             self._start_read_thread()
@@ -516,8 +544,8 @@ class RealSenseCamera(Camera):
         if not self.new_frame_event.wait(timeout=timeout_ms / 1000.0):
             thread_alive = self.thread is not None and self.thread.is_alive()
             raise TimeoutError(
-                f"Timed out waiting for frame from camera {self} after {timeout_ms} ms. "
-                f"Read thread alive: {thread_alive}."
+                f'Timed out waiting for frame from camera {self} after {timeout_ms} ms. '
+                f'Read thread alive: {thread_alive}.'
             )
 
         with self.frame_lock:
@@ -525,7 +553,7 @@ class RealSenseCamera(Camera):
             self.new_frame_event.clear()
 
         if frame is None:
-            raise RuntimeError(f"Internal error: Event set but no frame available for {self}.")
+            raise RuntimeError(f'Internal error: Event set but no frame available for {self}.')
 
         return frame
 
@@ -541,7 +569,7 @@ class RealSenseCamera(Camera):
 
         if not self.is_connected and self.thread is None:
             raise DeviceNotConnectedError(
-                f"Attempted to disconnect {self}, but it appears already disconnected."
+                f'Attempted to disconnect {self}, but it appears already disconnected.'
             )
 
         if self.thread is not None:
@@ -552,4 +580,4 @@ class RealSenseCamera(Camera):
             self.rs_pipeline = None
             self.rs_profile = None
 
-        logger.info(f"{self} disconnected.")
+        logger.info(f'{self} disconnected.')

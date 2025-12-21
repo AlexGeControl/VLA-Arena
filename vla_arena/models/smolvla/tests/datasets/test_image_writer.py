@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,17 +32,18 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from PIL import Image
-
 from lerobot.datasets.image_writer import (
     AsyncImageWriter,
     image_array_to_pil_image,
     safe_stop_image_writer,
     write_image,
 )
+from PIL import Image
+
 from tests.fixtures.constants import DUMMY_HWC
 
-DUMMY_IMAGE = "test_image.png"
+
+DUMMY_IMAGE = 'test_image.png'
 
 
 def test_init_threading():
@@ -79,7 +94,7 @@ def test_image_array_to_pil_image_rgb(img_array_factory):
     result_image = image_array_to_pil_image(img_array)
     assert isinstance(result_image, Image.Image)
     assert result_image.size == (100, 100)
-    assert result_image.mode == "RGB"
+    assert result_image.mode == 'RGB'
 
 
 def test_image_array_to_pil_image_pytorch_format(img_array_factory):
@@ -87,7 +102,7 @@ def test_image_array_to_pil_image_pytorch_format(img_array_factory):
     result_image = image_array_to_pil_image(img_array)
     assert isinstance(result_image, Image.Image)
     assert result_image.size == (100, 100)
-    assert result_image.mode == "RGB"
+    assert result_image.mode == 'RGB'
 
 
 def test_image_array_to_pil_image_single_channel(img_array_factory):
@@ -107,7 +122,7 @@ def test_image_array_to_pil_image_float_array(img_array_factory):
     result_image = image_array_to_pil_image(img_array)
     assert isinstance(result_image, Image.Image)
     assert result_image.size == (100, 100)
-    assert result_image.mode == "RGB"
+    assert result_image.mode == 'RGB'
     assert np.array(result_image).dtype == np.uint8
 
 
@@ -116,7 +131,7 @@ def test_image_array_to_pil_image_uint8_array(img_array_factory):
     result_image = image_array_to_pil_image(img_array)
     assert isinstance(result_image, Image.Image)
     assert result_image.size == (100, 100)
-    assert result_image.mode == "RGB"
+    assert result_image.mode == 'RGB'
     assert np.array(result_image).dtype == np.uint8
 
 
@@ -140,9 +155,9 @@ def test_write_image_image(tmp_path, img_factory):
 
 
 def test_write_image_exception(tmp_path):
-    image_array = "invalid data"
+    image_array = 'invalid data'
     fpath = tmp_path / DUMMY_IMAGE
-    with patch("builtins.print") as mock_print:
+    with patch('builtins.print') as mock_print:
         write_image(image_array, fpath)
         mock_print.assert_called()
         assert not fpath.exists()
@@ -240,10 +255,10 @@ def test_save_image_pil_multiprocessing(tmp_path, img_factory):
 def test_save_image_invalid_data(tmp_path):
     writer = AsyncImageWriter()
     try:
-        image_array = "invalid data"
+        image_array = 'invalid data'
         fpath = tmp_path / DUMMY_IMAGE
         fpath.parent.mkdir(parents=True, exist_ok=True)
-        with patch("builtins.print") as mock_print:
+        with patch('builtins.print') as mock_print:
             writer.save_image(image_array, fpath)
             writer.wait_until_done()
             mock_print.assert_called()
@@ -293,7 +308,7 @@ def test_wait_until_done(tmp_path, img_array_factory):
     try:
         num_images = 100
         image_arrays = [img_array_factory(height=500, width=500) for _ in range(num_images)]
-        fpaths = [tmp_path / f"frame_{i:06d}.png" for i in range(num_images)]
+        fpaths = [tmp_path / f'frame_{i:06d}.png' for i in range(num_images)]
         for image_array, fpath in zip(image_arrays, fpaths, strict=True):
             fpath.parent.mkdir(parents=True, exist_ok=True)
             writer.save_image(image_array, fpath)
@@ -311,7 +326,7 @@ def test_wait_until_done_multiprocessing(tmp_path, img_array_factory):
     try:
         num_images = 100
         image_arrays = [img_array_factory() for _ in range(num_images)]
-        fpaths = [tmp_path / f"frame_{i:06d}.png" for i in range(num_images)]
+        fpaths = [tmp_path / f'frame_{i:06d}.png' for i in range(num_images)]
         for image_array, fpath in zip(image_arrays, fpaths, strict=True):
             fpath.parent.mkdir(parents=True, exist_ok=True)
             writer.save_image(image_array, fpath)
@@ -329,11 +344,11 @@ def test_exception_handling(tmp_path, img_array_factory):
     try:
         image_array = img_array_factory()
         with (
-            patch.object(writer.queue, "put", side_effect=queue.Full("Queue is full")),
+            patch.object(writer.queue, 'put', side_effect=queue.Full('Queue is full')),
             pytest.raises(queue.Full) as exc_info,
         ):
-            writer.save_image(image_array, tmp_path / "test.png")
-        assert str(exc_info.value) == "Queue is full"
+            writer.save_image(image_array, tmp_path / 'test.png')
+        assert str(exc_info.value) == 'Queue is full'
     finally:
         writer.stop()
 
@@ -342,9 +357,9 @@ def test_with_different_image_formats(tmp_path, img_array_factory):
     writer = AsyncImageWriter()
     try:
         image_array = img_array_factory()
-        formats = ["png", "jpeg", "bmp"]
+        formats = ['png', 'jpeg', 'bmp']
         for fmt in formats:
-            fpath = tmp_path / f"test_image.{fmt}"
+            fpath = tmp_path / f'test_image.{fmt}'
             write_image(image_array, fpath)
             assert fpath.exists()
     finally:
@@ -358,14 +373,14 @@ def test_safe_stop_image_writer_decorator():
 
     @safe_stop_image_writer
     def function_that_raises_exception(dataset=None):
-        raise Exception("Test exception")
+        raise Exception('Test exception')
 
     dataset = MockDataset()
 
     with pytest.raises(Exception) as exc_info:
         function_that_raises_exception(dataset=dataset)
 
-    assert str(exc_info.value) == "Test exception"
+    assert str(exc_info.value) == 'Test exception'
     dataset.image_writer.stop.assert_called_once()
 
 
@@ -379,7 +394,7 @@ def test_main_process_time(tmp_path, img_tensor_factory):
         end_time = time.perf_counter()
         time_spent = end_time - start_time
         # Might need to adjust this threshold depending on hardware
-        assert time_spent < 0.01, f"Main process time exceeded threshold: {time_spent}s"
+        assert time_spent < 0.01, f'Main process time exceeded threshold: {time_spent}s'
         writer.wait_until_done()
         assert fpath.exists()
     finally:

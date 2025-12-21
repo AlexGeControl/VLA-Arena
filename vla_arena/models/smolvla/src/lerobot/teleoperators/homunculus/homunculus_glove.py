@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +35,6 @@ from pprint import pformat
 from typing import Deque
 
 import serial
-
 from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from lerobot.motors import MotorCalibration
 from lerobot.motors.motors_bus import MotorNormMode
@@ -31,30 +44,31 @@ from lerobot.utils.utils import enter_pressed, move_cursor_up
 from ..teleoperator import Teleoperator
 from .config_homunculus import HomunculusGloveConfig
 
+
 logger = logging.getLogger(__name__)
 
 LEFT_HAND_INVERSIONS = [
-    "thumb_cmc",
-    "index_dip",
-    "middle_mcp_abduction",
-    "middle_dip",
-    "pinky_mcp_abduction",
-    "pinky_dip",
+    'thumb_cmc',
+    'index_dip',
+    'middle_mcp_abduction',
+    'middle_dip',
+    'pinky_mcp_abduction',
+    'pinky_dip',
 ]
 
 RIGHT_HAND_INVERSIONS = [
-    "thumb_mcp",
-    "thumb_cmc",
-    "thumb_pip",
-    "thumb_dip",
-    "index_mcp_abduction",
+    'thumb_mcp',
+    'thumb_cmc',
+    'thumb_pip',
+    'thumb_dip',
+    'index_mcp_abduction',
     # "index_dip",
-    "middle_mcp_abduction",
+    'middle_mcp_abduction',
     # "middle_dip",
-    "ring_mcp_abduction",
-    "ring_mcp_flexion",
+    'ring_mcp_abduction',
+    'ring_mcp_flexion',
     # "ring_dip",
-    "pinky_mcp_abduction",
+    'pinky_mcp_abduction',
 ]
 
 
@@ -64,7 +78,7 @@ class HomunculusGlove(Teleoperator):
     """
 
     config_class = HomunculusGloveConfig
-    name = "homunculus_glove"
+    name = 'homunculus_glove'
 
     def __init__(self, config: HomunculusGloveConfig):
         super().__init__(config)
@@ -73,24 +87,26 @@ class HomunculusGlove(Teleoperator):
         self.serial_lock = threading.Lock()
 
         self.joints = {
-            "thumb_cmc": MotorNormMode.RANGE_0_100,
-            "thumb_mcp": MotorNormMode.RANGE_0_100,
-            "thumb_pip": MotorNormMode.RANGE_0_100,
-            "thumb_dip": MotorNormMode.RANGE_0_100,
-            "index_mcp_abduction": MotorNormMode.RANGE_M100_100,
-            "index_mcp_flexion": MotorNormMode.RANGE_0_100,
-            "index_dip": MotorNormMode.RANGE_0_100,
-            "middle_mcp_abduction": MotorNormMode.RANGE_M100_100,
-            "middle_mcp_flexion": MotorNormMode.RANGE_0_100,
-            "middle_dip": MotorNormMode.RANGE_0_100,
-            "ring_mcp_abduction": MotorNormMode.RANGE_M100_100,
-            "ring_mcp_flexion": MotorNormMode.RANGE_0_100,
-            "ring_dip": MotorNormMode.RANGE_0_100,
-            "pinky_mcp_abduction": MotorNormMode.RANGE_M100_100,
-            "pinky_mcp_flexion": MotorNormMode.RANGE_0_100,
-            "pinky_dip": MotorNormMode.RANGE_0_100,
+            'thumb_cmc': MotorNormMode.RANGE_0_100,
+            'thumb_mcp': MotorNormMode.RANGE_0_100,
+            'thumb_pip': MotorNormMode.RANGE_0_100,
+            'thumb_dip': MotorNormMode.RANGE_0_100,
+            'index_mcp_abduction': MotorNormMode.RANGE_M100_100,
+            'index_mcp_flexion': MotorNormMode.RANGE_0_100,
+            'index_dip': MotorNormMode.RANGE_0_100,
+            'middle_mcp_abduction': MotorNormMode.RANGE_M100_100,
+            'middle_mcp_flexion': MotorNormMode.RANGE_0_100,
+            'middle_dip': MotorNormMode.RANGE_0_100,
+            'ring_mcp_abduction': MotorNormMode.RANGE_M100_100,
+            'ring_mcp_flexion': MotorNormMode.RANGE_0_100,
+            'ring_dip': MotorNormMode.RANGE_0_100,
+            'pinky_mcp_abduction': MotorNormMode.RANGE_M100_100,
+            'pinky_mcp_flexion': MotorNormMode.RANGE_0_100,
+            'pinky_dip': MotorNormMode.RANGE_0_100,
         }
-        self.inverted_joints = RIGHT_HAND_INVERSIONS if config.side == "right" else LEFT_HAND_INVERSIONS
+        self.inverted_joints = (
+            RIGHT_HAND_INVERSIONS if config.side == 'right' else LEFT_HAND_INVERSIONS
+        )
 
         n = 10
         # EMA parameters ---------------------------------------------------
@@ -104,12 +120,14 @@ class HomunculusGlove(Teleoperator):
         self._state: dict[str, float] | None = None
         self.new_state_event = threading.Event()
         self.stop_event = threading.Event()
-        self.thread = threading.Thread(target=self._read_loop, daemon=True, name=f"{self} _read_loop")
+        self.thread = threading.Thread(
+            target=self._read_loop, daemon=True, name=f'{self} _read_loop'
+        )
         self.state_lock = threading.Lock()
 
     @property
     def action_features(self) -> dict:
-        return {f"{joint}.pos": float for joint in self.joints}
+        return {f'{joint}.pos': float for joint in self.joints}
 
     @property
     def feedback_features(self) -> dict:
@@ -122,7 +140,7 @@ class HomunculusGlove(Teleoperator):
 
     def connect(self, calibrate: bool = True) -> None:
         if self.is_connected:
-            raise DeviceAlreadyConnectedError(f"{self} already connected")
+            raise DeviceAlreadyConnectedError(f'{self} already connected')
 
         if not self.serial.is_open:
             self.serial.open()
@@ -130,12 +148,12 @@ class HomunculusGlove(Teleoperator):
 
         # wait for the thread to ramp up & 1st state to be ready
         if not self.new_state_event.wait(timeout=2):
-            raise TimeoutError(f"{self}: Timed out waiting for state after 2s.")
+            raise TimeoutError(f'{self}: Timed out waiting for state after 2s.')
 
         if not self.is_calibrated and calibrate:
             self.calibrate()
 
-        logger.info(f"{self} connected.")
+        logger.info(f'{self} connected.')
 
     @property
     def is_calibrated(self) -> bool:
@@ -143,10 +161,10 @@ class HomunculusGlove(Teleoperator):
 
     def calibrate(self) -> None:
         range_mins, range_maxes = {}, {}
-        for finger in ["thumb", "index", "middle", "ring", "pinky"]:
+        for finger in ['thumb', 'index', 'middle', 'ring', 'pinky']:
             print(
-                f"\nMove {finger} through its entire range of motion."
-                "\nRecording positions. Press ENTER to stop..."
+                f'\nMove {finger} through its entire range of motion.'
+                '\nRecording positions. Press ENTER to stop...'
             )
             finger_joints = [joint for joint in self.joints if joint.startswith(finger)]
             finger_mins, finger_maxes = self._record_ranges_of_motion(finger_joints)
@@ -164,7 +182,7 @@ class HomunculusGlove(Teleoperator):
             )
 
         self._save_calibration()
-        print("Calibration saved to", self.calibration_fpath)
+        print('Calibration saved to', self.calibration_fpath)
 
     # TODO(Steven): This function is copy/paste from the `HomunculusArm` class. Consider moving it to an utility to reduce duplicated code.
     def _record_ranges_of_motion(
@@ -204,11 +222,11 @@ class HomunculusGlove(Teleoperator):
             maxes = {joint: int(max(positions[joint], max_)) for joint, max_ in maxes.items()}
 
             if display_values:
-                print("\n-------------------------------------------")
+                print('\n-------------------------------------------')
                 print(f"{'NAME':<{display_len}} | {'MIN':>6} | {'POS':>6} | {'MAX':>6}")
                 for joint in joints:
                     print(
-                        f"{joint:<{display_len}} | {mins[joint]:>6} | {positions[joint]:>6} | {maxes[joint]:>6}"
+                        f'{joint:<{display_len}} | {mins[joint]:>6} | {positions[joint]:>6} | {maxes[joint]:>6}'
                     )
 
             if enter_pressed():
@@ -220,7 +238,9 @@ class HomunculusGlove(Teleoperator):
 
         same_min_max = [joint for joint in joints if mins[joint] == maxes[joint]]
         if same_min_max:
-            raise ValueError(f"Some joints have the same min and max values:\n{pformat(same_min_max)}")
+            raise ValueError(
+                f'Some joints have the same min and max values:\n{pformat(same_min_max)}'
+            )
 
         return mins, maxes
 
@@ -230,7 +250,7 @@ class HomunculusGlove(Teleoperator):
     # TODO(Steven): This function is copy/paste from the `HomunculusArm` class. Consider moving it to an utility to reduce duplicated code.
     def _normalize(self, values: dict[str, int]) -> dict[str, float]:
         if not self.calibration:
-            raise RuntimeError(f"{self} has no calibration registered.")
+            raise RuntimeError(f'{self} has no calibration registered.')
 
         normalized_values = {}
         for joint, val in values.items():
@@ -273,7 +293,7 @@ class HomunculusGlove(Teleoperator):
         optionally applying calibration.
         """
         if not self.new_state_event.wait(timeout=timeout):
-            raise TimeoutError(f"{self}: Timed out waiting for state after {timeout}s.")
+            raise TimeoutError(f'{self}: Timed out waiting for state after {timeout}s.')
 
         with self.state_lock:
             state = self._state
@@ -281,7 +301,7 @@ class HomunculusGlove(Teleoperator):
         self.new_state_event.clear()
 
         if state is None:
-            raise RuntimeError(f"{self} Internal error: Event set but no state available.")
+            raise RuntimeError(f'{self} Internal error: Event set but no state available.')
 
         if joints is not None:
             state = {k: v for k, v in state.items() if k in joints}
@@ -306,23 +326,25 @@ class HomunculusGlove(Teleoperator):
                 with self.serial_lock:
                     if self.serial.in_waiting > 0:
                         self.serial.flush()
-                        positions = self.serial.readline().decode("utf-8").strip().split(" ")
+                        positions = self.serial.readline().decode('utf-8').strip().split(' ')
                 if positions is None or len(positions) != len(self.joints):
                     continue
 
-                joint_positions = {joint: int(pos) for joint, pos in zip(self.joints, positions, strict=True)}
+                joint_positions = {
+                    joint: int(pos) for joint, pos in zip(self.joints, positions, strict=True)
+                }
 
                 with self.state_lock:
                     self._state = joint_positions
                 self.new_state_event.set()
 
             except Exception as e:
-                logger.debug(f"Error reading frame in background thread for {self}: {e}")
+                logger.debug(f'Error reading frame in background thread for {self}: {e}')
 
     def get_action(self) -> dict[str, float]:
         joint_positions = self._read()
         return homunculus_glove_to_hope_jr_hand(
-            {f"{joint}.pos": pos for joint, pos in joint_positions.items()}
+            {f'{joint}.pos': pos for joint, pos in joint_positions.items()}
         )
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
@@ -330,9 +352,9 @@ class HomunculusGlove(Teleoperator):
 
     def disconnect(self) -> None:
         if not self.is_connected:
-            DeviceNotConnectedError(f"{self} is not connected.")
+            DeviceNotConnectedError(f'{self} is not connected.')
 
         self.stop_event.set()
         self.thread.join(timeout=1)
         self.serial.close()
-        logger.info(f"{self} disconnected.")
+        logger.info(f'{self} disconnected.')

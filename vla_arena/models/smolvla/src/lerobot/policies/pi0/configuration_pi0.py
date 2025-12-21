@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +31,10 @@ from dataclasses import dataclass, field
 from lerobot.configs.policies import PreTrainedConfig
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.optim.optimizers import AdamWConfig
-from lerobot.optim.schedulers import (
-    CosineDecayWithWarmupSchedulerConfig,
-)
+from lerobot.optim.schedulers import CosineDecayWithWarmupSchedulerConfig
 
 
-@PreTrainedConfig.register_subclass("pi0")
+@PreTrainedConfig.register_subclass('pi0')
 @dataclass
 class PI0Config(PreTrainedConfig):
     # Input / output structure.
@@ -32,9 +44,9 @@ class PI0Config(PreTrainedConfig):
 
     normalization_mapping: dict[str, NormalizationMode] = field(
         default_factory=lambda: {
-            "VISUAL": NormalizationMode.IDENTITY,
-            "STATE": NormalizationMode.MEAN_STD,
-            "ACTION": NormalizationMode.MEAN_STD,
+            'VISUAL': NormalizationMode.IDENTITY,
+            'STATE': NormalizationMode.MEAN_STD,
+            'ACTION': NormalizationMode.MEAN_STD,
         }
     )
 
@@ -68,7 +80,7 @@ class PI0Config(PreTrainedConfig):
 
     # Attention utils
     use_cache: bool = True
-    attention_implementation: str = "eager"  # or fa2, flex
+    attention_implementation: str = 'eager'  # or fa2, flex
 
     # Finetuning settings
     freeze_vision_encoder: bool = True
@@ -94,17 +106,17 @@ class PI0Config(PreTrainedConfig):
         """Input validation (not exhaustive)."""
         if self.n_action_steps > self.chunk_size:
             raise ValueError(
-                f"The chunk size is the upper bound for the number of action steps per model invocation. Got "
-                f"{self.n_action_steps} for `n_action_steps` and {self.chunk_size} for `chunk_size`."
+                f'The chunk size is the upper bound for the number of action steps per model invocation. Got '
+                f'{self.n_action_steps} for `n_action_steps` and {self.chunk_size} for `chunk_size`.'
             )
         if self.n_obs_steps != 1:
             raise ValueError(
-                f"Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`"
+                f'Multiple observation steps not handled yet. Got `nobs_steps={self.n_obs_steps}`'
             )
 
         if self.use_delta_joint_actions_aloha:
             raise NotImplementedError(
-                "`use_delta_joint_actions_aloha` is used by pi0 for aloha real models. It is not ported yet in LeRobot."
+                '`use_delta_joint_actions_aloha` is used by pi0 for aloha real models. It is not ported yet in LeRobot.'
             )
 
     def validate_features(self) -> None:
@@ -113,7 +125,7 @@ class PI0Config(PreTrainedConfig):
         #     raise ValueError("You must provide at least one image or the environment state among the inputs.")
 
         for i in range(self.empty_cameras):
-            key = f"observation.images.empty_camera_{i}"
+            key = f'observation.images.empty_camera_{i}'
             empty_camera = PolicyFeature(
                 type=FeatureType.VISUAL,
                 shape=(3, 480, 640),

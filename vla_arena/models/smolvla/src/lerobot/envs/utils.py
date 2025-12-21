@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +34,10 @@ import einops
 import gymnasium as gym
 import numpy as np
 import torch
-from torch import Tensor
-
 from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.envs.configs import EnvConfig
 from lerobot.utils.utils import get_channel_first_image_shape
+from torch import Tensor
 
 
 def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Tensor]:
@@ -37,11 +50,11 @@ def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Ten
     """
     # map to expected inputs for the policy
     return_observations = {}
-    if "pixels" in observations:
-        if isinstance(observations["pixels"], dict):
-            imgs = {f"observation.images.{key}": img for key, img in observations["pixels"].items()}
+    if 'pixels' in observations:
+        if isinstance(observations['pixels'], dict):
+            imgs = {f'observation.images.{key}': img for key, img in observations['pixels'].items()}
         else:
-            imgs = {"observation.image": observations["pixels"]}
+            imgs = {'observation.image': observations['pixels']}
 
         for imgkey, img in imgs.items():
             # TODO(aliberts, rcadene): use transforms.ToTensor()?
@@ -53,30 +66,30 @@ def preprocess_observation(observations: dict[str, np.ndarray]) -> dict[str, Ten
                 img = img.unsqueeze(0)
             # sanity check that images are channel last
             _, h, w, c = img.shape
-            assert c < h and c < w, f"expect channel last images, but instead got {img.shape=}"
+            assert c < h and c < w, f'expect channel last images, but instead got {img.shape=}'
 
             # sanity check that images are uint8
-            assert img.dtype == torch.uint8, f"expect torch.uint8, but instead {img.dtype=}"
+            assert img.dtype == torch.uint8, f'expect torch.uint8, but instead {img.dtype=}'
 
             # convert to channel first of type float32 in range [0,1]
-            img = einops.rearrange(img, "b h w c -> b c h w").contiguous()
+            img = einops.rearrange(img, 'b h w c -> b c h w').contiguous()
             img = img.type(torch.float32)
             img /= 255
 
             return_observations[imgkey] = img
 
-    if "environment_state" in observations:
-        env_state = torch.from_numpy(observations["environment_state"]).float()
+    if 'environment_state' in observations:
+        env_state = torch.from_numpy(observations['environment_state']).float()
         if env_state.dim() == 1:
             env_state = env_state.unsqueeze(0)
 
-        return_observations["observation.environment_state"] = env_state
+        return_observations['observation.environment_state'] = env_state
 
     # TODO(rcadene): enable pixels only baseline with `obs_type="pixels"` in environment by removing
-    agent_pos = torch.from_numpy(observations["agent_pos"]).float()
+    agent_pos = torch.from_numpy(observations['agent_pos']).float()
     if agent_pos.dim() == 1:
         agent_pos = agent_pos.unsqueeze(0)
-    return_observations["observation.state"] = agent_pos
+    return_observations['observation.state'] = agent_pos
 
     return return_observations
 
@@ -88,7 +101,7 @@ def env_to_policy_features(env_cfg: EnvConfig) -> dict[str, PolicyFeature]:
     for key, ft in env_cfg.features.items():
         if ft.type is FeatureType.VISUAL:
             if len(ft.shape) != 3:
-                raise ValueError(f"Number of dimensions of {key} != 3 (shape={ft.shape})")
+                raise ValueError(f'Number of dimensions of {key} != 3 (shape={ft.shape})')
 
             shape = get_channel_first_image_shape(ft.shape)
             feature = PolicyFeature(type=ft.type, shape=shape)
@@ -108,9 +121,9 @@ def are_all_envs_same_type(env: gym.vector.VectorEnv) -> bool:
 
 def check_env_attributes_and_types(env: gym.vector.VectorEnv) -> None:
     with warnings.catch_warnings():
-        warnings.simplefilter("once", UserWarning)  # Apply filter only in this function
+        warnings.simplefilter('once', UserWarning)  # Apply filter only in this function
 
-        if not (hasattr(env.envs[0], "task_description") and hasattr(env.envs[0], "task")):
+        if not (hasattr(env.envs[0], 'task_description') and hasattr(env.envs[0], 'task')):
             warnings.warn(
                 "The environment does not have 'task_description' and 'task'. Some policies require these features.",
                 UserWarning,
@@ -118,7 +131,7 @@ def check_env_attributes_and_types(env: gym.vector.VectorEnv) -> None:
             )
         if not are_all_envs_same_type(env):
             warnings.warn(
-                "The environments have different types. Make sure you infer the right task from each environment. Empty task will be passed instead.",
+                'The environments have different types. Make sure you infer the right task from each environment. Empty task will be passed instead.',
                 UserWarning,
                 stacklevel=2,
             )
@@ -126,11 +139,11 @@ def check_env_attributes_and_types(env: gym.vector.VectorEnv) -> None:
 
 def add_envs_task(env: gym.vector.VectorEnv, observation: dict[str, Any]) -> dict[str, Any]:
     """Adds task feature to the observation dict with respect to the first environment attribute."""
-    if hasattr(env.envs[0], "task_description"):
-        observation["task"] = env.call("task_description")
-    elif hasattr(env.envs[0], "task"):
-        observation["task"] = env.call("task")
+    if hasattr(env.envs[0], 'task_description'):
+        observation['task'] = env.call('task_description')
+    elif hasattr(env.envs[0], 'task'):
+        observation['task'] = env.call('task')
     else:  #  For envs without language instructions, e.g. aloha transfer cube and etc.
         num_envs = observation[list(observation.keys())[0]].shape[0]
-        observation["task"] = ["" for _ in range(num_envs)]
+        observation['task'] = ['' for _ in range(num_envs)]
     return observation

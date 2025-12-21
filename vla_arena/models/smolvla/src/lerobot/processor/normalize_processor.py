@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,11 +20,10 @@ from typing import Any
 
 import numpy as np
 import torch
-from torch import Tensor
-
 from lerobot.configs.types import FeatureType, NormalizationMode, PolicyFeature
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.processor.pipeline import EnvTransition, ProcessorStepRegistry, TransitionKey
+from torch import Tensor
 
 
 def _convert_stats_to_tensors(stats: dict[str, dict[str, Any]]) -> dict[str, dict[str, Tensor]]:
@@ -26,13 +39,15 @@ def _convert_stats_to_tensors(stats: dict[str, dict[str, Any]]) -> dict[str, dic
             elif isinstance(value, (int, float, list, tuple)):
                 tensor_val = torch.tensor(value, dtype=torch.float32)
             else:
-                raise TypeError(f"Unsupported type for stats['{key}']['{stat_name}']: {type(value)}")
+                raise TypeError(
+                    f"Unsupported type for stats['{key}']['{stat_name}']: {type(value)}"
+                )
             tensor_stats[key][stat_name] = tensor_val
     return tensor_stats
 
 
 @dataclass
-@ProcessorStepRegistry.register(name="normalizer_processor")
+@ProcessorStepRegistry.register(name='normalizer_processor')
 class NormalizerProcessor:
     """Normalizes observations and actions in a single processor step.
 
@@ -61,7 +76,9 @@ class NormalizerProcessor:
 
     eps: float = 1e-8
 
-    _tensor_stats: dict[str, dict[str, Tensor]] = field(default_factory=dict, init=False, repr=False)
+    _tensor_stats: dict[str, dict[str, Tensor]] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     @classmethod
     def from_lerobot_dataset(
@@ -94,7 +111,7 @@ class NormalizerProcessor:
             reconstructed_features = {}
             for key, ft_dict in self.features.items():
                 reconstructed_features[key] = PolicyFeature(
-                    type=FeatureType(ft_dict["type"]), shape=tuple(ft_dict["shape"])
+                    type=FeatureType(ft_dict['type']), shape=tuple(ft_dict['shape'])
                 )
             self.features = reconstructed_features
 
@@ -124,7 +141,9 @@ class NormalizerProcessor:
             keys_to_norm = self.normalize_keys
         else:
             # Use feature map to skip action keys.
-            keys_to_norm = {k for k, ft in self.features.items() if ft.type is not FeatureType.ACTION}
+            keys_to_norm = {
+                k for k, ft in self.features.items() if ft.type is not FeatureType.ACTION
+            }
 
         processed = dict(observation)
         for key in keys_to_norm:
@@ -139,16 +158,16 @@ class NormalizerProcessor:
             )
             stats = {k: v.to(tensor.device) for k, v in self._tensor_stats[key].items()}
 
-            if "mean" in stats and "std" in stats:
-                mean, std = stats["mean"], stats["std"]
+            if 'mean' in stats and 'std' in stats:
+                mean, std = stats['mean'], stats['std']
                 processed[key] = (tensor - mean) / (std + self.eps)
-            elif "min" in stats and "max" in stats:
-                min_val, max_val = stats["min"], stats["max"]
+            elif 'min' in stats and 'max' in stats:
+                min_val, max_val = stats['min'], stats['max']
                 processed[key] = 2 * (tensor - min_val) / (max_val - min_val + self.eps) - 1
         return processed
 
     def _normalize_action(self, action):
-        if action is None or "action" not in self._tensor_stats:
+        if action is None or 'action' not in self._tensor_stats:
             return action
 
         tensor = (
@@ -156,12 +175,12 @@ class NormalizerProcessor:
             if isinstance(action, torch.Tensor)
             else torch.as_tensor(action, dtype=torch.float32)
         )
-        stats = {k: v.to(tensor.device) for k, v in self._tensor_stats["action"].items()}
-        if "mean" in stats and "std" in stats:
-            mean, std = stats["mean"], stats["std"]
+        stats = {k: v.to(tensor.device) for k, v in self._tensor_stats['action'].items()}
+        if 'mean' in stats and 'std' in stats:
+            mean, std = stats['mean'], stats['std']
             return (tensor - mean) / (std + self.eps)
-        if "min" in stats and "max" in stats:
-            min_val, max_val = stats["min"], stats["max"]
+        if 'min' in stats and 'max' in stats:
+            min_val, max_val = stats['min'], stats['max']
             return 2 * (tensor - min_val) / (max_val - min_val + self.eps) - 1
         raise ValueError("Action stats must contain either ('mean','std') or ('min','max')")
 
@@ -177,28 +196,30 @@ class NormalizerProcessor:
 
     def get_config(self) -> dict[str, Any]:
         config = {
-            "eps": self.eps,
-            "features": {
-                key: {"type": ft.type.value, "shape": ft.shape} for key, ft in self.features.items()
+            'eps': self.eps,
+            'features': {
+                key: {'type': ft.type.value, 'shape': ft.shape} for key, ft in self.features.items()
             },
-            "norm_map": {ft_type.value: norm_mode.value for ft_type, norm_mode in self.norm_map.items()},
+            'norm_map': {
+                ft_type.value: norm_mode.value for ft_type, norm_mode in self.norm_map.items()
+            },
         }
         if self.normalize_keys is not None:
             # Serialise as a list for YAML / JSON friendliness
-            config["normalize_keys"] = sorted(self.normalize_keys)
+            config['normalize_keys'] = sorted(self.normalize_keys)
         return config
 
     def state_dict(self) -> dict[str, Tensor]:
         flat = {}
         for key, sub in self._tensor_stats.items():
             for stat_name, tensor in sub.items():
-                flat[f"{key}.{stat_name}"] = tensor
+                flat[f'{key}.{stat_name}'] = tensor
         return flat
 
     def load_state_dict(self, state: Mapping[str, Tensor]) -> None:
         self._tensor_stats.clear()
         for flat_key, tensor in state.items():
-            key, stat_name = flat_key.rsplit(".", 1)
+            key, stat_name = flat_key.rsplit('.', 1)
             self._tensor_stats.setdefault(key, {})[stat_name] = tensor
 
     def reset(self):
@@ -209,7 +230,7 @@ class NormalizerProcessor:
 
 
 @dataclass
-@ProcessorStepRegistry.register(name="unnormalizer_processor")
+@ProcessorStepRegistry.register(name='unnormalizer_processor')
 class UnnormalizerProcessor:
     """Inverse normalisation for observations and actions.
 
@@ -221,7 +242,9 @@ class UnnormalizerProcessor:
     norm_map: dict[FeatureType, NormalizationMode]
     stats: dict[str, dict[str, Any]] | None = None
 
-    _tensor_stats: dict[str, dict[str, Tensor]] = field(default_factory=dict, init=False, repr=False)
+    _tensor_stats: dict[str, dict[str, Tensor]] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     @classmethod
     def from_lerobot_dataset(
@@ -239,7 +262,7 @@ class UnnormalizerProcessor:
             reconstructed_features = {}
             for key, ft_dict in self.features.items():
                 reconstructed_features[key] = PolicyFeature(
-                    type=FeatureType(ft_dict["type"]), shape=tuple(ft_dict["shape"])
+                    type=FeatureType(ft_dict['type']), shape=tuple(ft_dict['shape'])
                 )
             self.features = reconstructed_features
 
@@ -268,28 +291,28 @@ class UnnormalizerProcessor:
                 else torch.as_tensor(orig_val, dtype=torch.float32)
             )
             stats = {k: v.to(tensor.device) for k, v in self._tensor_stats[key].items()}
-            if "mean" in stats and "std" in stats:
-                mean, std = stats["mean"], stats["std"]
+            if 'mean' in stats and 'std' in stats:
+                mean, std = stats['mean'], stats['std']
                 processed[key] = tensor * std + mean
-            elif "min" in stats and "max" in stats:
-                min_val, max_val = stats["min"], stats["max"]
+            elif 'min' in stats and 'max' in stats:
+                min_val, max_val = stats['min'], stats['max']
                 processed[key] = (tensor + 1) / 2 * (max_val - min_val) + min_val
         return processed
 
     def _unnormalize_action(self, action):
-        if action is None or "action" not in self._tensor_stats:
+        if action is None or 'action' not in self._tensor_stats:
             return action
         tensor = (
             action.to(dtype=torch.float32)
             if isinstance(action, torch.Tensor)
             else torch.as_tensor(action, dtype=torch.float32)
         )
-        stats = {k: v.to(tensor.device) for k, v in self._tensor_stats["action"].items()}
-        if "mean" in stats and "std" in stats:
-            mean, std = stats["mean"], stats["std"]
+        stats = {k: v.to(tensor.device) for k, v in self._tensor_stats['action'].items()}
+        if 'mean' in stats and 'std' in stats:
+            mean, std = stats['mean'], stats['std']
             return tensor * std + mean
-        if "min" in stats and "max" in stats:
-            min_val, max_val = stats["min"], stats["max"]
+        if 'min' in stats and 'max' in stats:
+            min_val, max_val = stats['min'], stats['max']
             return (tensor + 1) / 2 * (max_val - min_val) + min_val
         raise ValueError("Action stats must contain either ('mean','std') or ('min','max')")
 
@@ -305,23 +328,25 @@ class UnnormalizerProcessor:
 
     def get_config(self) -> dict[str, Any]:
         return {
-            "features": {
-                key: {"type": ft.type.value, "shape": ft.shape} for key, ft in self.features.items()
+            'features': {
+                key: {'type': ft.type.value, 'shape': ft.shape} for key, ft in self.features.items()
             },
-            "norm_map": {ft_type.value: norm_mode.value for ft_type, norm_mode in self.norm_map.items()},
+            'norm_map': {
+                ft_type.value: norm_mode.value for ft_type, norm_mode in self.norm_map.items()
+            },
         }
 
     def state_dict(self) -> dict[str, Tensor]:
         flat = {}
         for key, sub in self._tensor_stats.items():
             for stat_name, tensor in sub.items():
-                flat[f"{key}.{stat_name}"] = tensor
+                flat[f'{key}.{stat_name}'] = tensor
         return flat
 
     def load_state_dict(self, state: Mapping[str, Tensor]) -> None:
         self._tensor_stats.clear()
         for flat_key, tensor in state.items():
-            key, stat_name = flat_key.rsplit(".", 1)
+            key, stat_name = flat_key.rsplit('.', 1)
             self._tensor_stats.setdefault(key, {})[stat_name] = tensor
 
     def reset(self):

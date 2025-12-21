@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,15 +32,14 @@ from dataclasses import dataclass
 import einops
 import numpy as np
 import torch
-from torch import Tensor
-
 from lerobot.configs.types import PolicyFeature
 from lerobot.constants import OBS_ENV_STATE, OBS_IMAGE, OBS_IMAGES, OBS_STATE
 from lerobot.processor.pipeline import ObservationProcessor, ProcessorStepRegistry
+from torch import Tensor
 
 
 @dataclass
-@ProcessorStepRegistry.register(name="observation_processor")
+@ProcessorStepRegistry.register(name='observation_processor')
 class VanillaObservationProcessor(ObservationProcessor):
     """
     Processes environment observations into the LeRobot format by handling both images and states.
@@ -56,13 +69,13 @@ class VanillaObservationProcessor(ObservationProcessor):
         # Validate image format
         _, h, w, c = img_tensor.shape
         if not (c < h and c < w):
-            raise ValueError(f"Expected channel-last images, but got shape {img_tensor.shape}")
+            raise ValueError(f'Expected channel-last images, but got shape {img_tensor.shape}')
 
         if img_tensor.dtype != torch.uint8:
-            raise ValueError(f"Expected torch.uint8 images, but got {img_tensor.dtype}")
+            raise ValueError(f'Expected torch.uint8 images, but got {img_tensor.dtype}')
 
         # Convert to channel-first format
-        img_tensor = einops.rearrange(img_tensor, "b h w c -> b c h w").contiguous()
+        img_tensor = einops.rearrange(img_tensor, 'b h w c -> b c h w').contiguous()
 
         # Convert to float32 and normalize to [0, 1]
         img_tensor = img_tensor.type(torch.float32) / 255.0
@@ -76,26 +89,26 @@ class VanillaObservationProcessor(ObservationProcessor):
 
         processed_obs = observation.copy()
 
-        if "pixels" in processed_obs:
-            pixels = processed_obs.pop("pixels")
+        if 'pixels' in processed_obs:
+            pixels = processed_obs.pop('pixels')
 
             if isinstance(pixels, dict):
-                imgs = {f"{OBS_IMAGES}.{key}": img for key, img in pixels.items()}
+                imgs = {f'{OBS_IMAGES}.{key}': img for key, img in pixels.items()}
             else:
                 imgs = {OBS_IMAGE: pixels}
 
             for imgkey, img in imgs.items():
                 processed_obs[imgkey] = self._process_single_image(img)
 
-        if "environment_state" in processed_obs:
-            env_state_np = processed_obs.pop("environment_state")
+        if 'environment_state' in processed_obs:
+            env_state_np = processed_obs.pop('environment_state')
             env_state = torch.from_numpy(env_state_np).float()
             if env_state.dim() == 1:
                 env_state = env_state.unsqueeze(0)
             processed_obs[OBS_ENV_STATE] = env_state
 
-        if "agent_pos" in processed_obs:
-            agent_pos_np = processed_obs.pop("agent_pos")
+        if 'agent_pos' in processed_obs:
+            agent_pos_np = processed_obs.pop('agent_pos')
             agent_pos = torch.from_numpy(agent_pos_np).float()
             if agent_pos.dim() == 1:
                 agent_pos = agent_pos.unsqueeze(0)
@@ -120,28 +133,28 @@ class VanillaObservationProcessor(ObservationProcessor):
         - observation.agent_pos -> OBS_STATE
         """
         exact_pairs = {
-            "pixels": OBS_IMAGE,
-            "environment_state": OBS_ENV_STATE,
-            "agent_pos": OBS_STATE,
+            'pixels': OBS_IMAGE,
+            'environment_state': OBS_ENV_STATE,
+            'agent_pos': OBS_STATE,
         }
 
         prefix_pairs = {
-            "pixels.": f"{OBS_IMAGES}.",
+            'pixels.': f'{OBS_IMAGES}.',
         }
 
         for key in list(features.keys()):
             matched_prefix = False
             for old_prefix, new_prefix in prefix_pairs.items():
-                prefixed_old = f"observation.{old_prefix}"
+                prefixed_old = f'observation.{old_prefix}'
                 if key.startswith(prefixed_old):
                     suffix = key[len(prefixed_old) :]
-                    features[f"{new_prefix}{suffix}"] = features.pop(key)
+                    features[f'{new_prefix}{suffix}'] = features.pop(key)
                     matched_prefix = True
                     break
 
                 if key.startswith(old_prefix):
                     suffix = key[len(old_prefix) :]
-                    features[f"{new_prefix}{suffix}"] = features.pop(key)
+                    features[f'{new_prefix}{suffix}'] = features.pop(key)
                     matched_prefix = True
                     break
 
@@ -149,7 +162,7 @@ class VanillaObservationProcessor(ObservationProcessor):
                 continue
 
             for old, new in exact_pairs.items():
-                if key == old or key == f"observation.{old}":
+                if key == old or key == f'observation.{old}':
                     if key in features:
                         features[new] = features.pop(key)
                         break

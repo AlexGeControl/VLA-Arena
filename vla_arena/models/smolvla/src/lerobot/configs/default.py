@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +30,7 @@
 
 from dataclasses import dataclass, field
 
-from lerobot import (
-    policies,  # noqa: F401
-)
+from lerobot import policies  # noqa: F401
 from lerobot.datasets.transforms import ImageTransformsConfig
 from lerobot.datasets.video_utils import get_safe_default_codec
 
@@ -44,7 +56,7 @@ class WandBConfig:
     enable: bool = False
     # Set to true to disable saving an artifact despite training.save_checkpoint=True
     disable_artifact: bool = False
-    project: str = "lerobot"
+    project: str = 'lerobot'
     entity: str | None = None
     notes: str | None = None
     run_id: str | None = None
@@ -62,10 +74,10 @@ class EvalConfig:
     def __post_init__(self):
         if self.batch_size > self.n_episodes:
             raise ValueError(
-                "The eval batch size is greater than the number of eval episodes "
-                f"({self.batch_size} > {self.n_episodes}). As a result, {self.batch_size} "
-                f"eval environments will be instantiated, but only {self.n_episodes} will be used. "
-                "This might significantly slow down evaluation. To fix this, you should update your command "
-                f"to increase the number of episodes to match the batch size (e.g. `eval.n_episodes={self.batch_size}`), "
-                f"or lower the batch size (e.g. `eval.batch_size={self.n_episodes}`)."
+                'The eval batch size is greater than the number of eval episodes '
+                f'({self.batch_size} > {self.n_episodes}). As a result, {self.batch_size} '
+                f'eval environments will be instantiated, but only {self.n_episodes} will be used. '
+                'This might significantly slow down evaluation. To fix this, you should update your command '
+                f'to increase the number of episodes to match the batch size (e.g. `eval.n_episodes={self.batch_size}`), '
+                f'or lower the batch size (e.g. `eval.batch_size={self.n_episodes}`).'
             )

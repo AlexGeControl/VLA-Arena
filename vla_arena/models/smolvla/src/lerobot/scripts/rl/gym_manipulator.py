@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # !/usr/bin/env python
 
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
@@ -47,33 +61,27 @@ import gymnasium as gym
 import numpy as np
 import torch
 import torchvision.transforms.functional as F  # noqa: N812
-
 from lerobot.cameras import opencv  # noqa: F401
 from lerobot.configs import parser
 from lerobot.envs.configs import EnvConfig
 from lerobot.envs.utils import preprocess_observation
 from lerobot.model.kinematics import RobotKinematics
-from lerobot.robots import (  # noqa: F401
-    RobotConfig,
-    make_robot_from_config,
-    so100_follower,
-)
-from lerobot.teleoperators import (
-    gamepad,  # noqa: F401
-    keyboard,  # noqa: F401
-    make_teleoperator_from_config,
-    so101_leader,  # noqa: F401
-)
+from lerobot.robots import RobotConfig, make_robot_from_config, so100_follower  # noqa: F401
+from lerobot.teleoperators import gamepad  # noqa: F401
+from lerobot.teleoperators import keyboard  # noqa: F401
+from lerobot.teleoperators import so101_leader  # noqa: F401
+from lerobot.teleoperators import make_teleoperator_from_config
 from lerobot.teleoperators.gamepad.teleop_gamepad import GamepadTeleop
 from lerobot.teleoperators.keyboard.teleop_keyboard import KeyboardEndEffectorTeleop
 from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.utils import log_say
 
+
 logging.basicConfig(level=logging.INFO)
 
 
 def reset_follower_position(robot_arm, target_position):
-    current_position_dict = robot_arm.bus.sync_read("Present_Position")
+    current_position_dict = robot_arm.bus.sync_read('Present_Position')
     current_position = np.array(
         [current_position_dict[name] for name in current_position_dict], dtype=np.float32
     )
@@ -82,7 +90,7 @@ def reset_follower_position(robot_arm, target_position):
     )  # NOTE: 30 is just an arbitrary number
     for pose in trajectory:
         action_dict = dict(zip(current_position_dict, pose, strict=False))
-        robot_arm.bus.sync_write("Goal_Position", action_dict)
+        robot_arm.bus.sync_write('Goal_Position', action_dict)
         busy_wait(0.015)
 
 
@@ -101,7 +109,7 @@ class TorchBox(gym.spaces.Box):
         shape: Sequence[int] | None = None,
         np_dtype: np.dtype | type = np.float32,
         torch_dtype: torch.dtype = torch.float32,
-        device: str = "cpu",
+        device: str = 'cpu',
         seed: int | np.random.Generator | None = None,
     ) -> None:
         """
@@ -165,8 +173,8 @@ class TorchBox(gym.spaces.Box):
             Formatted string with space details.
         """
         return (
-            f"TorchBox({self.low_repr}, {self.high_repr}, {self.shape}, "
-            f"np={self.dtype.name}, torch={self.torch_dtype}, device={self.device})"
+            f'TorchBox({self.low_repr}, {self.high_repr}, {self.shape}, '
+            f'np={self.dtype.name}, torch={self.torch_dtype}, device={self.device})'
         )
 
 
@@ -192,7 +200,7 @@ class TorchActionWrapper(gym.Wrapper):
             high=env.action_space.high,
             shape=env.action_space.shape,
             torch_dtype=torch.float32,
-            device=torch.device("cpu"),
+            device=torch.device('cpu'),
         )
 
     def step(self, action: torch.Tensor):
@@ -252,7 +260,7 @@ class RobotEnv(gym.Env):
         self.current_step = 0
         self.episode_data = None
 
-        self._joint_names = [f"{key}.pos" for key in self.robot.bus.motors]
+        self._joint_names = [f'{key}.pos' for key in self.robot.bus.motors]
         self._image_keys = self.robot.cameras.keys()
 
         self.current_observation = None
@@ -267,7 +275,7 @@ class RobotEnv(gym.Env):
         joint_positions = np.array([obs_dict[name] for name in self._joint_names])
 
         images = {key: obs_dict[key] for key in self._image_keys}
-        self.current_observation = {"agent_pos": joint_positions, "pixels": images}
+        self.current_observation = {'agent_pos': joint_positions, 'pixels': images}
 
     def _setup_spaces(self):
         """
@@ -286,19 +294,22 @@ class RobotEnv(gym.Env):
         observation_spaces = {}
 
         # Define observation spaces for images and other states.
-        if "pixels" in self.current_observation:
-            prefix = "observation.images"
+        if 'pixels' in self.current_observation:
+            prefix = 'observation.images'
             observation_spaces = {
-                f"{prefix}.{key}": gym.spaces.Box(
-                    low=0, high=255, shape=self.current_observation["pixels"][key].shape, dtype=np.uint8
+                f'{prefix}.{key}': gym.spaces.Box(
+                    low=0,
+                    high=255,
+                    shape=self.current_observation['pixels'][key].shape,
+                    dtype=np.uint8,
                 )
-                for key in self.current_observation["pixels"]
+                for key in self.current_observation['pixels']
             }
 
-        observation_spaces["observation.state"] = gym.spaces.Box(
+        observation_spaces['observation.state'] = gym.spaces.Box(
             low=0,
             high=10,
-            shape=self.current_observation["agent_pos"].shape,
+            shape=self.current_observation['agent_pos'].shape,
             dtype=np.float32,
         )
 
@@ -307,17 +318,17 @@ class RobotEnv(gym.Env):
         # Define the action space for joint positions along with setting an intervention flag.
         action_dim = 3
         bounds = {}
-        bounds["min"] = -np.ones(action_dim)
-        bounds["max"] = np.ones(action_dim)
+        bounds['min'] = -np.ones(action_dim)
+        bounds['max'] = np.ones(action_dim)
 
         if self.use_gripper:
             action_dim += 1
-            bounds["min"] = np.concatenate([bounds["min"], [0]])
-            bounds["max"] = np.concatenate([bounds["max"], [2]])
+            bounds['min'] = np.concatenate([bounds['min'], [0]])
+            bounds['max'] = np.concatenate([bounds['max'], [2]])
 
         self.action_space = gym.spaces.Box(
-            low=bounds["min"],
-            high=bounds["max"],
+            low=bounds['min'],
+            high=bounds['max'],
             shape=(action_dim,),
             dtype=np.float32,
         )
@@ -345,7 +356,7 @@ class RobotEnv(gym.Env):
         self.episode_data = None
         self.current_observation = None
         self._get_observation()
-        return self.current_observation, {"is_intervention": False}
+        return self.current_observation, {'is_intervention': False}
 
     def step(self, action) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         """
@@ -365,10 +376,10 @@ class RobotEnv(gym.Env):
                 - truncated (bool): True if the episode was truncated (e.g., time constraints).
                 - info (dict): Additional debugging information including intervention status.
         """
-        action_dict = {"delta_x": action[0], "delta_y": action[1], "delta_z": action[2]}
+        action_dict = {'delta_x': action[0], 'delta_y': action[1], 'delta_z': action[2]}
 
         # 1.0 action corresponds to no-op action
-        action_dict["gripper"] = action[3] if self.use_gripper else 1.0
+        action_dict['gripper'] = action[3] if self.use_gripper else 1.0
 
         self.robot.send_action(action_dict)
 
@@ -388,7 +399,7 @@ class RobotEnv(gym.Env):
             reward,
             terminated,
             truncated,
-            {"is_intervention": False},
+            {'is_intervention': False},
         )
 
     def render(self):
@@ -397,7 +408,7 @@ class RobotEnv(gym.Env):
         """
         import cv2
 
-        image_keys = [key for key in self.current_observation if "image" in key]
+        image_keys = [key for key in self.current_observation if 'image' in key]
 
         for key in image_keys:
             cv2.imshow(key, cv2.cvtColor(self.current_observation[key].numpy(), cv2.COLOR_RGB2BGR))
@@ -435,9 +446,9 @@ class AddJointVelocityToObservation(gym.ObservationWrapper):
         super().__init__(env)
 
         # Extend observation space to include joint velocities
-        old_low = self.observation_space["observation.state"].low
-        old_high = self.observation_space["observation.state"].high
-        old_shape = self.observation_space["observation.state"].shape
+        old_low = self.observation_space['observation.state'].low
+        old_high = self.observation_space['observation.state'].high
+        old_shape = self.observation_space['observation.state'].shape
 
         self.last_joint_positions = np.zeros(num_dof)
 
@@ -446,7 +457,7 @@ class AddJointVelocityToObservation(gym.ObservationWrapper):
 
         new_shape = (old_shape[0] + num_dof,)
 
-        self.observation_space["observation.state"] = gym.spaces.Box(
+        self.observation_space['observation.state'] = gym.spaces.Box(
             low=new_low,
             high=new_high,
             shape=new_shape,
@@ -465,9 +476,11 @@ class AddJointVelocityToObservation(gym.ObservationWrapper):
         Returns:
             The modified observation with joint velocities.
         """
-        joint_velocities = (observation["agent_pos"] - self.last_joint_positions) / self.dt
-        self.last_joint_positions = observation["agent_pos"]
-        observation["agent_pos"] = np.concatenate([observation["agent_pos"], joint_velocities], axis=-1)
+        joint_velocities = (observation['agent_pos'] - self.last_joint_positions) / self.dt
+        self.last_joint_positions = observation['agent_pos']
+        observation['agent_pos'] = np.concatenate(
+            [observation['agent_pos'], joint_velocities], axis=-1
+        )
         return observation
 
 
@@ -491,16 +504,16 @@ class AddCurrentToObservation(gym.ObservationWrapper):
         super().__init__(env)
 
         # Extend observation space to include joint velocities
-        old_low = self.observation_space["observation.state"].low
-        old_high = self.observation_space["observation.state"].high
-        old_shape = self.observation_space["observation.state"].shape
+        old_low = self.observation_space['observation.state'].low
+        old_high = self.observation_space['observation.state'].high
+        old_shape = self.observation_space['observation.state'].shape
 
         new_low = np.concatenate([old_low, np.zeros(num_dof)])
         new_high = np.concatenate([old_high, np.ones(num_dof) * max_current])
 
         new_shape = (old_shape[0] + num_dof,)
 
-        self.observation_space["observation.state"] = gym.spaces.Box(
+        self.observation_space['observation.state'] = gym.spaces.Box(
             low=new_low,
             high=new_high,
             shape=new_shape,
@@ -517,18 +530,18 @@ class AddCurrentToObservation(gym.ObservationWrapper):
         Returns:
             The modified observation with current values.
         """
-        present_current_dict = self.env.unwrapped.robot.bus.sync_read("Present_Current")
+        present_current_dict = self.env.unwrapped.robot.bus.sync_read('Present_Current')
         present_current_observation = np.array(
             [present_current_dict[name] for name in self.env.unwrapped.robot.bus.motors]
         )
-        observation["agent_pos"] = np.concatenate(
-            [observation["agent_pos"], present_current_observation], axis=-1
+        observation['agent_pos'] = np.concatenate(
+            [observation['agent_pos'], present_current_observation], axis=-1
         )
         return observation
 
 
 class RewardWrapper(gym.Wrapper):
-    def __init__(self, env, reward_classifier, device="cuda"):
+    def __init__(self, env, reward_classifier, device='cuda'):
         """
         Wrapper to add reward prediction to the environment using a trained classifier.
 
@@ -558,8 +571,8 @@ class RewardWrapper(gym.Wrapper):
 
         images = {}
         for key in observation:
-            if "image" in key:
-                images[key] = observation[key].to(self.device, non_blocking=(self.device == "cuda"))
+            if 'image' in key:
+                images[key] = observation[key].to(self.device, non_blocking=(self.device == 'cuda'))
                 if images[key].dim() == 3:
                     images[key] = images[key].unsqueeze(0)
 
@@ -570,7 +583,7 @@ class RewardWrapper(gym.Wrapper):
                 if self.reward_classifier is not None
                 else 0.0
             )
-        info["Reward classifier frequency"] = 1 / (time.perf_counter() - start_time)
+        info['Reward classifier frequency'] = 1 / (time.perf_counter() - start_time)
 
         reward = 0.0
         if success == 1.0:
@@ -638,7 +651,7 @@ class TimeLimitWrapper(gym.Wrapper):
         self.current_step += 1
         # check if last timestep took more time than the expected fps
         if 1.0 / time_since_last_step < self.fps:
-            logging.debug(f"Current timestep exceeded expected fps {self.fps}")
+            logging.debug(f'Current timestep exceeded expected fps {self.fps}')
 
         if self.current_step >= self.max_episode_steps:
             terminated = True
@@ -687,11 +700,11 @@ class ImageCropResizeWrapper(gym.Wrapper):
         super().__init__(env)
         self.env = env
         self.crop_params_dict = crop_params_dict
-        print(f"obs_keys , {self.env.observation_space}")
-        print(f"crop params dict {crop_params_dict.keys()}")
+        print(f'obs_keys , {self.env.observation_space}')
+        print(f'crop params dict {crop_params_dict.keys()}')
         for key_crop in crop_params_dict:
             if key_crop not in self.env.observation_space.keys():  # noqa: SIM118
-                raise ValueError(f"Key {key_crop} not in observation space")
+                raise ValueError(f'Key {key_crop} not in observation space')
         for key in crop_params_dict:
             new_shape = (3, resize_size[0], resize_size[1])
             self.observation_space[key] = gym.spaces.Box(low=0, high=255, shape=new_shape)
@@ -725,10 +738,10 @@ class ImageCropResizeWrapper(gym.Wrapper):
                 std_per_channel = torch.std(flattened_spatial_dims, dim=2)
                 if (std_per_channel <= 0.02).any():
                     logging.warning(
-                        f"Potential hardware issue detected: All pixels have the same value in observation {k}"
+                        f'Potential hardware issue detected: All pixels have the same value in observation {k}'
                     )
 
-            if device == torch.device("mps:0"):
+            if device == torch.device('mps:0'):
                 obs[k] = obs[k].cpu()
 
             obs[k] = F.crop(obs[k], *self.crop_params_dict[k])
@@ -753,7 +766,7 @@ class ImageCropResizeWrapper(gym.Wrapper):
         obs, info = self.env.reset(seed=seed, options=options)
         for k in self.crop_params_dict:
             device = obs[k].device
-            if device == torch.device("mps:0"):
+            if device == torch.device('mps:0'):
                 obs[k] = obs[k].cpu()
             obs[k] = F.crop(obs[k], *self.crop_params_dict[k])
             obs[k] = F.resize(obs[k], self.resize_size)
@@ -770,7 +783,7 @@ class ConvertToLeRobotObservation(gym.ObservationWrapper):
     including normalizing image values and moving tensors to the specified device.
     """
 
-    def __init__(self, env, device: str = "cpu"):
+    def __init__(self, env, device: str = 'cpu'):
         """
         Initialize the LeRobot observation converter.
 
@@ -794,7 +807,7 @@ class ConvertToLeRobotObservation(gym.ObservationWrapper):
         """
         observation = preprocess_observation(observation)
         observation = {
-            key: observation[key].to(self.device, non_blocking=self.device.type == "cuda")
+            key: observation[key].to(self.device, non_blocking=self.device.type == 'cuda')
             for key in observation
         }
         return observation
@@ -843,18 +856,18 @@ class ResetWrapper(gym.Wrapper):
         """
         start_time = time.perf_counter()
         if self.reset_pose is not None:
-            log_say("Reset the environment.", play_sounds=True)
+            log_say('Reset the environment.', play_sounds=True)
             reset_follower_position(self.unwrapped.robot, self.reset_pose)
-            log_say("Reset the environment done.", play_sounds=True)
+            log_say('Reset the environment done.', play_sounds=True)
 
-            if hasattr(self.env, "robot_leader"):
-                self.env.robot_leader.bus.sync_write("Torque_Enable", 1)
-                log_say("Reset the leader robot.", play_sounds=True)
+            if hasattr(self.env, 'robot_leader'):
+                self.env.robot_leader.bus.sync_write('Torque_Enable', 1)
+                log_say('Reset the leader robot.', play_sounds=True)
                 reset_follower_position(self.env.robot_leader, self.reset_pose)
-                log_say("Reset the leader robot done.", play_sounds=True)
+                log_say('Reset the leader robot done.', play_sounds=True)
         else:
             log_say(
-                f"Manually reset the environment for {self.reset_time_s} seconds.",
+                f'Manually reset the environment for {self.reset_time_s} seconds.',
                 play_sounds=True,
             )
             start_time = time.perf_counter()
@@ -862,7 +875,7 @@ class ResetWrapper(gym.Wrapper):
                 action = self.env.robot_leader.get_action()
                 self.unwrapped.robot.send_action(action)
 
-            log_say("Manual reset of the environment done.", play_sounds=True)
+            log_say('Manual reset of the environment done.', play_sounds=True)
 
         busy_wait(self.reset_time_s - (time.perf_counter() - start_time))
 
@@ -897,11 +910,11 @@ class BatchCompatibleWrapper(gym.ObservationWrapper):
             Dictionary of observation tensors with batch dimensions.
         """
         for key in observation:
-            if "image" in key and observation[key].dim() == 3:
+            if 'image' in key and observation[key].dim() == 3:
                 observation[key] = observation[key].unsqueeze(0)
-            if "state" in key and observation[key].dim() == 1:
+            if 'state' in key and observation[key].dim() == 1:
                 observation[key] = observation[key].unsqueeze(0)
-            if "velocity" in key and observation[key].dim() == 1:
+            if 'velocity' in key and observation[key].dim() == 1:
                 observation[key] = observation[key].unsqueeze(0)
         return observation
 
@@ -937,7 +950,9 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         Returns:
             Modified reward with penalty applied if necessary.
         """
-        gripper_state_normalized = self.last_gripper_state / self.unwrapped.robot.config.max_gripper_pos
+        gripper_state_normalized = (
+            self.last_gripper_state / self.unwrapped.robot.config.max_gripper_pos
+        )
 
         action_normalized = action - 1.0  # action / MAX_GRIPPER_COMMAND
 
@@ -957,13 +972,13 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         Returns:
             Tuple of (observation, reward, terminated, truncated, info) with penalty applied.
         """
-        self.last_gripper_state = self.unwrapped.robot.bus.sync_read("Present_Position")["gripper"]
+        self.last_gripper_state = self.unwrapped.robot.bus.sync_read('Present_Position')['gripper']
 
         gripper_action = action[-1]
         obs, reward, terminated, truncated, info = self.env.step(action)
         gripper_penalty = self.reward(reward, gripper_action)
 
-        info["discrete_penalty"] = gripper_penalty
+        info['discrete_penalty'] = gripper_penalty
 
         return obs, reward, terminated, truncated, info
 
@@ -979,7 +994,7 @@ class GripperPenaltyWrapper(gym.RewardWrapper):
         """
         self.last_gripper_state = None
         obs, info = super().reset(**kwargs)
-        info["gripper_penalty"] = 0.0
+        info['gripper_penalty'] = 0.0
         return obs, info
 
 
@@ -1034,11 +1049,13 @@ class GripperActionWrapper(gym.ActionWrapper):
         if self.quantization_threshold is not None:
             # Quantize gripper command to -1, 0 or 1
             gripper_command = (
-                np.sign(gripper_command) if abs(gripper_command) > self.quantization_threshold else 0.0
+                np.sign(gripper_command)
+                if abs(gripper_command) > self.quantization_threshold
+                else 0.0
             )
         gripper_command = gripper_command * self.unwrapped.robot.config.max_gripper_pos
 
-        gripper_state = self.unwrapped.robot.bus.sync_read("Present_Position")["gripper"]
+        gripper_state = self.unwrapped.robot.bus.sync_read('Present_Position')['gripper']
 
         gripper_action_value = np.clip(
             gripper_state + gripper_command, 0, self.unwrapped.robot.config.max_gripper_pos
@@ -1081,11 +1098,11 @@ class EEObservationWrapper(gym.ObservationWrapper):
         super().__init__(env)
 
         # Extend observation space to include end effector pose
-        prev_space = self.observation_space["observation.state"]
+        prev_space = self.observation_space['observation.state']
 
-        self.observation_space["observation.state"] = gym.spaces.Box(
-            low=np.concatenate([prev_space.low, ee_pose_limits["min"]]),
-            high=np.concatenate([prev_space.high, ee_pose_limits["max"]]),
+        self.observation_space['observation.state'] = gym.spaces.Box(
+            low=np.concatenate([prev_space.low, ee_pose_limits['min']]),
+            high=np.concatenate([prev_space.high, ee_pose_limits['max']]),
             shape=(prev_space.shape[0] + 3,),
             dtype=np.float32,
         )
@@ -1105,10 +1122,10 @@ class EEObservationWrapper(gym.ObservationWrapper):
         Returns:
             Enhanced observation with end-effector pose information.
         """
-        current_joint_pos = self.unwrapped.current_observation["agent_pos"]
+        current_joint_pos = self.unwrapped.current_observation['agent_pos']
 
         current_ee_pos = self.kinematics.forward_kinematics(current_joint_pos)[:3, 3]
-        observation["agent_pos"] = np.concatenate([observation["agent_pos"], current_ee_pos], -1)
+        observation['agent_pos'] = np.concatenate([observation['agent_pos'], current_ee_pos], -1)
         return observation
 
 
@@ -1166,11 +1183,11 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         # With lower gains we can manually move the leader arm without risk of injury to ourselves or the robot
         # With higher gains, it would be dangerous and difficult to modify the leader's pose while torque is enabled
         # Default value for P_coeff is 32
-        self.robot_leader.bus.sync_write("Torque_Enable", 1)
+        self.robot_leader.bus.sync_write('Torque_Enable', 1)
         for motor in self.robot_leader.bus.motors:
-            self.robot_leader.bus.write("P_Coefficient", motor, 16)
-            self.robot_leader.bus.write("I_Coefficient", motor, 0)
-            self.robot_leader.bus.write("D_Coefficient", motor, 16)
+            self.robot_leader.bus.write('P_Coefficient', motor, 16)
+            self.robot_leader.bus.write('I_Coefficient', motor, 0)
+            self.robot_leader.bus.write('D_Coefficient', motor, 16)
 
         self.leader_tracking_error_queue = deque(maxlen=4)
         self._init_keyboard_listener()
@@ -1183,9 +1200,9 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         It should be overridden in subclasses to add additional events.
         """
         self.keyboard_events = {
-            "episode_success": False,
-            "episode_end": False,
-            "rerecord_episode": False,
+            'episode_success': False,
+            'episode_end': False,
+            'rerecord_episode': False,
         }
 
     def _handle_key_press(self, key, keyboard_device):
@@ -1200,17 +1217,17 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         """
         try:
             if key == keyboard_device.Key.esc:
-                self.keyboard_events["episode_end"] = True
+                self.keyboard_events['episode_end'] = True
                 return
             if key == keyboard_device.Key.left:
-                self.keyboard_events["rerecord_episode"] = True
+                self.keyboard_events['rerecord_episode'] = True
                 return
-            if hasattr(key, "char") and key.char == "s":
+            if hasattr(key, 'char') and key.char == 's':
                 logging.info("Key 's' pressed. Episode success triggered.")
-                self.keyboard_events["episode_success"] = True
+                self.keyboard_events['episode_success'] = True
                 return
         except Exception as e:
-            logging.error(f"Error handling key press: {e}")
+            logging.error(f'Error handling key press: {e}')
 
     def _init_keyboard_listener(self):
         """
@@ -1249,11 +1266,11 @@ class BaseLeaderControlWrapper(gym.Wrapper):
             Tuple of (modified_action, intervention_action).
         """
         if self.leader_torque_enabled:
-            self.robot_leader.bus.sync_write("Torque_Enable", 0)
+            self.robot_leader.bus.sync_write('Torque_Enable', 0)
             self.leader_torque_enabled = False
 
-        leader_pos_dict = self.robot_leader.bus.sync_read("Present_Position")
-        follower_pos_dict = self.robot_follower.bus.sync_read("Present_Position")
+        leader_pos_dict = self.robot_leader.bus.sync_read('Present_Position')
+        follower_pos_dict = self.robot_follower.bus.sync_read('Present_Position')
 
         leader_pos = np.array([leader_pos_dict[name] for name in leader_pos_dict])
         follower_pos = np.array([follower_pos_dict[name] for name in follower_pos_dict])
@@ -1264,7 +1281,9 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         leader_ee = self.kinematics.forward_kinematics(leader_pos)[:3, 3]
         follower_ee = self.kinematics.forward_kinematics(follower_pos)[:3, 3]
 
-        action = np.clip(leader_ee - follower_ee, -self.end_effector_step_sizes, self.end_effector_step_sizes)
+        action = np.clip(
+            leader_ee - follower_ee, -self.end_effector_step_sizes, self.end_effector_step_sizes
+        )
         # Normalize the action to the range [-1, 1]
         action = action / self.end_effector_step_sizes
 
@@ -1298,22 +1317,28 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         This method synchronizes the leader robot position with the follower.
         """
 
-        prev_leader_pos_dict = self.robot_leader.bus.sync_read("Present_Position")
+        prev_leader_pos_dict = self.robot_leader.bus.sync_read('Present_Position')
         prev_leader_pos = np.array(
             [prev_leader_pos_dict[name] for name in prev_leader_pos_dict], dtype=np.float32
         )
 
         if not self.leader_torque_enabled:
-            self.robot_leader.bus.sync_write("Torque_Enable", 1)
+            self.robot_leader.bus.sync_write('Torque_Enable', 1)
             self.leader_torque_enabled = True
 
-        follower_pos_dict = self.robot_follower.bus.sync_read("Present_Position")
-        follower_pos = np.array([follower_pos_dict[name] for name in follower_pos_dict], dtype=np.float32)
+        follower_pos_dict = self.robot_follower.bus.sync_read('Present_Position')
+        follower_pos = np.array(
+            [follower_pos_dict[name] for name in follower_pos_dict], dtype=np.float32
+        )
 
-        goal_pos = {f"{motor}": follower_pos[i] for i, motor in enumerate(self.robot_leader.bus.motors)}
-        self.robot_leader.bus.sync_write("Goal_Position", goal_pos)
+        goal_pos = {
+            f'{motor}': follower_pos[i] for i, motor in enumerate(self.robot_leader.bus.motors)
+        }
+        self.robot_leader.bus.sync_write('Goal_Position', goal_pos)
 
-        self.leader_tracking_error_queue.append(np.linalg.norm(follower_pos[:-1] - prev_leader_pos[:-1]))
+        self.leader_tracking_error_queue.append(
+            np.linalg.norm(follower_pos[:-1] - prev_leader_pos[:-1])
+        )
 
     def step(self, action):
         """
@@ -1340,22 +1365,22 @@ class BaseLeaderControlWrapper(gym.Wrapper):
             action = torch.from_numpy(action)
 
         # Add intervention info
-        info["is_intervention"] = is_intervention
-        info["action_intervention"] = action
+        info['is_intervention'] = is_intervention
+        info['action_intervention'] = action
 
         self.prev_leader_gripper = np.clip(
-            self.robot_leader.bus.sync_read("Present_Position")["gripper"],
+            self.robot_leader.bus.sync_read('Present_Position')['gripper'],
             0,
             self.robot_follower.config.max_gripper_pos,
         )
 
         # Check for success or manual termination
-        success = self.keyboard_events["episode_success"]
-        terminated = terminated or self.keyboard_events["episode_end"] or success
+        success = self.keyboard_events['episode_success']
+        terminated = terminated or self.keyboard_events['episode_end'] or success
 
         if success:
             reward = 1.0
-            logging.info("Episode ended successfully with reward 1.0")
+            logging.info('Episode ended successfully with reward 1.0')
 
         return obs, reward, terminated, truncated, info
 
@@ -1380,7 +1405,7 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         Returns:
             Result of closing the wrapped environment.
         """
-        if hasattr(self, "listener") and self.listener is not None:
+        if hasattr(self, 'listener') and self.listener is not None:
             self.listener.stop()
         return self.env.close()
 
@@ -1401,7 +1426,7 @@ class GearedLeaderControlWrapper(BaseLeaderControlWrapper):
         intervention state toggled by keyboard.
         """
         super()._init_keyboard_events()
-        self.keyboard_events["human_intervention_step"] = False
+        self.keyboard_events['human_intervention_step'] = False
 
     def _handle_key_press(self, key, keyboard_device):
         """
@@ -1415,17 +1440,19 @@ class GearedLeaderControlWrapper(BaseLeaderControlWrapper):
         """
         super()._handle_key_press(key, keyboard_device)
         if key == keyboard_device.Key.space:
-            if not self.keyboard_events["human_intervention_step"]:
+            if not self.keyboard_events['human_intervention_step']:
                 logging.info(
-                    "Space key pressed. Human intervention required.\n"
-                    "Place the leader in similar pose to the follower and press space again."
+                    'Space key pressed. Human intervention required.\n'
+                    'Place the leader in similar pose to the follower and press space again.'
                 )
-                self.keyboard_events["human_intervention_step"] = True
-                log_say("Human intervention step.", play_sounds=True)
+                self.keyboard_events['human_intervention_step'] = True
+                log_say('Human intervention step.', play_sounds=True)
             else:
-                self.keyboard_events["human_intervention_step"] = False
-                logging.info("Space key pressed for a second time.\nContinuing with policy actions.")
-                log_say("Continuing with policy actions.", play_sounds=True)
+                self.keyboard_events['human_intervention_step'] = False
+                logging.info(
+                    'Space key pressed for a second time.\nContinuing with policy actions.'
+                )
+                log_say('Continuing with policy actions.', play_sounds=True)
 
     def _check_intervention(self):
         """
@@ -1434,7 +1461,7 @@ class GearedLeaderControlWrapper(BaseLeaderControlWrapper):
         Returns:
             Boolean indicating whether intervention mode is active.
         """
-        return self.keyboard_events["human_intervention_step"]
+        return self.keyboard_events['human_intervention_step']
 
 
 class GearedLeaderAutomaticControlWrapper(BaseLeaderControlWrapper):
@@ -1494,7 +1521,7 @@ class GearedLeaderAutomaticControlWrapper(BaseLeaderControlWrapper):
         ):
             self.is_intervention_active = True
             self.leader_tracking_error_queue.clear()
-            log_say("Intervention started", play_sounds=True)
+            log_say('Intervention started', play_sounds=True)
             return True
 
         # Track the error over time in leader_tracking_error_queue
@@ -1506,7 +1533,7 @@ class GearedLeaderAutomaticControlWrapper(BaseLeaderControlWrapper):
         ):
             self.is_intervention_active = False
             self.leader_tracking_error_queue.clear()
-            log_say("Intervention ended", play_sounds=True)
+            log_say('Intervention ended', play_sounds=True)
             return False
 
         # If not change has happened that merits a change in the intervention state, return the current state
@@ -1554,7 +1581,7 @@ class GamepadControlWrapper(gym.Wrapper):
 
         self.teleop_device = teleop_device
         # Ensure the teleop_device is connected if it has a connect method
-        if hasattr(self.teleop_device, "connect") and not self.teleop_device.is_connected:
+        if hasattr(self.teleop_device, 'connect') and not self.teleop_device.is_connected:
             self.teleop_device.connect()
 
         # self.controller attribute is removed
@@ -1564,15 +1591,15 @@ class GamepadControlWrapper(gym.Wrapper):
         # For now, we use the one passed, but it can lead to inconsistency if not set correctly from config
         self.use_gripper = use_gripper
 
-        logging.info("Gamepad control wrapper initialized with provided teleop_device.")
+        logging.info('Gamepad control wrapper initialized with provided teleop_device.')
         print(
-            "Gamepad controls (managed by the provided teleop_device - specific button mappings might vary):"
+            'Gamepad controls (managed by the provided teleop_device - specific button mappings might vary):'
         )
-        print("  Left analog stick: Move in X-Y plane")
-        print("  Right analog stick: Move in Z axis (up/down)")
-        print("  X/Square button: End episode (FAILURE)")
-        print("  Y/Triangle button: End episode (SUCCESS)")
-        print("  B/Circle button: Exit program")
+        print('  Left analog stick: Move in X-Y plane')
+        print('  Right analog stick: Move in Z axis (up/down)')
+        print('  X/Square button: End episode (FAILURE)')
+        print('  Y/Triangle button: End episode (SUCCESS)')
+        print('  B/Circle button: Exit program')
 
     def get_teleop_commands(
         self,
@@ -1588,7 +1615,7 @@ class GamepadControlWrapper(gym.Wrapper):
             - success: Whether episode success was signaled
             - rerecord_episode: Whether episode rerecording was requested
         """
-        if not hasattr(self.teleop_device, "gamepad") or self.teleop_device.gamepad is None:
+        if not hasattr(self.teleop_device, 'gamepad') or self.teleop_device.gamepad is None:
             raise AttributeError(
                 "teleop_device does not have a 'gamepad' attribute or it is None. Expected for GamepadControlWrapper."
             )
@@ -1599,21 +1626,21 @@ class GamepadControlWrapper(gym.Wrapper):
         episode_end_status = self.teleop_device.gamepad.get_episode_end_status()
 
         terminate_episode = episode_end_status is not None
-        success = episode_end_status == "success"
-        rerecord_episode = episode_end_status == "rerecord_episode"
+        success = episode_end_status == 'success'
+        rerecord_episode = episode_end_status == 'rerecord_episode'
 
         # Get the action dictionary from the teleop_device
         action_dict = self.teleop_device.get_action()
 
         # Convert action_dict to numpy array based on expected structure
         # Order: delta_x, delta_y, delta_z, gripper (if use_gripper)
-        action_list = [action_dict["delta_x"], action_dict["delta_y"], action_dict["delta_z"]]
+        action_list = [action_dict['delta_x'], action_dict['delta_y'], action_dict['delta_z']]
         if self.use_gripper:
             # GamepadTeleop returns gripper action as 0 (close), 1 (stay), 2 (open)
             # This needs to be consistent with what EEActionWrapper expects if it's used downstream
             # EEActionWrapper for gripper typically expects 0.0 (closed) to 2.0 (open)
             # For now, we pass the direct value from GamepadTeleop, ensure downstream compatibility.
-            gripper_val = action_dict.get("gripper", 1.0)  # Default to 1.0 (stay) if not present
+            gripper_val = action_dict.get('gripper', 1.0)  # Default to 1.0 (stay) if not present
             action_list.append(float(gripper_val))
 
         gamepad_action_np = np.array(action_list, dtype=np.float32)
@@ -1660,24 +1687,24 @@ class GamepadControlWrapper(gym.Wrapper):
 
         if success:
             reward = 1.0
-            logging.info("Episode ended successfully with reward 1.0")
+            logging.info('Episode ended successfully with reward 1.0')
 
         if isinstance(action, np.ndarray):
             action = torch.from_numpy(action)
 
-        info["is_intervention"] = is_intervention
+        info['is_intervention'] = is_intervention
         # The original `BaseLeaderControlWrapper` puts `action_intervention` in info.
         # For Gamepad, if intervention, `gamepad_action` is the intervention.
         # If not intervention, policy's action is `action`.
         # For consistency, let's store the *human's* action if intervention occurred.
-        info["action_intervention"] = action
+        info['action_intervention'] = action
 
-        info["rerecord_episode"] = rerecord_episode
+        info['rerecord_episode'] = rerecord_episode
 
         # If episode ended, reset the state
         if terminated or truncated:
             # Add success/failure information to info dict
-            info["next.success"] = success
+            info['next.success'] = success
 
             # Auto reset if configured
             if self.auto_reset:
@@ -1693,7 +1720,7 @@ class GamepadControlWrapper(gym.Wrapper):
         Returns:
             Result of closing the wrapped environment.
         """
-        if hasattr(self.teleop_device, "disconnect"):
+        if hasattr(self.teleop_device, 'disconnect'):
             self.teleop_device.disconnect()
 
         # Call the parent close method
@@ -1730,15 +1757,15 @@ class KeyboardControlWrapper(GamepadControlWrapper):
 
         self.is_intervention_active = False
 
-        logging.info("Keyboard control wrapper initialized with provided teleop_device.")
-        print("Keyboard controls:")
-        print("  Arrow keys: Move in X-Y plane")
-        print("  Shift and Shift_R: Move in Z axis")
-        print("  Right Ctrl and Left Ctrl: Open and close gripper")
-        print("  f: End episode with FAILURE")
-        print("  s: End episode with SUCCESS")
-        print("  r: End episode with RERECORD")
-        print("  i: Start/Stop Intervention")
+        logging.info('Keyboard control wrapper initialized with provided teleop_device.')
+        print('Keyboard controls:')
+        print('  Arrow keys: Move in X-Y plane')
+        print('  Shift and Shift_R: Move in Z axis')
+        print('  Right Ctrl and Left Ctrl: Open and close gripper')
+        print('  f: End episode with FAILURE')
+        print('  s: End episode with SUCCESS')
+        print('  r: End episode with RERECORD')
+        print('  i: Start/Stop Intervention')
 
     def get_teleop_commands(
         self,
@@ -1749,28 +1776,28 @@ class KeyboardControlWrapper(GamepadControlWrapper):
         # Unroll the misc_keys_queue to check for events related to intervention, episode success, etc.
         while not self.teleop_device.misc_keys_queue.empty():
             key = self.teleop_device.misc_keys_queue.get()
-            if key == "i":
+            if key == 'i':
                 self.is_intervention_active = not self.is_intervention_active
-            elif key == "f":
-                episode_end_status = "failure"
-            elif key == "s":
-                episode_end_status = "success"
-            elif key == "r":
-                episode_end_status = "rerecord_episode"
+            elif key == 'f':
+                episode_end_status = 'failure'
+            elif key == 's':
+                episode_end_status = 'success'
+            elif key == 'r':
+                episode_end_status = 'rerecord_episode'
 
         terminate_episode = episode_end_status is not None
-        success = episode_end_status == "success"
-        rerecord_episode = episode_end_status == "rerecord_episode"
+        success = episode_end_status == 'success'
+        rerecord_episode = episode_end_status == 'rerecord_episode'
 
         # Convert action_dict to numpy array based on expected structure
         # Order: delta_x, delta_y, delta_z, gripper (if use_gripper)
-        action_list = [action_dict["delta_x"], action_dict["delta_y"], action_dict["delta_z"]]
+        action_list = [action_dict['delta_x'], action_dict['delta_y'], action_dict['delta_z']]
         if self.use_gripper:
             # GamepadTeleop returns gripper action as 0 (close), 1 (stay), 2 (open)
             # This needs to be consistent with what EEActionWrapper expects if it's used downstream
             # EEActionWrapper for gripper typically expects 0.0 (closed) to 2.0 (open)
             # For now, we pass the direct value from GamepadTeleop, ensure downstream compatibility.
-            gripper_val = action_dict.get("gripper", 1.0)  # Default to 1.0 (stay) if not present
+            gripper_val = action_dict.get('gripper', 1.0)  # Default to 1.0 (stay) if not present
             action_list.append(float(gripper_val))
 
         gamepad_action_np = np.array(action_list, dtype=np.float32)
@@ -1785,7 +1812,7 @@ class KeyboardControlWrapper(GamepadControlWrapper):
 
 
 class GymHilDeviceWrapper(gym.Wrapper):
-    def __init__(self, env, device="cpu"):
+    def __init__(self, env, device='cpu'):
         super().__init__(env)
         self.device = device
 
@@ -1793,20 +1820,24 @@ class GymHilDeviceWrapper(gym.Wrapper):
         obs, reward, terminated, truncated, info = self.env.step(action)
         for k in obs:
             obs[k] = obs[k].to(self.device)
-        if "action_intervention" in info:
+        if 'action_intervention' in info:
             # NOTE: This is a hack to ensure the action intervention is a float32 tensor and supported on MPS device
-            info["action_intervention"] = info["action_intervention"].astype(np.float32)
-            info["action_intervention"] = torch.from_numpy(info["action_intervention"]).to(self.device)
+            info['action_intervention'] = info['action_intervention'].astype(np.float32)
+            info['action_intervention'] = torch.from_numpy(info['action_intervention']).to(
+                self.device
+            )
         return obs, reward, terminated, truncated, info
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         obs, info = self.env.reset(seed=seed, options=options)
         for k in obs:
             obs[k] = obs[k].to(self.device)
-        if "action_intervention" in info:
+        if 'action_intervention' in info:
             # NOTE: This is a hack to ensure the action intervention is a float32 tensor and supported on MPS device
-            info["action_intervention"] = info["action_intervention"].astype(np.float32)
-            info["action_intervention"] = torch.from_numpy(info["action_intervention"]).to(self.device)
+            info['action_intervention'] = info['action_intervention'].astype(np.float32)
+            info['action_intervention'] = torch.from_numpy(info['action_intervention']).to(
+                self.device
+            )
         return obs, info
 
 
@@ -1817,14 +1848,14 @@ class GymHilObservationProcessorWrapper(gym.ObservationWrapper):
         new_space = {}
 
         for key in prev_space:
-            if "pixels" in key:
-                for k in prev_space["pixels"]:
-                    new_space[f"observation.images.{k}"] = gym.spaces.Box(
+            if 'pixels' in key:
+                for k in prev_space['pixels']:
+                    new_space[f'observation.images.{k}'] = gym.spaces.Box(
                         0.0, 255.0, shape=(3, 128, 128), dtype=np.uint8
                     )
 
-            if key == "agent_pos":
-                new_space["observation.state"] = prev_space["agent_pos"]
+            if key == 'agent_pos':
+                new_space['observation.state'] = prev_space['agent_pos']
 
         self.observation_space = gym.spaces.Dict(new_space)
 
@@ -1850,14 +1881,14 @@ def make_robot_env(cfg: EnvConfig) -> gym.Env:
     Returns:
         A gym environment with all necessary wrappers applied.
     """
-    if cfg.type == "hil":
+    if cfg.type == 'hil':
         import gym_hil  # noqa: F401
 
         # TODO (azouitine)
         env = gym.make(
-            f"gym_hil/{cfg.task}",
+            f'gym_hil/{cfg.task}',
             image_obs=True,
-            render_mode="human",
+            render_mode='human',
             use_gripper=cfg.wrapper.use_gripper,
             gripper_penalty=cfg.wrapper.gripper_penalty,
         )
@@ -1867,13 +1898,15 @@ def make_robot_env(cfg: EnvConfig) -> gym.Env:
         env = TorchActionWrapper(env=env, device=cfg.device)
         return env
 
-    if not hasattr(cfg, "robot") or not hasattr(cfg, "teleop"):
+    if not hasattr(cfg, 'robot') or not hasattr(cfg, 'teleop'):
         raise ValueError(
             "Configuration for 'gym_manipulator' must be HILSerlRobotEnvConfig with robot and teleop."
         )
 
     if cfg.robot is None:
-        raise ValueError("RobotConfig (cfg.robot) must be provided for gym_manipulator environment.")
+        raise ValueError(
+            'RobotConfig (cfg.robot) must be provided for gym_manipulator environment.'
+        )
     robot = make_robot_from_config(cfg.robot)
     teleop_device = make_teleoperator_from_config(cfg.teleop)
     teleop_device.connect()
@@ -1917,32 +1950,32 @@ def make_robot_env(cfg: EnvConfig) -> gym.Env:
 
     # Control mode specific wrappers
     control_mode = cfg.wrapper.control_mode
-    if control_mode == "gamepad":
-        assert isinstance(teleop_device, GamepadTeleop), (
-            "teleop_device must be an instance of GamepadTeleop for gamepad control mode"
-        )
+    if control_mode == 'gamepad':
+        assert isinstance(
+            teleop_device, GamepadTeleop
+        ), 'teleop_device must be an instance of GamepadTeleop for gamepad control mode'
         env = GamepadControlWrapper(
             env=env,
             teleop_device=teleop_device,
             use_gripper=cfg.wrapper.use_gripper,
         )
-    elif control_mode == "keyboard_ee":
-        assert isinstance(teleop_device, KeyboardEndEffectorTeleop), (
-            "teleop_device must be an instance of KeyboardEndEffectorTeleop for keyboard control mode"
-        )
+    elif control_mode == 'keyboard_ee':
+        assert isinstance(
+            teleop_device, KeyboardEndEffectorTeleop
+        ), 'teleop_device must be an instance of KeyboardEndEffectorTeleop for keyboard control mode'
         env = KeyboardControlWrapper(
             env=env,
             teleop_device=teleop_device,
             use_gripper=cfg.wrapper.use_gripper,
         )
-    elif control_mode == "leader":
+    elif control_mode == 'leader':
         env = GearedLeaderControlWrapper(
             env=env,
             teleop_device=teleop_device,
             end_effector_step_sizes=cfg.robot.end_effector_step_sizes,
             use_gripper=cfg.wrapper.use_gripper,
         )
-    elif control_mode == "leader_automatic":
+    elif control_mode == 'leader_automatic':
         env = GearedLeaderAutomaticControlWrapper(
             env=env,
             teleop_device=teleop_device,
@@ -1950,7 +1983,7 @@ def make_robot_env(cfg: EnvConfig) -> gym.Env:
             use_gripper=cfg.wrapper.use_gripper,
         )
     else:
-        raise ValueError(f"Invalid control mode: {control_mode}")
+        raise ValueError(f'Invalid control mode: {control_mode}')
 
     env = ResetWrapper(
         env=env,
@@ -1980,7 +2013,7 @@ def init_reward_classifier(cfg):
     from lerobot.policies.sac.reward_model.modeling_classifier import Classifier
 
     # Get device from config or default to CUDA
-    device = getattr(cfg, "device", "cpu")
+    device = getattr(cfg, 'device', 'cpu')
 
     # Load the classifier directly using from_pretrained
     classifier = Classifier.from_pretrained(
@@ -2025,38 +2058,38 @@ def record_dataset(env, policy, cfg):
     # Setup initial action (zero action if using teleop)
     action = env.action_space.sample() * 0.0
 
-    action_names = ["delta_x_ee", "delta_y_ee", "delta_z_ee"]
+    action_names = ['delta_x_ee', 'delta_y_ee', 'delta_z_ee']
     if cfg.wrapper.use_gripper:
-        action_names.append("gripper_delta")
+        action_names.append('gripper_delta')
 
     # Configure dataset features based on environment spaces
     features = {
-        "observation.state": {
-            "dtype": "float32",
-            "shape": env.observation_space["observation.state"].shape,
-            "names": None,
+        'observation.state': {
+            'dtype': 'float32',
+            'shape': env.observation_space['observation.state'].shape,
+            'names': None,
         },
-        "action": {
-            "dtype": "float32",
-            "shape": (len(action_names),),
-            "names": action_names,
+        'action': {
+            'dtype': 'float32',
+            'shape': (len(action_names),),
+            'names': action_names,
         },
-        "next.reward": {"dtype": "float32", "shape": (1,), "names": None},
-        "next.done": {"dtype": "bool", "shape": (1,), "names": None},
-        "complementary_info.discrete_penalty": {
-            "dtype": "float32",
-            "shape": (1,),
-            "names": ["discrete_penalty"],
+        'next.reward': {'dtype': 'float32', 'shape': (1,), 'names': None},
+        'next.done': {'dtype': 'bool', 'shape': (1,), 'names': None},
+        'complementary_info.discrete_penalty': {
+            'dtype': 'float32',
+            'shape': (1,),
+            'names': ['discrete_penalty'],
         },
     }
 
     # Add image features
     for key in env.observation_space:
-        if "image" in key:
+        if 'image' in key:
             features[key] = {
-                "dtype": "video",
-                "shape": env.observation_space[key].shape,
-                "names": ["channels", "height", "width"],
+                'dtype': 'video',
+                'shape': env.observation_space[key].shape,
+                'names': ['channels', 'height', 'width'],
             }
 
     # Create dataset
@@ -2076,7 +2109,7 @@ def record_dataset(env, policy, cfg):
     while episode_index < cfg.num_episodes:
         obs, _ = env.reset()
         start_episode_t = time.perf_counter()
-        log_say(f"Recording episode {episode_index}", play_sounds=True)
+        log_say(f'Recording episode {episode_index}', play_sounds=True)
 
         # Track success state collection
         success_detected = False
@@ -2094,12 +2127,16 @@ def record_dataset(env, policy, cfg):
             obs, reward, terminated, truncated, info = env.step(action)
 
             # Check if episode needs to be rerecorded
-            if info.get("rerecord_episode", False):
+            if info.get('rerecord_episode', False):
                 break
 
             # For teleop, get action from intervention
             recorded_action = {
-                "action": info["action_intervention"].cpu().squeeze(0).float() if policy is None else action
+                'action': (
+                    info['action_intervention'].cpu().squeeze(0).float()
+                    if policy is None
+                    else action
+                )
             }
 
             # Process observation for dataset
@@ -2108,16 +2145,16 @@ def record_dataset(env, policy, cfg):
             # Check if we've just detected success
             if reward == 1.0 and not success_detected:
                 success_detected = True
-                logging.info("Success detected! Collecting additional success states.")
+                logging.info('Success detected! Collecting additional success states.')
 
             # Add frame to dataset - continue marking as success even during extra collection steps
             frame = {**obs_processed, **recorded_action}
 
             # If we're in the success collection phase, keep marking rewards as 1.0
             if success_detected:
-                frame["next.reward"] = np.array([1.0], dtype=np.float32)
+                frame['next.reward'] = np.array([1.0], dtype=np.float32)
             else:
-                frame["next.reward"] = np.array([reward], dtype=np.float32)
+                frame['next.reward'] = np.array([reward], dtype=np.float32)
 
             # Only mark as done if we're truly done (reached end or collected enough success states)
             really_done = terminated or truncated
@@ -2125,9 +2162,9 @@ def record_dataset(env, policy, cfg):
                 success_steps_collected += 1
                 really_done = success_steps_collected >= cfg.number_of_steps_after_success
 
-            frame["next.done"] = np.array([really_done], dtype=bool)
-            frame["complementary_info.discrete_penalty"] = torch.tensor(
-                [info.get("discrete_penalty", 0.0)], dtype=torch.float32
+            frame['next.done'] = np.array([really_done], dtype=bool)
+            frame['complementary_info.discrete_penalty'] = torch.tensor(
+                [info.get('discrete_penalty', 0.0)], dtype=torch.float32
             )
             dataset.add_frame(frame, task=cfg.task)
 
@@ -2142,13 +2179,13 @@ def record_dataset(env, policy, cfg):
                 break
             elif success_detected and success_steps_collected >= cfg.number_of_steps_after_success:
                 # We've collected enough success states
-                logging.info(f"Collected {success_steps_collected} additional success states")
+                logging.info(f'Collected {success_steps_collected} additional success states')
                 break
 
         # Handle episode recording
-        if info.get("rerecord_episode", False):
+        if info.get('rerecord_episode', False):
             dataset.clear_episode_buffer()
-            logging.info(f"Re-recording episode {episode_index}")
+            logging.info(f'Re-recording episode {episode_index}')
             continue
 
         dataset.save_episode()
@@ -2179,12 +2216,12 @@ def replay_episode(env, cfg):
     dataset = LeRobotDataset(cfg.repo_id, root=cfg.dataset_root, episodes=[cfg.episode])
     env.reset()
 
-    actions = dataset.hf_dataset.select_columns("action")
+    actions = dataset.hf_dataset.select_columns('action')
 
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
 
-        action = actions[idx]["action"]
+        action = actions[idx]['action']
         env.step(action)
 
         dt_s = time.perf_counter() - start_episode_t
@@ -2204,7 +2241,7 @@ def main(cfg: EnvConfig):
     """
     env = make_robot_env(cfg)
 
-    if cfg.mode == "record":
+    if cfg.mode == 'record':
         policy = None
         if cfg.pretrained_policy_name_or_path is not None:
             from lerobot.policies.sac.modeling_sac import SACPolicy
@@ -2220,7 +2257,7 @@ def main(cfg: EnvConfig):
         )
         exit()
 
-    if cfg.mode == "replay":
+    if cfg.mode == 'replay':
         replay_episode(
             env,
             cfg=cfg,
@@ -2255,9 +2292,9 @@ def main(cfg: EnvConfig):
         dt_s = time.perf_counter() - start_loop_s
         busy_wait(1 / cfg.fps - dt_s)
 
-    logging.info(f"Success after 20 steps {successes}")
-    logging.info(f"success rate {sum(successes) / len(successes)}")
+    logging.info(f'Success after 20 steps {successes}')
+    logging.info(f'success rate {sum(successes) / len(successes)}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

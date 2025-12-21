@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +35,7 @@ class RobotKinematics:
     def __init__(
         self,
         urdf_path: str,
-        target_frame_name: str = "gripper_frame_link",
+        target_frame_name: str = 'gripper_frame_link',
         joint_names: list[str] = None,
     ):
         """
@@ -36,8 +50,8 @@ class RobotKinematics:
             import placo
         except ImportError as e:
             raise ImportError(
-                "placo is required for RobotKinematics. "
-                "Please install the optional dependencies of `kinematics` in the package."
+                'placo is required for RobotKinematics. '
+                'Please install the optional dependencies of `kinematics` in the package.'
             ) from e
 
         self.robot = placo.RobotWrapper(urdf_path)
@@ -103,7 +117,9 @@ class RobotKinematics:
         self.tip_frame.T_world_frame = desired_ee_pose
 
         # Configure the task based on position_only flag
-        self.tip_frame.configure(self.target_frame_name, "soft", position_weight, orientation_weight)
+        self.tip_frame.configure(
+            self.target_frame_name, 'soft', position_weight, orientation_weight
+        )
 
         # Solve IK
         self.solver.solve(True)

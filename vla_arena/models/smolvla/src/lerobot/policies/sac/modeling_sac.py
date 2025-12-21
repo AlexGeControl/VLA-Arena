@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2024 The HuggingFace Inc. team.
 # All rights reserved.
 #
@@ -25,13 +39,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F  # noqa: N812
-from torch import Tensor
-from torch.distributions import MultivariateNormal, TanhTransform, Transform, TransformedDistribution
-
 from lerobot.policies.normalize import NormalizeBuffer
 from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.policies.sac.configuration_sac import SACConfig, is_image_feature
 from lerobot.policies.utils import get_device_from_parameters
+from torch import Tensor
+from torch.distributions import (
+    MultivariateNormal,
+    TanhTransform,
+    Transform,
+    TransformedDistribution,
+)
+
 
 DISCRETE_DIMENSION_INDEX = -1  # Gripper is always the last dimension
 
@@ -40,7 +59,7 @@ class SACPolicy(
     PreTrainedPolicy,
 ):
     config_class = SACConfig
-    name = "sac"
+    name = 'sac'
 
     def __init__(
         self,
@@ -52,7 +71,7 @@ class SACPolicy(
         self.config = config
 
         # Determine action dimension and initialize all components
-        continuous_action_dim = config.output_features["action"].shape[0]
+        continuous_action_dim = config.output_features['action'].shape[0]
         self._init_normalization(dataset_stats)
         self._init_encoders()
         self._init_critics(continuous_action_dim)
@@ -61,16 +80,16 @@ class SACPolicy(
 
     def get_optim_params(self) -> dict:
         optim_params = {
-            "actor": [
+            'actor': [
                 p
                 for n, p in self.actor.named_parameters()
-                if not n.startswith("encoder") or not self.shared_encoder
+                if not n.startswith('encoder') or not self.shared_encoder
             ],
-            "critic": self.critic_ensemble.parameters(),
-            "temperature": self.log_alpha,
+            'critic': self.critic_ensemble.parameters(),
+            'temperature': self.log_alpha,
         }
         if self.config.num_discrete_actions is not None:
-            optim_params["discrete_critic"] = self.discrete_critic.parameters()
+            optim_params['discrete_critic'] = self.discrete_critic.parameters()
         return optim_params
 
     def reset(self):
@@ -80,7 +99,9 @@ class SACPolicy(
     @torch.no_grad()
     def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
         """Predict a chunk of actions given environment observations."""
-        raise NotImplementedError("SACPolicy does not support action chunking. It returns single actions!")
+        raise NotImplementedError(
+            'SACPolicy does not support action chunking. It returns single actions!'
+        )
 
     @torch.no_grad()
     def select_action(self, batch: dict[str, Tensor]) -> Tensor:
@@ -89,7 +110,9 @@ class SACPolicy(
         observations_features = None
         if self.shared_encoder and self.actor.encoder.has_images:
             # Cache and normalize image features
-            observations_features = self.actor.encoder.get_cached_image_features(batch, normalize=True)
+            observations_features = self.actor.encoder.get_cached_image_features(
+                batch, normalize=True
+            )
 
         actions, _, _ = self.actor(batch, observations_features)
 
@@ -142,7 +165,7 @@ class SACPolicy(
     def forward(
         self,
         batch: dict[str, Tensor | dict[str, Tensor]],
-        model: Literal["actor", "critic", "temperature", "discrete_critic"] = "critic",
+        model: Literal['actor', 'critic', 'temperature', 'discrete_critic'] = 'critic',
     ) -> dict[str, Tensor]:
         """Compute the loss for the given model
 
@@ -161,16 +184,16 @@ class SACPolicy(
             The computed loss tensor
         """
         # Extract common components from batch
-        actions: Tensor = batch["action"]
-        observations: dict[str, Tensor] = batch["state"]
-        observation_features: Tensor = batch.get("observation_feature")
+        actions: Tensor = batch['action']
+        observations: dict[str, Tensor] = batch['state']
+        observation_features: Tensor = batch.get('observation_feature')
 
-        if model == "critic":
+        if model == 'critic':
             # Extract critic-specific components
-            rewards: Tensor = batch["reward"]
-            next_observations: dict[str, Tensor] = batch["next_state"]
-            done: Tensor = batch["done"]
-            next_observation_features: Tensor = batch.get("next_observation_feature")
+            rewards: Tensor = batch['reward']
+            next_observations: dict[str, Tensor] = batch['next_state']
+            done: Tensor = batch['done']
+            next_observation_features: Tensor = batch.get('next_observation_feature')
 
             loss_critic = self.compute_loss_critic(
                 observations=observations,
@@ -182,15 +205,15 @@ class SACPolicy(
                 next_observation_features=next_observation_features,
             )
 
-            return {"loss_critic": loss_critic}
+            return {'loss_critic': loss_critic}
 
-        if model == "discrete_critic" and self.config.num_discrete_actions is not None:
+        if model == 'discrete_critic' and self.config.num_discrete_actions is not None:
             # Extract critic-specific components
-            rewards: Tensor = batch["reward"]
-            next_observations: dict[str, Tensor] = batch["next_state"]
-            done: Tensor = batch["done"]
-            next_observation_features: Tensor = batch.get("next_observation_feature")
-            complementary_info = batch.get("complementary_info")
+            rewards: Tensor = batch['reward']
+            next_observations: dict[str, Tensor] = batch['next_state']
+            done: Tensor = batch['done']
+            next_observation_features: Tensor = batch.get('next_observation_feature')
+            complementary_info = batch.get('complementary_info')
             loss_discrete_critic = self.compute_loss_discrete_critic(
                 observations=observations,
                 actions=actions,
@@ -201,24 +224,24 @@ class SACPolicy(
                 next_observation_features=next_observation_features,
                 complementary_info=complementary_info,
             )
-            return {"loss_discrete_critic": loss_discrete_critic}
-        if model == "actor":
+            return {'loss_discrete_critic': loss_discrete_critic}
+        if model == 'actor':
             return {
-                "loss_actor": self.compute_loss_actor(
+                'loss_actor': self.compute_loss_actor(
                     observations=observations,
                     observation_features=observation_features,
                 )
             }
 
-        if model == "temperature":
+        if model == 'temperature':
             return {
-                "loss_temperature": self.compute_loss_temperature(
+                'loss_temperature': self.compute_loss_temperature(
                     observations=observations,
                     observation_features=observation_features,
                 )
             }
 
-        raise ValueError(f"Unknown model type: {model}")
+        raise ValueError(f'Unknown model type: {model}')
 
     def update_target_networks(self):
         """Update target networks with exponential moving average"""
@@ -256,7 +279,9 @@ class SACPolicy(
         next_observation_features: Tensor | None = None,
     ) -> Tensor:
         with torch.no_grad():
-            next_action_preds, next_log_probs, _ = self.actor(next_observations, next_observation_features)
+            next_action_preds, next_log_probs, _ = self.actor(
+                next_observations, next_observation_features
+            )
 
             # 2- compute q targets
             q_targets = self.critic_forward(
@@ -295,13 +320,13 @@ class SACPolicy(
 
         # 4- Calculate loss
         # Compute state-action value loss (TD loss) for all of the Q functions in the ensemble.
-        td_target_duplicate = einops.repeat(td_target, "b -> e b", e=q_preds.shape[0])
+        td_target_duplicate = einops.repeat(td_target, 'b -> e b', e=q_preds.shape[0])
         # You compute the mean loss of the batch for each critic and then to compute the final loss you sum them up
         critics_loss = (
             F.mse_loss(
                 input=q_preds,
                 target=td_target_duplicate,
-                reduction="none",
+                reduction='none',
             ).mean(dim=1)
         ).sum()
         return critics_loss
@@ -326,7 +351,7 @@ class SACPolicy(
 
         discrete_penalties: Tensor | None = None
         if complementary_info is not None:
-            discrete_penalties: Tensor | None = complementary_info.get("discrete_penalty")
+            discrete_penalties: Tensor | None = complementary_info.get('discrete_penalty')
 
         with torch.no_grad():
             # For DQN, select actions using online network, evaluate with target network
@@ -351,7 +376,9 @@ class SACPolicy(
             rewards_discrete = rewards
             if discrete_penalties is not None:
                 rewards_discrete = rewards + discrete_penalties
-            target_discrete_q = rewards_discrete + (1 - done) * self.config.discount * target_next_discrete_q
+            target_discrete_q = (
+                rewards_discrete + (1 - done) * self.config.discount * target_next_discrete_q
+            )
 
         # Get predicted Q-values for current observations
         predicted_discrete_qs = self.discrete_critic_forward(
@@ -359,13 +386,17 @@ class SACPolicy(
         )
 
         # Use gather to select Q-values for taken actions
-        predicted_discrete_q = torch.gather(predicted_discrete_qs, dim=1, index=actions_discrete).squeeze(-1)
+        predicted_discrete_q = torch.gather(
+            predicted_discrete_qs, dim=1, index=actions_discrete
+        ).squeeze(-1)
 
         # Compute MSE loss between predicted and target Q-values
         discrete_critic_loss = F.mse_loss(input=predicted_discrete_q, target=target_discrete_q)
         return discrete_critic_loss
 
-    def compute_loss_temperature(self, observations, observation_features: Tensor | None = None) -> Tensor:
+    def compute_loss_temperature(
+        self, observations, observation_features: Tensor | None = None
+    ) -> Tensor:
         """Compute the temperature loss"""
         # calculate temperature loss
         with torch.no_grad():
@@ -435,7 +466,9 @@ class SACPolicy(
             for _ in range(self.config.num_critics)
         ]
         self.critic_target = CriticEnsemble(
-            encoder=self.encoder_critic, ensemble=target_heads, output_normalization=self.normalize_targets
+            encoder=self.encoder_critic,
+            ensemble=target_heads,
+            output_normalization=self.normalize_targets,
         )
         self.critic_target.load_state_dict(self.critic_ensemble.state_dict())
 
@@ -469,7 +502,9 @@ class SACPolicy(
         # NOTE: The actor select only the continuous action part
         self.actor = Policy(
             encoder=self.encoder_actor,
-            network=MLP(input_dim=self.encoder_actor.output_dim, **asdict(self.config.actor_network_kwargs)),
+            network=MLP(
+                input_dim=self.encoder_actor.output_dim, **asdict(self.config.actor_network_kwargs)
+            ),
             action_dim=continuous_action_dim,
             encoder_is_shared=self.shared_encoder,
             **asdict(self.config.policy_kwargs),
@@ -520,7 +555,7 @@ class SACObservationEncoder(nn.Module):
         self.post_encoders = nn.ModuleDict()
 
         for key in self.image_keys:
-            name = key.replace(".", "_")
+            name = key.replace('.', '_')
             self.spatial_embeddings[name] = SpatialLearnedEmbeddings(
                 height=height,
                 width=width,
@@ -538,17 +573,17 @@ class SACObservationEncoder(nn.Module):
             )
 
     def _init_state_layers(self) -> None:
-        self.has_env = "observation.environment_state" in self.config.input_features
-        self.has_state = "observation.state" in self.config.input_features
+        self.has_env = 'observation.environment_state' in self.config.input_features
+        self.has_state = 'observation.state' in self.config.input_features
         if self.has_env:
-            dim = self.config.input_features["observation.environment_state"].shape[0]
+            dim = self.config.input_features['observation.environment_state'].shape[0]
             self.env_encoder = nn.Sequential(
                 nn.Linear(dim, self.config.latent_dim),
                 nn.LayerNorm(self.config.latent_dim),
                 nn.Tanh(),
             )
         if self.has_state:
-            dim = self.config.input_features["observation.state"].shape[0]
+            dim = self.config.input_features['observation.state'].shape[0]
             self.state_encoder = nn.Sequential(
                 nn.Linear(dim, self.config.latent_dim),
                 nn.LayerNorm(self.config.latent_dim),
@@ -575,17 +610,19 @@ class SACObservationEncoder(nn.Module):
                 cache = self.get_cached_image_features(obs, normalize=False)
             parts.append(self._encode_images(cache, detach))
         if self.has_env:
-            parts.append(self.env_encoder(obs["observation.environment_state"]))
+            parts.append(self.env_encoder(obs['observation.environment_state']))
         if self.has_state:
-            parts.append(self.state_encoder(obs["observation.state"]))
+            parts.append(self.state_encoder(obs['observation.state']))
         if parts:
             return torch.cat(parts, dim=-1)
 
         raise ValueError(
-            "No parts to concatenate, you should have at least one image or environment state or state"
+            'No parts to concatenate, you should have at least one image or environment state or state'
         )
 
-    def get_cached_image_features(self, obs: dict[str, Tensor], normalize: bool = False) -> dict[str, Tensor]:
+    def get_cached_image_features(
+        self, obs: dict[str, Tensor], normalize: bool = False
+    ) -> dict[str, Tensor]:
         """Extract and optionally cache image features from observations.
 
         This function processes image observations through the vision encoder once and returns
@@ -639,7 +676,7 @@ class SACObservationEncoder(nn.Module):
         """
         feats = []
         for k, feat in cache.items():
-            safe_key = k.replace(".", "_")
+            safe_key = k.replace('.', '_')
             x = self.spatial_embeddings[safe_key](feat)
             x = self.post_encoders[safe_key](x)
             if detach:
@@ -776,9 +813,9 @@ class CriticEnsemble(nn.Module):
         # Move each tensor in observations to device
         observations = {k: v.to(device) for k, v in observations.items()}
         # NOTE: We normalize actions it helps for sample efficiency
-        actions: dict[str, torch.tensor] = {"action": actions}
+        actions: dict[str, torch.tensor] = {'action': actions}
         # NOTE: Normalization layer took dict in input and outputs a dict that why
-        actions = self.output_normalization(actions)["action"]
+        actions = self.output_normalization(actions)['action']
         actions = actions.to(device)
 
         obs_enc = self.encoder(observations, cache=observation_features)
@@ -889,7 +926,9 @@ class Policy(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # We detach the encoder if it is shared to avoid backprop through it
         # This is important to avoid the encoder to be updated through the policy
-        obs_enc = self.encoder(observations, cache=observation_features, detach=self.encoder_is_shared)
+        obs_enc = self.encoder(
+            observations, cache=observation_features, detach=self.encoder_is_shared
+        )
 
         # Get network outputs
         outputs = self.network(obs_enc)
@@ -974,20 +1013,28 @@ class PretrainedImageEncoder(nn.Module):
     def __init__(self, config: SACConfig):
         super().__init__()
 
-        self.image_enc_layers, self.image_enc_out_shape = self._load_pretrained_vision_encoder(config)
+        self.image_enc_layers, self.image_enc_out_shape = self._load_pretrained_vision_encoder(
+            config
+        )
 
     def _load_pretrained_vision_encoder(self, config: SACConfig):
         """Set up CNN encoder"""
         from transformers import AutoModel
 
-        self.image_enc_layers = AutoModel.from_pretrained(config.vision_encoder_name, trust_remote_code=True)
+        self.image_enc_layers = AutoModel.from_pretrained(
+            config.vision_encoder_name, trust_remote_code=True
+        )
 
-        if hasattr(self.image_enc_layers.config, "hidden_sizes"):
-            self.image_enc_out_shape = self.image_enc_layers.config.hidden_sizes[-1]  # Last channel dimension
-        elif hasattr(self.image_enc_layers, "fc"):
+        if hasattr(self.image_enc_layers.config, 'hidden_sizes'):
+            self.image_enc_out_shape = self.image_enc_layers.config.hidden_sizes[
+                -1
+            ]  # Last channel dimension
+        elif hasattr(self.image_enc_layers, 'fc'):
             self.image_enc_out_shape = self.image_enc_layers.fc.in_features
         else:
-            raise ValueError("Unsupported vision encoder architecture, make sure you are using a CNN")
+            raise ValueError(
+                'Unsupported vision encoder architecture, make sure you are using a CNN'
+            )
         return self.image_enc_layers, self.image_enc_out_shape
 
     def forward(self, x):
@@ -1018,7 +1065,7 @@ class SpatialLearnedEmbeddings(nn.Module):
 
         self.kernel = nn.Parameter(torch.empty(channel, height, width, num_features))
 
-        nn.init.kaiming_normal_(self.kernel, mode="fan_in", nonlinearity="linear")
+        nn.init.kaiming_normal_(self.kernel, mode='fan_in', nonlinearity='linear')
 
     def forward(self, features):
         """
@@ -1111,7 +1158,7 @@ def _convert_normalization_params_to_tensor(normalization_params: dict) -> dict:
         converted_params[outer_key] = {}
         for key, value in inner_dict.items():
             converted_params[outer_key][key] = torch.tensor(value)
-            if "image" in outer_key:
+            if 'image' in outer_key:
                 converted_params[outer_key][key] = converted_params[outer_key][key].view(3, 1, 1)
 
     return converted_params

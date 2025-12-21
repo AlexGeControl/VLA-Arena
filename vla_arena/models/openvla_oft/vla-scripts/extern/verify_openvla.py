@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """
 verify_openvla.py
 
@@ -11,36 +25,37 @@ import torch
 from PIL import Image
 from transformers import AutoModelForVision2Seq, AutoProcessor
 
+
 # === Verification Arguments
-MODEL_PATH = "openvla/openvla-7b"
+MODEL_PATH = 'openvla/openvla-7b'
 SYSTEM_PROMPT = (
-    "A chat between a curious user and an artificial intelligence assistant. "
+    'A chat between a curious user and an artificial intelligence assistant. '
     "The assistant gives helpful, detailed, and polite answers to the user's questions."
 )
-INSTRUCTION = "put spoon on towel"
+INSTRUCTION = 'put spoon on towel'
 
 
 def get_openvla_prompt(instruction: str) -> str:
-    if "v01" in MODEL_PATH:
-        return f"{SYSTEM_PROMPT} USER: What action should the robot take to {instruction.lower()}? ASSISTANT:"
+    if 'v01' in MODEL_PATH:
+        return f'{SYSTEM_PROMPT} USER: What action should the robot take to {instruction.lower()}? ASSISTANT:'
     else:
-        return f"In: What action should the robot take to {instruction.lower()}?\nOut:"
+        return f'In: What action should the robot take to {instruction.lower()}?\nOut:'
 
 
 @torch.inference_mode()
 def verify_openvla() -> None:
-    print(f"[*] Verifying OpenVLAForActionPrediction using Model `{MODEL_PATH}`")
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print(f'[*] Verifying OpenVLAForActionPrediction using Model `{MODEL_PATH}`')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     # Load Processor & VLA
-    print("[*] Instantiating Processor and Pretrained OpenVLA")
+    print('[*] Instantiating Processor and Pretrained OpenVLA')
     processor = AutoProcessor.from_pretrained(MODEL_PATH, trust_remote_code=True)
 
     # === BFLOAT16 + FLASH-ATTN MODE ===
-    print("[*] Loading in BF16 with Flash-Attention Enabled")
+    print('[*] Loading in BF16 with Flash-Attention Enabled')
     vla = AutoModelForVision2Seq.from_pretrained(
         MODEL_PATH,
-        attn_implementation="flash_attention_2",
+        attn_implementation='flash_attention_2',
         torch_dtype=torch.bfloat16,
         low_cpu_mem_usage=True,
         trust_remote_code=True,
@@ -68,7 +83,7 @@ def verify_openvla() -> None:
     #     trust_remote_code=True,
     # )
 
-    print("[*] Iterating with Randomly Generated Images")
+    print('[*] Iterating with Randomly Generated Images')
     for _ in range(100):
         prompt = get_openvla_prompt(INSTRUCTION)
         image = Image.fromarray(np.asarray(np.random.rand(256, 256, 3) * 255, dtype=np.uint8))
@@ -81,9 +96,9 @@ def verify_openvla() -> None:
 
         # Run OpenVLA Inference
         start_time = time.time()
-        action = vla.predict_action(**inputs, unnorm_key="bridge_orig", do_sample=False)
-        print(f"\t=>> Time: {time.time() - start_time:.4f} || Action: {action}")
+        action = vla.predict_action(**inputs, unnorm_key='bridge_orig', do_sample=False)
+        print(f'\t=>> Time: {time.time() - start_time:.4f} || Action: {action}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     verify_openvla()

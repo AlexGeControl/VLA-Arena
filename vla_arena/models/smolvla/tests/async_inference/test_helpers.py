@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +32,6 @@ import time
 
 import numpy as np
 import torch
-
 from lerobot.configs.types import FeatureType, PolicyFeature
 from lerobot.scripts.server.helpers import (
     FPSTracker,
@@ -30,6 +43,7 @@ from lerobot.scripts.server.helpers import (
     raw_observation_to_observation,
     resize_robot_observation_image,
 )
+
 
 # ---------------------------------------------------------------------
 # FPSTracker
@@ -45,8 +59,8 @@ def test_fps_tracker_first_observation():
 
     assert tracker.first_timestamp == timestamp
     assert tracker.total_obs_count == 1
-    assert metrics["avg_fps"] == 0.0
-    assert metrics["target_fps"] == 30.0
+    assert metrics['avg_fps'] == 0.0
+    assert metrics['target_fps'] == 30.0
 
 
 def test_fps_tracker_single_interval():
@@ -55,12 +69,12 @@ def test_fps_tracker_single_interval():
 
     # First observation at t=0
     metrics1 = tracker.calculate_fps_metrics(0.0)
-    assert metrics1["avg_fps"] == 0.0
+    assert metrics1['avg_fps'] == 0.0
 
     # Second observation at t=1 (1 second later)
     metrics2 = tracker.calculate_fps_metrics(1.0)
     expected_fps = 1.0  # (2-1) observations / 1.0 seconds = 1 FPS
-    assert math.isclose(metrics2["avg_fps"], expected_fps, rel_tol=1e-6)
+    assert math.isclose(metrics2['avg_fps'], expected_fps, rel_tol=1e-6)
 
 
 def test_fps_tracker_multiple_intervals():
@@ -74,11 +88,11 @@ def test_fps_tracker_multiple_intervals():
         metrics = tracker.calculate_fps_metrics(ts)
 
         if i == 0:
-            assert metrics["avg_fps"] == 0.0
+            assert metrics['avg_fps'] == 0.0
         elif i == len(timestamps) - 1:
             # After 5 observations over 2 seconds: (5-1)/2 = 2 FPS
             expected_fps = 2.0
-            assert math.isclose(metrics["avg_fps"], expected_fps, rel_tol=1e-6)
+            assert math.isclose(metrics['avg_fps'], expected_fps, rel_tol=1e-6)
 
 
 def test_fps_tracker_irregular_intervals():
@@ -93,7 +107,7 @@ def test_fps_tracker_irregular_intervals():
 
     # 5 observations over 3 seconds: (5-1)/3 = 1.333... FPS
     expected_fps = 4.0 / 3.0
-    assert math.isclose(metrics["avg_fps"], expected_fps, rel_tol=1e-6)
+    assert math.isclose(metrics['avg_fps'], expected_fps, rel_tol=1e-6)
 
 
 # ---------------------------------------------------------------------
@@ -115,7 +129,7 @@ def test_timed_action_getters():
 def test_timed_observation_getters():
     """TimedObservation stores & returns timestamp, dict and timestep."""
     ts = time.time()
-    obs_dict = {"observation.state": torch.ones(6)}
+    obs_dict = {'observation.state': torch.ones(6)}
     to = TimedObservation(timestamp=ts, observation=obs_dict, timestep=0)
 
     assert math.isclose(to.get_timestamp(), ts, rel_tol=0, abs_tol=1e-6)
@@ -151,7 +165,7 @@ def test_timed_data_deserialization_data_getters():
     # ------------------------------------------------------------------
     # TimedObservation
     # ------------------------------------------------------------------
-    obs_dict = {"observation.state": torch.arange(4).float()}
+    obs_dict = {'observation.state': torch.arange(4).float()}
     to_in = TimedObservation(timestamp=ts, observation=obs_dict, timestep=7, must_go=True)
 
     to_bytes = pickle.dumps(to_in)  # nosec
@@ -161,7 +175,9 @@ def test_timed_data_deserialization_data_getters():
     assert to_out.get_timestep() == 7
     assert to_out.must_go is True
     assert to_out.get_observation().keys() == obs_dict.keys()
-    torch.testing.assert_close(to_out.get_observation()["observation.state"], obs_dict["observation.state"])
+    torch.testing.assert_close(
+        to_out.get_observation()['observation.state'], obs_dict['observation.state']
+    )
 
 
 # ---------------------------------------------------------------------
@@ -174,10 +190,10 @@ def _make_obs(state: torch.Tensor) -> TimedObservation:
     return TimedObservation(
         timestamp=time.time(),
         observation={
-            "shoulder": state[0].item() if len(state) > 0 else 0.0,
-            "elbow": state[1].item() if len(state) > 1 else 0.0,
-            "wrist": state[2].item() if len(state) > 2 else 0.0,
-            "gripper": state[3].item() if len(state) > 3 else 0.0,
+            'shoulder': state[0].item() if len(state) > 0 else 0.0,
+            'elbow': state[1].item() if len(state) > 1 else 0.0,
+            'wrist': state[2].item() if len(state) > 2 else 0.0,
+            'gripper': state[3].item() if len(state) > 3 else 0.0,
         },
         timestep=0,
     )
@@ -187,10 +203,10 @@ def test_observations_similar_true():
     """Distance below atol → observations considered similar."""
     # Create mock lerobot features for the similarity check
     lerobot_features = {
-        "observation.state": {
-            "dtype": "float32",
-            "shape": [4],
-            "names": ["shoulder", "elbow", "wrist", "gripper"],
+        'observation.state': {
+            'dtype': 'float32',
+            'shape': [4],
+            'names': ['shoulder', 'elbow', 'wrist', 'gripper'],
         }
     }
 
@@ -210,32 +226,32 @@ def test_observations_similar_true():
 def _create_mock_robot_observation():
     """Create a mock robot observation with motor positions and camera images."""
     return {
-        "shoulder": 1.0,
-        "elbow": 2.0,
-        "wrist": 3.0,
-        "gripper": 0.5,
-        "laptop": np.random.randint(0, 256, size=(480, 640, 3), dtype=np.uint8),
-        "phone": np.random.randint(0, 256, size=(480, 640, 3), dtype=np.uint8),
+        'shoulder': 1.0,
+        'elbow': 2.0,
+        'wrist': 3.0,
+        'gripper': 0.5,
+        'laptop': np.random.randint(0, 256, size=(480, 640, 3), dtype=np.uint8),
+        'phone': np.random.randint(0, 256, size=(480, 640, 3), dtype=np.uint8),
     }
 
 
 def _create_mock_lerobot_features():
     """Create mock lerobot features mapping similar to what hw_to_dataset_features returns."""
     return {
-        "observation.state": {
-            "dtype": "float32",
-            "shape": [4],
-            "names": ["shoulder", "elbow", "wrist", "gripper"],
+        'observation.state': {
+            'dtype': 'float32',
+            'shape': [4],
+            'names': ['shoulder', 'elbow', 'wrist', 'gripper'],
         },
-        "observation.images.laptop": {
-            "dtype": "image",
-            "shape": [480, 640, 3],
-            "names": ["height", "width", "channels"],
+        'observation.images.laptop': {
+            'dtype': 'image',
+            'shape': [480, 640, 3],
+            'names': ['height', 'width', 'channels'],
         },
-        "observation.images.phone": {
-            "dtype": "image",
-            "shape": [480, 640, 3],
-            "names": ["height", "width", "channels"],
+        'observation.images.phone': {
+            'dtype': 'image',
+            'shape': [480, 640, 3],
+            'names': ['height', 'width', 'channels'],
         },
     }
 
@@ -243,11 +259,11 @@ def _create_mock_lerobot_features():
 def _create_mock_policy_image_features():
     """Create mock policy image features with different resolutions."""
     return {
-        "observation.images.laptop": PolicyFeature(
+        'observation.images.laptop': PolicyFeature(
             type=FeatureType.VISUAL,
             shape=(3, 224, 224),  # Policy expects smaller resolution
         ),
-        "observation.images.phone": PolicyFeature(
+        'observation.images.phone': PolicyFeature(
             type=FeatureType.VISUAL,
             shape=(3, 160, 160),  # Different resolution for second camera
         ),
@@ -306,21 +322,21 @@ def test_prepare_raw_observation():
     prepared = prepare_raw_observation(robot_obs, lerobot_features, policy_image_features)
 
     # Check that state is properly extracted and batched
-    assert "observation.state" in prepared
-    state = prepared["observation.state"]
+    assert 'observation.state' in prepared
+    state = prepared['observation.state']
     assert isinstance(state, torch.Tensor)
     assert state.shape == (1, 4)  # Batched state
 
     # Check that images are processed and resized
-    assert "observation.images.laptop" in prepared
-    assert "observation.images.phone" in prepared
+    assert 'observation.images.laptop' in prepared
+    assert 'observation.images.phone' in prepared
 
-    laptop_img = prepared["observation.images.laptop"]
-    phone_img = prepared["observation.images.phone"]
+    laptop_img = prepared['observation.images.laptop']
+    phone_img = prepared['observation.images.phone']
 
     # Check image shapes match policy requirements
-    assert laptop_img.shape == policy_image_features["observation.images.laptop"].shape
-    assert phone_img.shape == policy_image_features["observation.images.phone"].shape
+    assert laptop_img.shape == policy_image_features['observation.images.laptop'].shape
+    assert phone_img.shape == policy_image_features['observation.images.phone'].shape
 
     # Check that images are tensors
     assert isinstance(laptop_img, torch.Tensor)
@@ -332,24 +348,26 @@ def test_raw_observation_to_observation_basic():
     robot_obs = _create_mock_robot_observation()
     lerobot_features = _create_mock_lerobot_features()
     policy_image_features = _create_mock_policy_image_features()
-    device = "cpu"
+    device = 'cpu'
 
-    observation = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, device)
+    observation = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, device
+    )
 
     # Check that all expected keys are present
-    assert "observation.state" in observation
-    assert "observation.images.laptop" in observation
-    assert "observation.images.phone" in observation
+    assert 'observation.state' in observation
+    assert 'observation.images.laptop' in observation
+    assert 'observation.images.phone' in observation
 
     # Check state processing
-    state = observation["observation.state"]
+    state = observation['observation.state']
     assert isinstance(state, torch.Tensor)
     assert state.device.type == device
     assert state.shape == (1, 4)  # Batched
 
     # Check image processing
-    laptop_img = observation["observation.images.laptop"]
-    phone_img = observation["observation.images.phone"]
+    laptop_img = observation['observation.images.laptop']
+    phone_img = observation['observation.images.phone']
 
     # Images should have batch dimension: (B, C, H, W)
     assert laptop_img.shape == (1, 3, 224, 224)
@@ -369,35 +387,39 @@ def test_raw_observation_to_observation_basic():
 def test_raw_observation_to_observation_with_non_tensor_data():
     """Test that non-tensor data (like task strings) is preserved."""
     robot_obs = _create_mock_robot_observation()
-    robot_obs["task"] = "pick up the red cube"  # Add string instruction
+    robot_obs['task'] = 'pick up the red cube'  # Add string instruction
 
     lerobot_features = _create_mock_lerobot_features()
     policy_image_features = _create_mock_policy_image_features()
-    device = "cpu"
+    device = 'cpu'
 
-    observation = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, device)
+    observation = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, device
+    )
 
     # Check that task string is preserved
-    assert "task" in observation
-    assert observation["task"] == "pick up the red cube"
-    assert isinstance(observation["task"], str)
+    assert 'task' in observation
+    assert observation['task'] == 'pick up the red cube'
+    assert isinstance(observation['task'], str)
 
 
 @torch.no_grad()
 def test_raw_observation_to_observation_device_handling():
     """Test that tensors are properly moved to the specified device."""
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    device = 'mps' if torch.backends.mps.is_available() else 'cpu'
 
     robot_obs = _create_mock_robot_observation()
     lerobot_features = _create_mock_lerobot_features()
     policy_image_features = _create_mock_policy_image_features()
 
-    observation = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, device)
+    observation = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, device
+    )
 
     # Check that all tensors are on the correct device
     for key, value in observation.items():
         if isinstance(value, torch.Tensor):
-            assert value.device.type == device, f"Tensor {key} not on {device}"
+            assert value.device.type == device, f'Tensor {key} not on {device}'
 
 
 def test_raw_observation_to_observation_deterministic():
@@ -405,11 +427,15 @@ def test_raw_observation_to_observation_deterministic():
     robot_obs = _create_mock_robot_observation()
     lerobot_features = _create_mock_lerobot_features()
     policy_image_features = _create_mock_policy_image_features()
-    device = "cpu"
+    device = 'cpu'
 
     # Run twice with same input
-    obs1 = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, device)
-    obs2 = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, device)
+    obs1 = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, device
+    )
+    obs2 = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, device
+    )
 
     # Results should be identical
     assert set(obs1.keys()) == set(obs2.keys())
@@ -427,33 +453,41 @@ def test_image_processing_pipeline_preserves_content():
     original_img = np.zeros((100, 100, 3), dtype=np.uint8)
     original_img[25:75, 25:75, :] = 255  # White square in center
 
-    robot_obs = {"shoulder": 1.0, "elbow": 1.0, "wrist": 1.0, "gripper": 1.0, "laptop": original_img}
+    robot_obs = {
+        'shoulder': 1.0,
+        'elbow': 1.0,
+        'wrist': 1.0,
+        'gripper': 1.0,
+        'laptop': original_img,
+    }
     lerobot_features = {
-        "observation.state": {
-            "dtype": "float32",
-            "shape": [4],
-            "names": ["shoulder", "elbow", "wrist", "gripper"],
+        'observation.state': {
+            'dtype': 'float32',
+            'shape': [4],
+            'names': ['shoulder', 'elbow', 'wrist', 'gripper'],
         },
-        "observation.images.laptop": {
-            "dtype": "image",
-            "shape": [100, 100, 3],
-            "names": ["height", "width", "channels"],
+        'observation.images.laptop': {
+            'dtype': 'image',
+            'shape': [100, 100, 3],
+            'names': ['height', 'width', 'channels'],
         },
     }
     policy_image_features = {
-        "observation.images.laptop": PolicyFeature(
+        'observation.images.laptop': PolicyFeature(
             type=FeatureType.VISUAL,
             shape=(3, 50, 50),  # Downsamples from 100x100
         )
     }
 
-    observation = raw_observation_to_observation(robot_obs, lerobot_features, policy_image_features, "cpu")
+    observation = raw_observation_to_observation(
+        robot_obs, lerobot_features, policy_image_features, 'cpu'
+    )
 
-    processed_img = observation["observation.images.laptop"].squeeze(0)  # Remove batch dim
+    processed_img = observation['observation.images.laptop'].squeeze(0)  # Remove batch dim
 
     # Check that the center region has higher values than corners
     # Due to bilinear interpolation, exact values will change but pattern should remain
     center_val = processed_img[:, 25, 25].mean()  # Center of 50x50 image
     corner_val = processed_img[:, 5, 5].mean()  # Corner
 
-    assert center_val > corner_val, "Image processing should preserve recognizable patterns"
+    assert center_val > corner_val, 'Image processing should preserve recognizable patterns'

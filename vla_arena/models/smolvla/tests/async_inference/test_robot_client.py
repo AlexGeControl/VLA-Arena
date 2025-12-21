@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Copyright 2025 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +39,9 @@ from queue import Queue
 import pytest
 import torch
 
+
 # Skip entire module if grpc is not available
-pytest.importorskip("grpc")
+pytest.importorskip('grpc')
 
 # -----------------------------------------------------------------------------
 # Test fixtures
@@ -40,6 +55,7 @@ def robot_client():
     # Import only when the test actually runs (after decorator check)
     from lerobot.scripts.server.configs import RobotClientConfig
     from lerobot.scripts.server.robot_client import RobotClient
+
     from tests.mocks.mock_robot import MockRobotConfig
 
     test_config = MockRobotConfig()
@@ -47,9 +63,9 @@ def robot_client():
     # gRPC channel is not actually used in tests, so using a dummy address
     test_config = RobotClientConfig(
         robot=test_config,
-        server_address="localhost:9999",
-        policy_type="test",
-        pretrained_name_or_path="test",
+        server_address='localhost:9999',
+        policy_type='test',
+        pretrained_name_or_path='test',
         actions_per_chunk=20,
         verify_robot_cameras=False,
     )
@@ -108,7 +124,7 @@ def test_update_action_queue_discards_stale(robot_client):
 
 
 @pytest.mark.parametrize(
-    "weight_old, weight_new",
+    'weight_old, weight_new',
     [
         (1.0, 0.0),
         (0.0, 1.0),
@@ -134,7 +150,9 @@ def test_aggregate_action_queues_combines_actions_in_overlap(
         start_ts=time.time(), start_t=5, count=2
     )  # actions are [torch.ones(6), torch.ones(6), ...]
     current_actions = [
-        TimedAction(action=10 * a.get_action(), timestep=a.get_timestep(), timestamp=a.get_timestamp())
+        TimedAction(
+            action=10 * a.get_action(), timestep=a.get_timestep(), timestamp=a.get_timestamp()
+        )
         for a in current_actions
     ]
 
@@ -174,7 +192,7 @@ def test_aggregate_action_queues_combines_actions_in_overlap(
 
 
 @pytest.mark.parametrize(
-    "chunk_size, queue_len, expected",
+    'chunk_size, queue_len, expected',
     [
         (20, 12, False),  # 12 / 20 = 0.6  > g=0.5 threshold, not ready to send
         (20, 8, True),  # 8  / 20 = 0.4 <= g=0.5, ready to send
@@ -198,7 +216,7 @@ def test_ready_to_send_observation(robot_client, chunk_size: int, queue_len: int
 
 
 @pytest.mark.parametrize(
-    "g_threshold, expected",
+    'g_threshold, expected',
     [
         # The condition is `queue_size / chunk_size <= g`.
         # Here, ratio = 6 / 10 = 0.6.
@@ -215,7 +233,9 @@ def test_ready_to_send_observation(robot_client, chunk_size: int, queue_len: int
         (1.0, True),
     ],
 )
-def test_ready_to_send_observation_with_varying_threshold(robot_client, g_threshold: float, expected: bool):
+def test_ready_to_send_observation_with_varying_threshold(
+    robot_client, g_threshold: float, expected: bool
+):
     """Validate `_ready_to_send_observation` with fixed sizes and varying `g`."""
     # Fixed sizes for this test: ratio = 6 / 10 = 0.6
     chunk_size = 10

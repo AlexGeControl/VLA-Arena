@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Implementations of various action heads, which serve as alternatives to VLM sequential token prediction."""
 
 import math
@@ -6,7 +20,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 from diffusers.schedulers.scheduling_ddim import DDIMScheduler
-from vla_arena.models.openvla_oft.prismatic.vla.constants import ACTION_DIM, ACTION_TOKEN_BEGIN_IDX, IGNORE_INDEX, NUM_ACTIONS_CHUNK, PROPRIO_DIM, STOP_INDEX
+
+from vla_arena.models.openvla_oft.prismatic.vla.constants import (
+    ACTION_DIM,
+    ACTION_TOKEN_BEGIN_IDX,
+    IGNORE_INDEX,
+    NUM_ACTIONS_CHUNK,
+    PROPRIO_DIM,
+    STOP_INDEX,
+)
 
 
 class SinusoidalPositionalEncoding(nn.Module):
@@ -26,9 +48,11 @@ class SinusoidalPositionalEncoding(nn.Module):
     def forward(self, x):
         # x: (batch_size,)
         device = x.device
-        assert self.dim % 2 == 0, f"# dimensions must be even but got {self.dim}"
+        assert self.dim % 2 == 0, f'# dimensions must be even but got {self.dim}'
         half_dim = self.dim // 2
-        exponent = torch.arange(half_dim, device=device) * -math.log(10000) / (half_dim - 1)  # shape: (D/2,)
+        exponent = (
+            torch.arange(half_dim, device=device) * -math.log(10000) / (half_dim - 1)
+        )  # shape: (D/2,)
         emb = torch.exp(exponent)  # shape: (D/2,)
         emb = x[:, None] * emb[None, :]  # shape: (batch_size, 1) * (1, D/2) -> (batch_size, D/2)
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)  # shape: (batch_size, D)
@@ -37,6 +61,7 @@ class SinusoidalPositionalEncoding(nn.Module):
 
 class MLPResNetBlock(nn.Module):
     """One MLP ResNet block with a residual connection."""
+
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
@@ -58,6 +83,7 @@ class MLPResNetBlock(nn.Module):
 
 class MLPResNet(nn.Module):
     """MLP with residual connection blocks."""
+
     def __init__(self, num_blocks, input_dim, hidden_dim, output_dim):
         super().__init__()
         self.layer_norm1 = nn.LayerNorm(input_dim)
@@ -83,6 +109,7 @@ class MLPResNet(nn.Module):
 
 class L1RegressionActionHead(nn.Module):
     """Simple MLP-based action head that generates continuous actions via L1 regression."""
+
     def __init__(
         self,
         input_dim=4096,
@@ -92,7 +119,10 @@ class L1RegressionActionHead(nn.Module):
         super().__init__()
         self.action_dim = action_dim
         self.model = MLPResNet(
-            num_blocks=2, input_dim=input_dim*ACTION_DIM, hidden_dim=hidden_dim, output_dim=action_dim
+            num_blocks=2,
+            input_dim=input_dim * ACTION_DIM,
+            hidden_dim=hidden_dim,
+            output_dim=action_dim,
         )
 
     def predict_action(self, actions_hidden_states):
@@ -102,7 +132,9 @@ class L1RegressionActionHead(nn.Module):
         # - shape: (batch_size, chunk_len, action_dim)
         batch_size = actions_hidden_states.shape[0]
         device = actions_hidden_states.device
-        rearranged_actions_hidden_states = actions_hidden_states.reshape(batch_size, NUM_ACTIONS_CHUNK, -1)
+        rearranged_actions_hidden_states = actions_hidden_states.reshape(
+            batch_size, NUM_ACTIONS_CHUNK, -1
+        )
         action = self.model(rearranged_actions_hidden_states)
         return action
 
@@ -158,10 +190,14 @@ class DiffusionActionHead(nn.Module):
         super().__init__()
         self.action_dim = action_dim
         self.noise_predictor = NoisePredictionModel(
-            transformer_hidden_dim=hidden_dim*ACTION_DIM, hidden_dim=hidden_dim, action_dim=action_dim
+            transformer_hidden_dim=hidden_dim * ACTION_DIM,
+            hidden_dim=hidden_dim,
+            action_dim=action_dim,
         )
         self.num_diffusion_steps_train = num_diffusion_steps_train
-        self.noise_scheduler = DDIMScheduler(num_train_timesteps=num_diffusion_steps_train, beta_schedule="squaredcos_cap_v2")
+        self.noise_scheduler = DDIMScheduler(
+            num_train_timesteps=num_diffusion_steps_train, beta_schedule='squaredcos_cap_v2'
+        )
         self.time_encoder = SinusoidalPositionalEncoding(dim=hidden_dim)
 
     def sample_noisy_actions(self, ground_truth_actions):
@@ -175,18 +211,31 @@ class DiffusionActionHead(nn.Module):
         batch_size = ground_truth_actions.shape[0]
         device = ground_truth_actions.device
         # Sample random noise with shape equal to actions, used for closed-form forward diffusion.
-        noise = torch.randn(size=(batch_size, NUM_ACTIONS_CHUNK, ACTION_DIM), device=device, dtype=ground_truth_actions.dtype)  # (B, chunk_len, action_dim)
+        noise = torch.randn(
+            size=(batch_size, NUM_ACTIONS_CHUNK, ACTION_DIM),
+            device=device,
+            dtype=ground_truth_actions.dtype,
+        )  # (B, chunk_len, action_dim)
         # Sample random diffusion timesteps (one for each action in batch).
         timesteps = torch.randint(
-            low=0, high=self.noise_scheduler.config.num_train_timesteps, size=(batch_size,), device=device
+            low=0,
+            high=self.noise_scheduler.config.num_train_timesteps,
+            size=(batch_size,),
+            device=device,
         )
         # Add noise to clean actions according to the magnitude at each diffusion timestep via
         # closed-form forward diffusion.
-        noisy_actions = self.noise_scheduler.add_noise(ground_truth_actions, noise, timesteps)  # (B, chunk_len, action_dim)
+        noisy_actions = self.noise_scheduler.add_noise(
+            ground_truth_actions, noise, timesteps
+        )  # (B, chunk_len, action_dim)
 
         # Get diffusion timestep embeddings as well
-        diffusion_timestep_embeddings = self.time_encoder(timesteps).to(noisy_actions.dtype).to(noisy_actions.device)  # (B, llm_dim)
-        diffusion_timestep_embeddings = diffusion_timestep_embeddings.unsqueeze(1)  # (B, 1, llm_dim)
+        diffusion_timestep_embeddings = (
+            self.time_encoder(timesteps).to(noisy_actions.dtype).to(noisy_actions.device)
+        )  # (B, llm_dim)
+        diffusion_timestep_embeddings = diffusion_timestep_embeddings.unsqueeze(
+            1
+        )  # (B, 1, llm_dim)
 
         return_dict = dict(
             noise=noise,
@@ -205,7 +254,9 @@ class DiffusionActionHead(nn.Module):
         # - shape: (batch_size, chunk_len * action_dim, hidden_dim)
         batch_size = actions_hidden_states.shape[0]
         device = actions_hidden_states.device
-        rearranged_actions_hidden_states = actions_hidden_states.reshape(batch_size, NUM_ACTIONS_CHUNK, -1)  # (batch_size, chunk_len, action_dim * hidden_dim)
+        rearranged_actions_hidden_states = actions_hidden_states.reshape(
+            batch_size, NUM_ACTIONS_CHUNK, -1
+        )  # (batch_size, chunk_len, action_dim * hidden_dim)
         # Get diffusion model's noise prediction.
         noise_pred = self.noise_predictor(rearranged_actions_hidden_states)
         return noise_pred
