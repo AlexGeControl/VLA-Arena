@@ -128,7 +128,6 @@ def get_env(task, resolution=256, bddl_override: str | None = None):
         'camera_widths': resolution,
     }
     env = OffScreenRenderEnv(**env_args)
-    # env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
     return env, task_description
 
 
