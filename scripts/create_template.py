@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 """
 This is a script for creating various files frrom templates. This is to ease the process for users who want to extend vla_arena, creating new tasks. You would still need to make necessary changes based on the template to serve your own need, but the hope is that we save you much time by providing the necessar templates.
@@ -26,8 +25,7 @@ from vla_arena.vla_arena.envs.textures import get_texture_file_list
 
 def create_problem_class_from_file(class_name):
     template_source_file = os.path.join(
-        get_vla_arena_path('benchmark_root'),
-        '../../templates/problem_class_template.py',
+        get_vla_arena_path('benchmark_root'), '../../templates/problem_class_template.py'
     )
     with open(template_source_file) as f:
         lines = f.readlines()
@@ -44,8 +42,7 @@ def create_problem_class_from_file(class_name):
 def create_scene_xml_file(scene_name):
     """This is just an example for you to jump start. For more advanced editing, you will need to figure out yourself. You can take a look at all the available xml files for reference."""
     template_source_file = os.path.join(
-        get_vla_arena_path('benchmark_root'),
-        '../../templates/scene_template.xml',
+        get_vla_arena_path('benchmark_root'), '../../templates/scene_template.xml'
     )
     parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
     tree = ET.parse(template_source_file, parser)
@@ -76,7 +73,7 @@ def create_scene_xml_file(scene_name):
     tree.write(f'{scene_name}.xml', encoding='utf-8')
     print(f'Creating scene {scene_name} at the file: {scene_name}.xml')
     print(
-        '\n [Notice] The texture fiile paths are specified in the relative path format assuming your scene xml will be placed in the path vla_arena/vla_arena/assets/scenes/. ',
+        '\n [Notice] The texture fiile paths are specified in the relative path format assuming your scene xml will be placed in the path vla_arena/vla_arena/assets/scenes/. '
     )
     return
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,18 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import argparse
 import json
 import os
 from pathlib import Path
 
+import cv2
 import h5py
 import numpy as np
+import robosuite
 import robosuite.macros as macros
 import robosuite.utils.transform_utils as T
+from PIL import Image
+from robosuite.utils import camera_utils
 
+import init_path
 import vla_arena.vla_arena.utils.utils as vla_arena_utils
 from vla_arena.vla_arena import get_vla_arena_path
 from vla_arena.vla_arena.envs import *
@@ -212,8 +216,8 @@ def main():
                         (
                             obs['robot0_eef_pos'],
                             T.quat2axisangle(obs['robot0_eef_quat']),
-                        ),
-                    ),
+                        )
+                    )
                 )
 
             robot_states.append(env.get_robot_state_vector(obs))

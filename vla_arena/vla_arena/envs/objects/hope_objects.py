@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import os
 import pathlib
@@ -19,6 +18,7 @@ import re
 
 import numpy as np
 from robosuite.models.objects import MujocoXMLObject
+from robosuite.utils.mjcf_utils import array_to_string
 
 
 absolute_path = pathlib.Path(__file__).parent.parent.parent.absolute()
@@ -39,7 +39,7 @@ class HopeBaseObject(MujocoXMLObject):
             duplicate_collision_geoms=duplicate_collision_geoms,
         )
         self.category_name = '_'.join(
-            re.sub(r'([A-Z])', r' \1', self.__class__.__name__).split(),
+            re.sub(r'([A-Z])', r' \1', self.__class__.__name__).split()
         ).lower()
         self.rotation = (np.pi / 2, np.pi / 2)
         self.rotation_axis = 'x'
@@ -351,10 +351,7 @@ class TomatoSauce(HopeBaseObject):
 @register_object
 class HammerHandle(HopeBaseObject):
     def __init__(
-        self,
-        name='hammer_handle',
-        obj_name='hammer_handle',
-        duplicate_collision_geoms=True,
+        self, name='hammer_handle', obj_name='hammer_handle', duplicate_collision_geoms=True
     ):
         super().__init__(name, obj_name, duplicate_collision_geoms)
         self.rotation = (0, 0)
@@ -431,10 +428,7 @@ class Scissors(HopeBaseObject):
 @register_object
 class RotatedScissorsPi(HopeBaseObject):
     def __init__(
-        self,
-        name='rotated_scissors_pi',
-        obj_name='scissors',
-        duplicate_collision_geoms=True,
+        self, name='rotated_scissors_pi', obj_name='scissors', duplicate_collision_geoms=True
     ):
         super().__init__(name, obj_name, duplicate_collision_geoms)
         self.rotation = (np.pi / 2, np.pi / 2)
@@ -444,10 +438,7 @@ class RotatedScissorsPi(HopeBaseObject):
 @register_object
 class RotatedScissors(HopeBaseObject):
     def __init__(
-        self,
-        name='rotated_scissors',
-        obj_name='scissors',
-        duplicate_collision_geoms=True,
+        self, name='rotated_scissors', obj_name='scissors', duplicate_collision_geoms=True
     ):
         super().__init__(name, obj_name, duplicate_collision_geoms)
         self.rotation = (-np.pi / 5, -np.pi / 5)

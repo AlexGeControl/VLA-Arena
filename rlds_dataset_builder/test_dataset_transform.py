@@ -1,3 +1,17 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import importlib
 import os
@@ -7,6 +21,7 @@ import tqdm
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # suppress debug warning messages
+import tensorflow as tf
 import tensorflow_datasets as tfds
 from example_transform.transform import transform_step
 
@@ -17,9 +32,7 @@ args = parser.parse_args()
 
 
 TARGET_SPEC = {
-    'observation': {
-        'image': {'shape': (128, 128, 3), 'dtype': np.uint8, 'range': (0, 255)},
-    },
+    'observation': {'image': {'shape': (128, 128, 3), 'dtype': np.uint8, 'range': (0, 255)}},
     'action': {
         'shape': (8,),
         'dtype': np.float32,
@@ -47,22 +60,20 @@ def check_elements(target, values):
             if target[elem]['shape']:
                 if tuple(values[elem].shape) != target[elem]['shape']:
                     raise ValueError(
-                        f"Shape of {elem} should be {target[elem]['shape']} but is {tuple(values[elem].shape)}",
+                        f"Shape of {elem} should be {target[elem]['shape']} but is {tuple(values[elem].shape)}"
                     )
             if not isinstance(values[elem], bytes) and values[elem].dtype != target[elem]['dtype']:
                 raise ValueError(
-                    f"Dtype of {elem} should be {target[elem]['dtype']} but is {values[elem].dtype}",
+                    f"Dtype of {elem} should be {target[elem]['dtype']} but is {values[elem].dtype}"
                 )
             if target[elem]['range'] is not None:
                 if isinstance(target[elem]['range'], list):
                     for vmin, vmax, val in zip(
-                        target[elem]['range'][0],
-                        target[elem]['range'][1],
-                        values[elem],
+                        target[elem]['range'][0], target[elem]['range'][1], values[elem]
                     ):
                         if not (val >= vmin and val <= vmax):
                             raise ValueError(
-                                f"{elem} is out of range. Should be in {target[elem]['range']} but is {values[elem]}.",
+                                f"{elem} is out of range. Should be in {target[elem]['range']} but is {values[elem]}."
                             )
                 else:
                     if not (
@@ -70,7 +81,7 @@ def check_elements(target, values):
                         and np.all(values[elem] <= target[elem]['range'][1])
                     ):
                         raise ValueError(
-                            f"{elem} is out of range. Should be in {target[elem]['range']} but is {values[elem]}.",
+                            f"{elem} is out of range. Should be in {target[elem]['range']} but is {values[elem]}."
                         )
 
 

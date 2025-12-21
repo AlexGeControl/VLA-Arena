@@ -1,9 +1,25 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import itertools
+from collections.abc import Callable, Iterable
 from functools import partial
 from multiprocessing import Pool
-from typing import Any, Callable, Dict, Iterable, Tuple, Union
+from typing import Any, Dict, Tuple, Union
 
 import numpy as np
+import tensorflow as tf
 import tensorflow_datasets as tfds
 from tensorflow_datasets.core import (
     dataset_builder,
@@ -20,8 +36,8 @@ from tensorflow_datasets.core import writer as writer_lib
 
 Key = Union[str, int]
 # The nested example dict passed to `features.encode_example`
-Example = Dict[str, Any]
-KeyExample = Tuple[Key, Example]
+Example = dict[str, Any]
+KeyExample = tuple[Key, Example]
 
 
 class MultiThreadedDatasetBuilder(tfds.core.GeneratorBasedBuilder):
@@ -136,13 +152,7 @@ def parse_examples_from_generator(paths, fcn, split_name, total_num_examples, fe
 
 class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
     def __init__(
-        self,
-        *args,
-        split_paths,
-        parse_function,
-        n_workers,
-        max_paths_in_memory,
-        **kwargs,
+        self, *args, split_paths, parse_function, n_workers, max_paths_in_memory, **kwargs
     ):
         super().__init__(*args, **kwargs)
         self._split_paths = split_paths
@@ -182,9 +192,7 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
         del generator  # use parallel generators instead
         paths = self._split_paths[split_name]
         path_lists = chunk_max(
-            paths,
-            self._n_workers,
-            self._max_paths_in_memory,
+            paths, self._n_workers, self._max_paths_in_memory
         )  # generate N file lists
         print(f'Generating with {self._n_workers} workers!')
         pool = Pool(processes=self._n_workers)
@@ -222,7 +230,7 @@ class ParallelSplitBuilder(split_builder_lib.SplitBuilder):
 
 
 def dictlist2listdict(DL):
-    "Converts a dict of lists to a list of dicts"
+    'Converts a dict of lists to a list of dicts'
     return [dict(zip(DL, t)) for t in zip(*DL.values())]
 
 

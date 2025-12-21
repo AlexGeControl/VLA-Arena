@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import numpy as np
 from robosuite.models.base import MujocoXML
@@ -22,6 +21,7 @@ from robosuite.utils.mjcf_utils import (
     new_body,
     new_element,
     new_geom,
+    new_joint,
     recolor_collision_geoms,
     string_to_array,
 )
@@ -110,12 +110,7 @@ class Arena(MujocoXML):
             node.set('pos', array_to_string(new_pos))
 
     def set_camera(
-        self,
-        camera_name,
-        pos=None,
-        pos_offset=[0, 0, 0],
-        quat=None,
-        camera_attribs=None,
+        self, camera_name, pos=None, pos_offset=[0, 0, 0], quat=None, camera_attribs=None
     ):
         """
         Sets a camera with @camera_name. If the camera already exists, then this overwrites its pos and quat values.
@@ -130,10 +125,7 @@ class Arena(MujocoXML):
         """
         # Determine if camera already exists
         camera = find_elements(
-            root=self.worldbody,
-            tags='camera',
-            attribs={'name': camera_name},
-            return_first=True,
+            root=self.worldbody, tags='camera', attribs={'name': camera_name}, return_first=True
         )
 
         # Compose attributes
@@ -143,7 +135,7 @@ class Arena(MujocoXML):
             camera_attribs['pos'] = array_to_string(np.array(pos) + np.array(pos_offset))
         elif pos_offset != [0, 0, 0]:
             camera_attribs['pos'] = array_to_string(
-                string_to_array(camera.get('pos')) + np.array(pos_offset),
+                string_to_array(camera.get('pos')) + np.array(pos_offset)
             )
         if quat:
             camera_attribs['quat'] = array_to_string(quat)
@@ -160,3 +152,4 @@ class Arena(MujocoXML):
         """
         Runs any necessary post-processing on the imported Arena model
         """
+        pass

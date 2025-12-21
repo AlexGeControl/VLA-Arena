@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import numpy as np
 from robosuite.utils.transform_utils import quat_multiply
@@ -86,14 +85,17 @@ class TableRegionSampler(MultiRegionRandomSampler):
         # Return angle based on axis requested
         if self.rotation_axis == 'x':
             return np.array([np.sin(rot_angle / 2), 0, 0, np.cos(rot_angle / 2)])
-        if self.rotation_axis == 'y':
+        elif self.rotation_axis == 'y':
             return np.array([0, np.sin(rot_angle / 2), 0, np.cos(rot_angle / 2)])
-        if self.rotation_axis == 'z':
+        elif self.rotation_axis == 'z':
             return np.array([0, 0, np.sin(rot_angle / 2), np.cos(rot_angle / 2)])
-        # Invalid axis specified, raise error
-        raise ValueError(
-            f"Invalid rotation axis specified. Must be 'x', 'y', or 'z'. Got: {self.rotation_axis}",
-        )
+        else:
+            # Invalid axis specified, raise error
+            raise ValueError(
+                "Invalid rotation axis specified. Must be 'x', 'y', or 'z'. Got: {}".format(
+                    self.rotation_axis
+                )
+            )
 
 
 class ObjectBasedSampler(MultiRegionRandomSampler):
@@ -163,11 +165,14 @@ class ObjectBasedSampler(MultiRegionRandomSampler):
         # Return angle based on axis requested
         if self.rotation_axis == 'x':
             return np.array([np.sin(rot_angle / 2), 0, 0, np.cos(rot_angle / 2)])
-        if self.rotation_axis == 'y':
+        elif self.rotation_axis == 'y':
             return np.array([0, np.sin(rot_angle / 2), 0, np.cos(rot_angle / 2)])
-        if self.rotation_axis == 'z':
+        elif self.rotation_axis == 'z':
             return np.array([0, 0, np.sin(rot_angle / 2), np.cos(rot_angle / 2)])
-        # Invalid axis specified, raise error
-        raise ValueError(
-            f"Invalid rotation axis specified. Must be 'x', 'y', or 'z'. Got: {self.rotation_axis}",
-        )
+        else:
+            # Invalid axis specified, raise error
+            raise ValueError(
+                "Invalid rotation axis specified. Must be 'x', 'y', or 'z'. Got: {}".format(
+                    self.rotation_axis
+                )
+            )

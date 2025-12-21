@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import argparse
 import datetime
@@ -21,6 +20,7 @@ import time
 from copy import deepcopy
 from glob import glob
 
+import cv2
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,6 +30,7 @@ from robosuite.controllers.composite.composite_controller import WholeBody
 from robosuite.wrappers import DataCollectionWrapper, VisualizationWrapper
 
 import vla_arena.vla_arena.envs.bddl_utils as BDDLUtils
+from visualize_bddl import get_image, save_rollout_video
 from vla_arena.vla_arena.envs import *
 
 
@@ -80,18 +81,18 @@ def collect_human_trajectory(
     saving = True
     count = 0
 
-    # ====== 绘图变量 ======
+    # ====== Plotting variables ======
     cost_list = []
     cumulative_cost = 0
     step_list = []
 
-    # 只在需要实时显示时初始化交互式图表
+    # Only initialize interactive plot when real-time display is needed
     fig = None
     ax = None
     line = None
 
     if use_synchronous_cost_curve:
-        plt.ion()  # 开启交互模式
+        plt.ion()  # Enable interactive mode
         fig, ax = plt.subplots()
         (line,) = ax.plot([], [], label='Cumulative Cost')
         ax.set_xlabel('Step Count')
@@ -158,13 +159,13 @@ def collect_human_trajectory(
         # replay_images.append(get_image(obs))
         env.render()
 
-        # ====== 始终收集cost数据 ======
+        # ====== Always collect cost data ======
         if 'cost' in info:
             cumulative_cost += info['cost']
             cost_list.append(cumulative_cost)
             step_list.append(count)
 
-            # 只在flag为True时实时更新显示
+            # Only update display in real-time when flag is True
             if use_synchronous_cost_curve and fig is not None:
                 line.set_data(step_list, cost_list)
                 ax.relim()
@@ -173,7 +174,7 @@ def collect_human_trajectory(
                     fig.canvas.draw()
                     fig.canvas.flush_events()
                 except:
-                    pass  # 忽略GUI更新错误
+                    pass  # Ignore GUI update errors
 
         # Also break if we complete the task
         if task_completion_hold_count == 0:
@@ -203,14 +204,14 @@ def collect_human_trajectory(
     # cleanup for end of data collection episodes
     env.close()
 
-    # ====== 保存图表（无论是否实时显示） ======
+    # ====== Save plot (whether or not real-time display was used) ======
     if len(cost_list) > 0:
-        # 如果之前在实时显示，关闭交互模式
+        # If real-time display was used before, turn off interactive mode
         if use_synchronous_cost_curve and fig is not None:
             plt.ioff()
-            # 使用已有的figure
+            # Use existing figure
         else:
-            # 如果没有实时显示，创建新的figure来保存
+            # If no real-time display, create new figure to save
             fig, ax = plt.subplots()
             ax.plot(step_list, cost_list, label='Cumulative Cost')
             ax.set_xlabel('Step Count')
@@ -218,7 +219,7 @@ def collect_human_trajectory(
             ax.set_title('Cost Curve')
             ax.legend()
 
-        # 保存图表
+        # Save plot
         date = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         if new_dir is not None:
             os.makedirs(new_dir, exist_ok=True)
@@ -519,12 +520,12 @@ if __name__ == '__main__':
 
     else:
         raise Exception(
-            "Invalid device choice: choose 'keyboard', 'spacemouse', 'dualsense', or 'mjgui'.",
+            "Invalid device choice: choose 'keyboard', 'spacemouse', 'dualsense', or 'mjgui'."
         )
 
     # make a new timestamped directory
     t1, t2 = datetime.datetime.now().strftime('%Y%m%d_%H%M%S'), datetime.datetime.now().strftime(
-        '%f',
+        '%f'
     )
     DATE = time.strftime('%Y_%m_%d')
     new_dir = os.path.join(

@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
+import itertools
 
 import numpy as np
 from bddl.parsing import *
@@ -193,7 +193,7 @@ def robosuite_parse_problem(problem_filename):
                     else:
                         object_list.append(group.pop(0))
                 if object_list:
-                    if 'object' not in objects:
+                    if not 'object' in objects:
                         objects['object'] = []
                     objects['object'] += object_list
             elif t == ':obj_of_interest':
@@ -211,7 +211,7 @@ def robosuite_parse_problem(problem_filename):
                     else:
                         fixture_list.append(group.pop(0))
                 if fixture_list:
-                    if 'fixture' not in fixtures:
+                    if not 'fixture' in fixtures:
                         fixtures['fixture'] = []
                     fixtures['fixture'] += fixture_list
             elif t == ':regions':
@@ -282,6 +282,7 @@ def robosuite_parse_problem(problem_filename):
             'camera_configs': camera_configs,
             'random_color': random_color,
         }
-    raise Exception(
-        f'Problem {behavior_activity} {activity_definition} does not match problem pattern',
-    )
+    else:
+        raise Exception(
+            f'Problem {behavior_activity} {activity_definition} does not match problem pattern'
+        )

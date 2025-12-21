@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
+
+from typing import List
+
+import numpy as np
 
 
 class Expression:
@@ -142,7 +145,7 @@ class TurnOff(UnaryAtomic):
 
 
 class Collide(UnaryAtomic):
-    """检查物体是否被撞到"""
+    """Check if an object has been collided with."""
 
     def __call__(self, arg):
         return arg.check_collision()

@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 from robosuite.utils.mjcf_utils import new_site
 
@@ -21,6 +20,7 @@ from vla_arena.vla_arena.envs.objects import *
 from vla_arena.vla_arena.envs.predicates import *
 from vla_arena.vla_arena.envs.regions import *
 from vla_arena.vla_arena.envs.robots import *
+from vla_arena.vla_arena.envs.utils import rectangle2xyrange
 
 
 @register_problem
@@ -45,7 +45,7 @@ class Coffee_Table_Manipulation(BDDLBaseDomain):
                     'floor_style': 'wood-plank',
                     'wall_style': 'light-gray-plaster',
                 },
-            },
+            }
         )
 
         super().__init__(bddl_file_name, *args, **kwargs)
@@ -98,7 +98,7 @@ class Coffee_Table_Manipulation(BDDLBaseDomain):
                         rgba=target_zone.rgba,
                         size=target_zone.size,
                         type='box',
-                    ),
+                    )
                 )
                 continue
             # Otherwise the processing is consistent
@@ -168,10 +168,9 @@ class Coffee_Table_Manipulation(BDDLBaseDomain):
         for camera in camera_names:
             if camera == 'robot0_eye_in_hand':
                 continue
-            if camera == 'agentview':
+            elif camera == 'agentview':
                 mujoco_arena.set_camera(
-                    **AGENTVIEW_CONFIG[self.workspace_name],
-                    pos_offset=camera_configs[camera],
+                    **AGENTVIEW_CONFIG[self.workspace_name], pos_offset=camera_configs[camera]
                 )
             else:
                 mujoco_arena.set_camera(camera_name=camera, pos_offset=camera_configs[camera])

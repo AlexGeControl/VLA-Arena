@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import os
 from collections import namedtuple
@@ -39,28 +38,30 @@ def register_task_info(language, scene_name, objects_of_interest=[], goal_states
             raise ValueError
     task_goal = [('And', *goal_states)]
     TASK_INFO[scene_name].append(
-        TaskInfoTuple(scene_name, language, objects_of_interest, task_goal),
+        TaskInfoTuple(scene_name, language, objects_of_interest, task_goal)
     )
 
 
 def get_task_info(scene_name=None):
     if scene_name is None:
         return TASK_INFO
-    return TASK_INFO[scene_name]
+    else:
+        return TASK_INFO[scene_name]
 
 
 def get_suite_generator_func(workspace_name):
     if workspace_name == 'main_table':
         return tabletop_task_suites_generator
-    if workspace_name == 'kitchen_table':
+    elif workspace_name == 'kitchen_table':
         return kitchen_table_task_suites_generator
-    if workspace_name == 'living_room_table':
+    elif workspace_name == 'living_room_table':
         return living_room_table_task_suites_generator
-    if workspace_name == 'study_table':
+    elif workspace_name == 'study_table':
         return study_table_task_suites_generator
-    if workspace_name == 'coffee_table':
+    elif workspace_name == 'coffee_table':
         return coffee_table_task_suites_generator
-    return floor_task_suites_generator
+    else:
+        return floor_task_suites_generator
 
 
 def generate_bddl_from_task_info(folder='/tmp/pddl'):
@@ -91,10 +92,7 @@ def generate_bddl_from_task_info(folder='/tmp/pddl'):
                 )
                 result = get_result(result)
                 bddl_file_name = save_to_file(
-                    result,
-                    scene_name=scene_name,
-                    language=language,
-                    folder=folder,
+                    result, scene_name=scene_name, language=language, folder=folder
                 )
                 if bddl_file_name in bddl_file_names:
                     print(bddl_file_name)

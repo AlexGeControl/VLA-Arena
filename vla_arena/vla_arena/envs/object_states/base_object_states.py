@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import numpy as np
 import robosuite.utils.transform_utils as transform_utils
@@ -151,9 +150,17 @@ class ObjectState(BaseObjectState):
 
     def fall(self):
         """
-        检测物体是否掉落（通过位置和姿态变化）
+        Detect if an object has fallen based on position and orientation changes.
+
+        This method checks if an object has fallen by comparing its current state
+        with its original state. A fall is detected if:
+        - Position changes significantly (total displacement > 0.1m, height drop > 0.05m, or XY displacement > 0.15m)
+        - Orientation changes significantly (rotation about any axis exceeds threshold)
+
+        Returns:
+            bool: True if object has fallen, False otherwise
         """
-        # 获取原始和当前状态
+        # Get original and current states
         original_pos = self.env.object_original_pos.get(self.object_name)
         original_quat = self.env.object_original_quat.get(self.object_name)
 
@@ -163,22 +170,21 @@ class ObjectState(BaseObjectState):
         current_pos = self.env.sim.data.body_xpos[self.env.obj_body_id[self.object_name]]
         current_quat = self.env.sim.data.body_xquat[self.env.obj_body_id[self.object_name]]
 
-        # 检查位置变化
+        # Check position changes
         pos_diff = np.linalg.norm(current_pos - original_pos)
-        height_drop = original_pos[2] - current_pos[2]  # 正值表示下降
+        height_drop = original_pos[2] - current_pos[2]  # Positive value indicates drop
         xy_diff = np.linalg.norm(current_pos[:2] - original_pos[:2])
 
-        # 位置掉落判断
+        # Position fall detection
         pos_fall = (pos_diff > 0.1) or (height_drop > 0.05) or (xy_diff > 0.15)
 
-        # 检查姿态变化
+        # Check orientation changes
         quat_diff = transform_utils.quat_multiply(
-            current_quat,
-            transform_utils.quat_inverse(original_quat),
+            current_quat, transform_utils.quat_inverse(original_quat)
         )
         quat_diff_euler = transform_utils.quat2axisangle(quat_diff)
 
-        # 姿态掉落判断（任意轴旋转超过阈值）
+        # Orientation fall detection (rotation about any axis exceeds threshold)
         rotation_fall = (
             (abs(quat_diff_euler[0]) > 0.2)
             or (abs(quat_diff_euler[1]) > 0.2)
@@ -249,16 +255,14 @@ class SiteObjectState(BaseObjectState):
             parent_object = self.env.get_object(self.parent_name)
             if parent_object is None:
                 return this_object.under(
-                    this_object_position,
-                    this_object_mat,
-                    other_object_position,
+                    this_object_position, this_object_mat, other_object_position
                 )
-            return this_object.under(
-                this_object_position,
-                this_object_mat,
-                other_object_position,
-            ) and self.env.check_contact(parent_object, other_object)
-        return True
+            else:
+                return this_object.under(
+                    this_object_position, this_object_mat, other_object_position
+                ) and self.env.check_contact(parent_object, other_object)
+        else:
+            return True
 
     def set_joint(self, qpos=1.5):
         for joint in self.env.object_sites_dict[self.object_name].joints:

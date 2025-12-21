@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 """
 Download functionalities adapted from Mandlekar et. al.: https://github.com/ARISE-Initiative/robomimic/blob/master/robomimic/utils/file_utils.py
 """
-
+import io
 import os
 import shutil
 import time
@@ -38,6 +37,9 @@ try:
     HUGGINGFACE_AVAILABLE = True
 except ImportError:
     HUGGINGFACE_AVAILABLE = False
+
+import vla_arena.vla_arena.utils.download_utils as download_utils
+from vla_arena.vla_arena import get_vla_arena_path
 
 
 class DownloadProgressBar(tqdm):
@@ -129,7 +131,7 @@ def download_from_huggingface(dataset_name, download_dir, check_overwrite=True):
     """
     if not HUGGINGFACE_AVAILABLE:
         raise ImportError(
-            "Hugging Face Hub is not available. Install it with 'pip install huggingface_hub'",
+            "Hugging Face Hub is not available. Install it with 'pip install huggingface_hub'"
         )
 
     # Create the destination folder
@@ -139,7 +141,7 @@ def download_from_huggingface(dataset_name, download_dir, check_overwrite=True):
     dataset_dir = os.path.join(download_dir, dataset_name)
     if check_overwrite and os.path.exists(dataset_dir):
         user_response = input(
-            f'Warning: dataset {dataset_name} already exists at {dataset_dir}. Overwrite? y/n\n',
+            f'Warning: dataset {dataset_name} already exists at {dataset_dir}. Overwrite? y/n\n'
         )
         if user_response.lower() not in {'yes', 'y'}:
             print(f'Skipping download of {dataset_name}')
@@ -162,16 +164,13 @@ def download_from_huggingface(dataset_name, download_dir, check_overwrite=True):
 
     # Verify downloaded files
     file_count = sum(
-        [len(files) for _, _, files in os.walk(os.path.join(download_dir, dataset_name))],
+        [len(files) for _, _, files in os.walk(os.path.join(download_dir, dataset_name))]
     )
     print(f'Downloaded {file_count} files for {dataset_name}')
 
 
 def vla_arena_dataset_download(
-    datasets='all',
-    download_dir=None,
-    check_overwrite=True,
-    use_huggingface=False,
+    datasets='all', download_dir=None, check_overwrite=True, use_huggingface=False
 ):
     """Download vla_arena datasets
 
@@ -254,9 +253,7 @@ def check_vla_arena_dataset(download_dir=None):
             ):
                 dataset_status = True
                 info_str = colored(
-                    f'[X] Dataset {dataset_name} is complete',
-                    'green',
-                    attrs=['bold'],
+                    f'[X] Dataset {dataset_name} is complete', 'green', attrs=['bold']
                 )
             else:
                 colored(

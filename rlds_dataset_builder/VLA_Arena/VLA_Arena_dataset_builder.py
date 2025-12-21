@@ -1,11 +1,27 @@
+# Copyright 2025 The VLA-Arena Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import glob
 import os
-from typing import Any, Iterator, Tuple
+import sys
+from collections.abc import Iterator
+from typing import Any, Tuple
 
 import h5py
 import numpy as np
+import tensorflow as tf
 import tensorflow_datasets as tfds
-
 from VLA_Arena.conversion_utils import MultiThreadedDatasetBuilder
 
 
@@ -13,7 +29,7 @@ tfds.core.utils.gcs_utils._is_gcs_disabled = True  # disable GCS to avoid issues
 os.environ['NO_GCE_CHECK'] = 'true'  # disable GCE check to avoid issues with TFDS
 
 
-def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
+def _generate_examples(paths) -> Iterator[tuple[str, Any]]:
     """Yields episodes for list of data paths."""
     # the line below needs to be *inside* generate_examples so that each worker creates it's own model
     # creating one shared model outside this function would cause a deadlock
@@ -57,8 +73,7 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
                         'image': images[i][::-1, ::-1],
                         'wrist_image': wrist_images[i][::-1, ::-1],
                         'state': np.asarray(
-                            np.concatenate((states[i], gripper_states[i]), axis=-1),
-                            np.float32,
+                            np.concatenate((states[i], gripper_states[i]), axis=-1), np.float32
                         ),
                         'joint_state': np.asarray(joint_states[i], dtype=np.float32),
                     },
@@ -69,16 +84,11 @@ def _generate_examples(paths) -> Iterator[Tuple[str, Any]]:
                     'is_last': i == (actions.shape[0] - 1),
                     'is_terminal': i == (actions.shape[0] - 1),
                     'language_instruction': command,
-                },
+                }
             )
 
         # create output data sample
-        sample = {
-            'steps': episode,
-            'episode_metadata': {
-                'file_path': episode_path,
-            },
-        }
+        sample = {'steps': episode, 'episode_metadata': {'file_path': episode_path}}
 
         # if you want to skip an example for whatever reason, simply return None
         return episode_path + f'_{demo_id}', sample
@@ -141,7 +151,7 @@ class VLAArena(MultiThreadedDatasetBuilder):
                                         dtype=np.float32,
                                         doc='Robot joint angles.',
                                     ),
-                                },
+                                }
                             ),
                             'action': tfds.features.Tensor(
                                 shape=(7,),
@@ -149,39 +159,32 @@ class VLAArena(MultiThreadedDatasetBuilder):
                                 doc='Robot EEF action.',
                             ),
                             'discount': tfds.features.Scalar(
-                                dtype=np.float32,
-                                doc='Discount if provided, default to 1.',
+                                dtype=np.float32, doc='Discount if provided, default to 1.'
                             ),
                             'reward': tfds.features.Scalar(
                                 dtype=np.float32,
                                 doc='Reward if provided, 1 on final step for demos.',
                             ),
                             'is_first': tfds.features.Scalar(
-                                dtype=np.bool_,
-                                doc='True on first step of the episode.',
+                                dtype=np.bool_, doc='True on first step of the episode.'
                             ),
                             'is_last': tfds.features.Scalar(
-                                dtype=np.bool_,
-                                doc='True on last step of the episode.',
+                                dtype=np.bool_, doc='True on last step of the episode.'
                             ),
                             'is_terminal': tfds.features.Scalar(
                                 dtype=np.bool_,
                                 doc='True on last step of the episode if it is a terminal step, True for demos.',
                             ),
-                            'language_instruction': tfds.features.Text(
-                                doc='Language Instruction.',
-                            ),
-                        },
+                            'language_instruction': tfds.features.Text(doc='Language Instruction.'),
+                        }
                     ),
                     'episode_metadata': tfds.features.FeaturesDict(
                         {
-                            'file_path': tfds.features.Text(
-                                doc='Path to the original data file.',
-                            ),
-                        },
+                            'file_path': tfds.features.Text(doc='Path to the original data file.'),
+                        }
                     ),
-                },
-            ),
+                }
+            )
         )
 
     def _split_paths(self):

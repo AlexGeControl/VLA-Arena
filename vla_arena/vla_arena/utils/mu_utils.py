@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import re
 
@@ -44,7 +43,8 @@ def register_mu(scene_type='general'):
 def get_scene_dict(scene_type=None):
     if scene_type is None:
         return SCENE_DICT
-    return SCENE_DICT[scene_type.lower()]
+    else:
+        return SCENE_DICT[scene_type.lower()]
 
 
 def get_scene_class(scene_name):
@@ -78,7 +78,7 @@ class InitialSceneTemplates:
                     affordance_fixture_info_dict[object_name] = affordances[category_name]
         # print(affordance_fixture_info_dict)
         self.affordance_region_kwargs_list = get_affordance_region_kwargs_list_from_fixture_info(
-            affordance_fixture_info_dict,
+            affordance_fixture_info_dict
         )
 
         self.regions = {}
@@ -123,10 +123,10 @@ class InitialSceneTemplates:
                         region_centroid_xy[1] - region_half_len,
                         region_centroid_xy[0] + region_half_len,
                         region_centroid_xy[1] + region_half_len,
-                    ),
+                    )
                 ],
                 'yaw_rotation': [yaw_rotation],
-            },
+            }
         }
         print
         return region_key_value

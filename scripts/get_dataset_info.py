@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 """
 Helper script to report dataset information. By default, will print trajectory length statistics,
@@ -37,7 +36,6 @@ Example usage:
     # run script only on validation data
     python get_dataset_info.py --dataset ../../tests/assets/test.hdf5 --filter_key valid
 """
-
 import argparse
 import json
 
@@ -82,9 +80,7 @@ if __name__ == '__main__':
         if 'mask' in f:
             all_filter_keys = {}
             for fk in f['mask']:
-                fk_demos = sorted(
-                    [elem.decode('utf-8') for elem in np.array(f[f'mask/{fk}'])],
-                )
+                fk_demos = sorted([elem.decode('utf-8') for elem in np.array(f[f'mask/{fk}'])])
                 all_filter_keys[fk] = fk_demos
 
     # put demonstration list in increasing episode order
@@ -128,7 +124,9 @@ if __name__ == '__main__':
             print('==== Filter Key Contents ====')
             for fk in all_filter_keys:
                 print(
-                    f'filter_key {fk} with {len(all_filter_keys[fk])} demos: {all_filter_keys[fk]}',
+                    'filter_key {} with {} demos: {}'.format(
+                        fk, len(all_filter_keys[fk]), all_filter_keys[fk]
+                    )
                 )
         print('')
     env_meta = json.loads(f['data'].attrs['env_args'])
@@ -138,12 +136,7 @@ if __name__ == '__main__':
 
     print('==== Dataset Structure ====')
     for ep in demos:
-        print(
-            'episode {} with {} transitions'.format(
-                ep,
-                f[f'data/{ep}'].attrs['num_samples'],
-            ),
-        )
+        print('episode {} with {} transitions'.format(ep, f[f'data/{ep}'].attrs['num_samples']))
         for k in f[f'data/{ep}']:
             if k in ['obs', 'next_obs']:
                 print(f'    key: {k}')
@@ -163,5 +156,7 @@ if __name__ == '__main__':
     print('')
     if (action_min < -1.0) or (action_max > 1.0):
         raise Exception(
-            f'Dataset should have actions in [-1., 1.] but got bounds [{action_min}, {action_max}]',
+            'Dataset should have actions in [-1., 1.] but got bounds [{}, {}]'.format(
+                action_min, action_max
+            )
         )

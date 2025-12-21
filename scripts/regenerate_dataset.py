@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 """
 Regenerates a dataset (HDF5 files) by replaying demonstrations in the environments.
@@ -51,6 +50,7 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import os
 import random
@@ -70,26 +70,64 @@ IMAGE_RESOLUTION = 256
 MIN_DEMOS_WARNING_THRESHOLD = 20
 
 
+def resolve_bddl_path(default_path: str, override: str | None) -> str:
+    """Resolve BDDL file path with optional override.
+
+    - If ``override`` is ``None``, return ``default_path``.
+    - If ``override`` is a file, use it directly.
+    - If ``override`` is a directory, search recursively for a file that matches
+      the basename of ``default_path``. The first match (sorted) is used.
+    """
+    if override is None:
+        return default_path
+
+    override_path = Path(override)
+
+    if override_path.is_file():
+        return str(override_path.resolve())
+
+    if override_path.is_dir():
+        target_name = Path(default_path).name
+        matches = sorted(override_path.rglob(target_name))
+        if not matches:
+            raise FileNotFoundError(
+                f"No BDDL file named '{target_name}' found under directory: {override_path}"
+            )
+        if len(matches) > 1:
+            print(
+                f"Warning: multiple BDDL files named '{target_name}' found under {override_path}; "
+                f'using {matches[0]}'
+            )
+        return str(matches[0].resolve())
+
+    raise FileNotFoundError(f'Provided bddl_path is neither a file nor a directory: {override}')
+
+
+def collect_bddl_files(bddl_dir: str) -> list[Path]:
+    """Recursively collect all BDDL files under a directory (sorted)."""
+    dir_path = Path(bddl_dir)
+    if not dir_path.is_dir():
+        raise FileNotFoundError(f'bddl_path is not a directory: {bddl_dir}')
+    return sorted(dir_path.rglob('*.bddl'))
+
+
 def get_dummy_action():
     return [0, 0, 0, 0, 0, 0, -1]
 
 
-def get_env(task, resolution=256):
+def get_env(task, resolution=256, bddl_override: str | None = None):
     """Initializes and returns the LIBERO environment, along with the task description."""
     task_description = task.language
     task_bddl_file = os.path.join(
-        get_vla_arena_path('bddl_files'),
-        task.problem_folder,
-        f'level_{task.level}',
-        task.bddl_file,
+        get_vla_arena_path('bddl_files'), task.problem_folder, f'level_{task.level}', task.bddl_file
     )
+    task_bddl_file = resolve_bddl_path(task_bddl_file, bddl_override)
     env_args = {
         'bddl_file_name': task_bddl_file,
         'camera_heights': resolution,
         'camera_widths': resolution,
     }
     env = OffScreenRenderEnv(**env_args)
-    # env.seed(0)  # IMPORTANT: seed seems to affect object positions even when using fixed initial state
     return env, task_description
 
 
@@ -118,8 +156,7 @@ def is_noop(action, prev_action=None, threshold=1e-4):
 
     # Use np.allclose for floating point comparison
     return np.linalg.norm(action[:-1]) < threshold and np.allclose(
-        gripper_action,
-        prev_gripper_action,
+        gripper_action, prev_gripper_action
     )
 
 
@@ -155,10 +192,7 @@ def count_gripper_transitions(actions):
 
 
 def preprocess_actions_with_progressive_noops(
-    orig_actions,
-    env,
-    initial_state,
-    max_noops_to_keep=8,
+    orig_actions, env, initial_state, max_noops_to_keep=8
 ):
     """
     Preprocess actions with progressive noop retention strategy:
@@ -189,8 +223,7 @@ def preprocess_actions_with_progressive_noops(
         if noops_to_keep > 0:
             for trans_idx in transition_indices:
                 for j in range(
-                    trans_idx + 1,
-                    min(trans_idx + 1 + noops_to_keep, len(orig_actions)),
+                    trans_idx + 1, min(trans_idx + 1 + noops_to_keep, len(orig_actions))
                 ):
                     indices_to_keep_noops.add(j)
 
@@ -213,9 +246,10 @@ def preprocess_actions_with_progressive_noops(
         if replay_data['success']:
             print(f'    SUCCESS with {noops_to_keep} noops kept after transitions!')
             return filtered_actions, True, noops_to_keep, replay_data
-        print(f'    Failed with {noops_to_keep} noops kept')
+        else:
+            print(f'    Failed with {noops_to_keep} noops kept')
 
-    print('    All configurations failed, demo will be filtered out')
+    print(f'    All configurations failed, demo will be filtered out')
     return None, False, -1, None
 
 
@@ -247,8 +281,8 @@ def replay_actions(env, actions, initial_state):
         states.append(env.sim.get_state().flatten())
         robot_states.append(
             np.concatenate(
-                [obs['robot0_gripper_qpos'], obs['robot0_eef_pos'], obs['robot0_eef_quat']],
-            ),
+                [obs['robot0_gripper_qpos'], obs['robot0_eef_pos'], obs['robot0_eef_quat']]
+            )
         )
 
         # Record observations
@@ -260,8 +294,8 @@ def replay_actions(env, actions, initial_state):
                 (
                     obs['robot0_eef_pos'],
                     T.quat2axisangle(obs['robot0_eef_quat']),
-                ),
-            ),
+                )
+            )
         )
 
         for camera in camera_names:
@@ -377,10 +411,10 @@ def process_task_without_balancing(task, task_id, task_level, level_raw_dir, env
     if success_count < MIN_DEMOS_WARNING_THRESHOLD:
         task_stats['warning_issued'] = True
         print(
-            f"\n⚠️  WARNING: Task '{task.name}' has only {success_count} successful demonstrations!",
+            f"\n⚠️  WARNING: Task '{task.name}' has only {success_count} successful demonstrations!"
         )
         print(f'⚠️  This is below the minimum threshold of {MIN_DEMOS_WARNING_THRESHOLD}.')
-        print('⚠️  Consider collecting more demonstrations for this task.')
+        print(f'⚠️  Consider collecting more demonstrations for this task.')
 
     # Close the original data file
     orig_data_file.close()
@@ -464,7 +498,7 @@ def process_single_task(task, env, orig_data):
         task_stats['warning_issued'] = True
         print(f"\n⚠️  WARNING: Task '{task}' has only {success_count} successful demonstrations!")
         print(f'⚠️  This is below the minimum threshold of {MIN_DEMOS_WARNING_THRESHOLD}.')
-        print('⚠️  Consider collecting more demonstrations for this task.')
+        print(f'⚠️  Consider collecting more demonstrations for this task.')
 
     return successful_demos, task_stats
 
@@ -508,18 +542,15 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
     for task_id in tqdm.tqdm(range(num_tasks_in_suite), desc=f'Level {task_level} tasks'):
         # Get task in suite
         task = task_suite.get_task_by_level_id(task_level, task_id)
-        env, task_description = get_env(task, resolution=IMAGE_RESOLUTION)
+        env, task_description = get_env(
+            task, resolution=IMAGE_RESOLUTION, bddl_override=args.bddl_path
+        )
         task_description = env.language_instruction
         camera_names = env.env.camera_names
         try:
             # Process task without balancing
             successful_demos, task_stats = process_task_without_balancing(
-                task,
-                task_id,
-                task_level,
-                level_raw_dir,
-                env,
-                task_description,
+                task, task_id, task_level, level_raw_dir, env, task_description
             )
         except Exception as e:
             print(f'Error processing task {task.name}: {e}')
@@ -556,7 +587,7 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
                 rewards = np.zeros(len(actions)).astype(np.uint8)
                 rewards[-1] = 1
                 language_instruction = task_description.encode('utf8')
-                # language instruction 和 dones 形状保持一致
+                # Keep language instruction and dones shapes consistent
                 language_instruction = np.array([language_instruction] * len(actions), dtype='S')
                 # Save to HDF5
                 ep_data_grp = grp.create_group(f'demo_{idx}')
@@ -570,34 +601,28 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
                 # Save observation data
                 obs_grp = ep_data_grp.create_group('obs')
                 obs_grp.create_dataset(
-                    'gripper_states',
-                    data=np.stack(replay_data['gripper_states'], axis=0),
+                    'gripper_states', data=np.stack(replay_data['gripper_states'], axis=0)
                 )
                 obs_grp.create_dataset(
-                    'joint_states',
-                    data=np.stack(replay_data['joint_states'], axis=0),
+                    'joint_states', data=np.stack(replay_data['joint_states'], axis=0)
                 )
                 obs_grp.create_dataset('ee_states', data=np.stack(replay_data['ee_states'], axis=0))
                 obs_grp.create_dataset(
-                    'ee_pos',
-                    data=np.stack(replay_data['ee_states'], axis=0)[:, :3],
+                    'ee_pos', data=np.stack(replay_data['ee_states'], axis=0)[:, :3]
                 )
                 obs_grp.create_dataset(
-                    'ee_ori',
-                    data=np.stack(replay_data['ee_states'], axis=0)[:, 3:],
+                    'ee_ori', data=np.stack(replay_data['ee_states'], axis=0)[:, 3:]
                 )
                 for camera in camera_names:
                     obs_grp.create_dataset(
-                        camera + '_rgb',
-                        data=np.stack(replay_data[camera + '_images'], axis=0),
+                        camera + '_rgb', data=np.stack(replay_data[camera + '_images'], axis=0)
                     )
 
                 # Save action and state data
                 ep_data_grp.create_dataset('actions', data=actions)
                 ep_data_grp.create_dataset('states', data=np.stack(replay_data['states']))
                 ep_data_grp.create_dataset(
-                    'robot_states',
-                    data=np.stack(replay_data['robot_states'], axis=0),
+                    'robot_states', data=np.stack(replay_data['robot_states'], axis=0)
                 )
                 ep_data_grp.create_dataset('rewards', data=rewards)
                 ep_data_grp.create_dataset('dones', data=dones)
@@ -624,19 +649,19 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
     if level_stats['skipped_tasks']:
         print(f"  Tasks skipped (no raw data): {level_stats['skipped_tasks']}")
     print(
-        f"  Tasks with warnings (< {MIN_DEMOS_WARNING_THRESHOLD} demos): {level_stats['num_tasks_with_warnings']}",
+        f"  Tasks with warnings (< {MIN_DEMOS_WARNING_THRESHOLD} demos): {level_stats['num_tasks_with_warnings']}"
     )
     print(f"  Total successful demos: {level_stats['total_final_success']}")
 
-    print('\n  Task-specific summary:')
+    print(f'\n  Task-specific summary:')
     for task_name, stats in level_stats['task_specific_stats'].items():
         status = '✓' if stats['final_success'] >= MIN_DEMOS_WARNING_THRESHOLD else '⚠️'
         print(f"    {status} {task_name}: {stats['final_success']} demos")
         print(
-            f"        Filtered: {stats['demos_filtered_transitions']} (wrong transitions), {stats['demos_filtered_failed']} (all strategies failed)",
+            f"        Filtered: {stats['demos_filtered_transitions']} (wrong transitions), {stats['demos_filtered_failed']} (all strategies failed)"
         )
         print(
-            f"        Success by strategy: 0 noops={stats['noop_strategy_distribution'][0]}, 4={stats['noop_strategy_distribution'][4]}, 8={stats['noop_strategy_distribution'][8]}, 6={stats['noop_strategy_distribution'][6]}",
+            f"        Success by strategy: 0 noops={stats['noop_strategy_distribution'][0]}, 4={stats['noop_strategy_distribution'][4]}, 8={stats['noop_strategy_distribution'][8]}, 6={stats['noop_strategy_distribution'][6]}"
         )
 
     # Verify all tasks are processed correctly
@@ -646,7 +671,7 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
         expected_file = os.path.join(level_dir, f'{task.name}_demo.hdf5')
         expected_files.append((task.name, expected_file))
 
-    print('\n  File verification:')
+    print(f'\n  File verification:')
     for task_name, expected_file in expected_files:
         if os.path.exists(expected_file):
             with h5py.File(expected_file, 'r') as f:
@@ -664,14 +689,14 @@ def process_level(task_suite, task_level, args, metainfo_json_dict):
 def main(args):
     if (args.task_suite or args.task_levels) and not (args.task_suite and args.task_levels):
         raise ValueError(
-            'Both --task_suite and --task_levels should be provided for regeneration of data on the task suite.',
+            'Both --task_suite and --task_levels should be provided for regeneration of data on the task suite.'
         )
     if args.task_suite:
         print(f'Regenerating {args.task_suite} dataset for levels: {args.task_levels}')
     print(f'Warning threshold: {MIN_DEMOS_WARNING_THRESHOLD} demos')
-    print('Filtering strategy: Keep demos with exactly 2 gripper transitions')
-    print('Noop retention: Progressive (4, 8, 12, 16 steps after transitions)')
-    print('Dataset balancing: DISABLED (keeping all successful demos)')
+    print(f'Filtering strategy: Keep demos with exactly 2 gripper transitions')
+    print(f'Noop retention: Progressive (4, 8, 12, 16 steps after transitions)')
+    print(f'Dataset balancing: DISABLED (keeping all successful demos)')
 
     # Set random seed for reproducibility
     random.seed(42)
@@ -680,7 +705,7 @@ def main(args):
     # Create target directory
     if os.path.isdir(args.target_dir):
         user_input = input(
-            f"Target directory already exists at path: {args.target_dir}\nEnter 'y' to overwrite the directory, or anything else to exit: ",
+            f"Target directory already exists at path: {args.target_dir}\nEnter 'y' to overwrite the directory, or anything else to exit: "
         )
         if user_input != 'y':
             exit()
@@ -736,10 +761,7 @@ def main(args):
         for task_level in args.task_levels:
             try:
                 metainfo_json_dict, level_stats = process_level(
-                    task_suite,
-                    task_level,
-                    args,
-                    metainfo_json_dict,
+                    task_suite, task_level, args, metainfo_json_dict
                 )
 
                 # Update overall statistics
@@ -765,7 +787,7 @@ def main(args):
             except Exception as e:
                 import traceback
 
-                print(f'Error processing level {task_level}: {e!s}')
+                print(f'Error processing level {task_level}: {str(e)}')
                 print('Full traceback:')
                 traceback.print_exc()
                 print('Continuing with next level...')
@@ -781,124 +803,149 @@ def main(args):
         }
 
         data_files = list(
-            Path(args.raw_data_dir).glob('*.hdf5'),
+            Path(args.raw_data_dir).glob('*.hdf5')
         )  # Process all HDF5 files in the directory
         if not data_files:
             raise ValueError('There are no HDF5 files to process in the directory.')
-        for file in data_files:
-            data_file = h5py.File(file, 'r')
-            data = data_file['data']
-            bddl_path = data.attrs['bddl_file_name']
 
-            try:
-                env_args = {
-                    'bddl_file_name': bddl_path,
-                    'camera_heights': IMAGE_RESOLUTION,
-                    'camera_widths': IMAGE_RESOLUTION,
-                }
-                env = OffScreenRenderEnv(**env_args)
-                task = env.language_instruction
-                camera_names = env.env.camera_names
-                successful_demos, task_states = process_single_task(task, env, data)
+        # Build a lookup from stem to data file for directory-driven regeneration
+        data_file_lookup = {Path(f).stem: f for f in data_files}
 
-                task_data_path = os.path.join(
-                    args.target_dir,
-                    f"{task.replace(' ', '_')}_demo.hdf5",
+        # Determine regeneration targets
+        if args.bddl_path and Path(args.bddl_path).is_dir():
+            bddl_targets = collect_bddl_files(args.bddl_path)
+            if not bddl_targets:
+                raise ValueError(f'No BDDL files found under directory: {args.bddl_path}')
+            print(
+                f'Found {len(bddl_targets)} BDDL files under {args.bddl_path}; regenerating each.'
+            )
+        else:
+            bddl_targets = [None]  # Fallback to per-file resolve using metadata
+
+        for bddl_override in bddl_targets:
+            # When iterating via directory, try to pick matching data file by stem
+            if bddl_override is not None:
+                stem = Path(bddl_override).stem
+                if stem not in data_file_lookup:
+                    print(
+                        f'Skipping BDDL {bddl_override} (no matching HDF5 stem {stem} in raw_data_dir)'
+                    )
+                    continue
+                target_files = [data_file_lookup[stem]]
+            else:
+                target_files = data_files
+
+            for file in target_files:
+                data_file = h5py.File(file, 'r')
+                data = data_file['data']
+                bddl_path = data.attrs['bddl_file_name']
+                bddl_path = resolve_bddl_path(
+                    bddl_path, str(bddl_override) if bddl_override else args.bddl_path
                 )
-                print(f'\nSaving {len(successful_demos)} demos to: {task_data_path}')
 
-                with h5py.File(task_data_path, 'w') as new_data_file:
-                    grp = new_data_file.create_group('data')
-                    grp.attrs['camera_names'] = camera_names
+                try:
+                    env_args = {
+                        'bddl_file_name': bddl_path,
+                        'camera_heights': IMAGE_RESOLUTION,
+                        'camera_widths': IMAGE_RESOLUTION,
+                    }
+                    env = OffScreenRenderEnv(**env_args)
+                    task = env.language_instruction
+                    camera_names = env.env.camera_names
+                    successful_demos, task_states = process_single_task(task, env, data)
 
-                    for idx, (demo_id, demo_info) in enumerate(successful_demos.items()):
-                        replay_data = demo_info['data']
+                    task_data_path = os.path.join(
+                        args.target_dir, f"{task.replace(' ', '_')}_demo.hdf5"
+                    )
+                    print(f'\nSaving {len(successful_demos)} demos to: {task_data_path}')
 
-                        # Prepare data for saving
-                        actions = replay_data['actions']
-                        dones = np.zeros(len(actions)).astype(np.uint8)
-                        dones[-1] = 1
-                        rewards = np.zeros(len(actions)).astype(np.uint8)
-                        rewards[-1] = 1
-                        language_instruction = task.encode('utf8')
-                        # language instruction 和 dones 形状保持一致
-                        language_instruction = np.array(
-                            [language_instruction] * len(actions),
-                            dtype='S',
-                        )
-                        # Save to HDF5
-                        ep_data_grp = grp.create_group(f'demo_{idx}')
+                    with h5py.File(task_data_path, 'w') as new_data_file:
+                        grp = new_data_file.create_group('data')
+                        grp.attrs['camera_names'] = camera_names
 
-                        # Save metadata
-                        ep_data_grp.attrs['actions_removed'] = demo_info['actions_removed']
-                        ep_data_grp.attrs['noops_kept_after_transitions'] = demo_info[
-                            'noops_kept_after_transitions'
-                        ]
+                        for idx, (demo_id, demo_info) in enumerate(successful_demos.items()):
+                            replay_data = demo_info['data']
 
-                        # Save observation data
-                        obs_grp = ep_data_grp.create_group('obs')
-                        obs_grp.create_dataset(
-                            'gripper_states',
-                            data=np.stack(replay_data['gripper_states'], axis=0),
-                        )
-                        obs_grp.create_dataset(
-                            'joint_states',
-                            data=np.stack(replay_data['joint_states'], axis=0),
-                        )
-                        obs_grp.create_dataset(
-                            'ee_states',
-                            data=np.stack(replay_data['ee_states'], axis=0),
-                        )
-                        obs_grp.create_dataset(
-                            'ee_pos',
-                            data=np.stack(replay_data['ee_states'], axis=0)[:, :3],
-                        )
-                        obs_grp.create_dataset(
-                            'ee_ori',
-                            data=np.stack(replay_data['ee_states'], axis=0)[:, 3:],
-                        )
-                        for camera in camera_names:
+                            # Prepare data for saving
+                            actions = replay_data['actions']
+                            dones = np.zeros(len(actions)).astype(np.uint8)
+                            dones[-1] = 1
+                            rewards = np.zeros(len(actions)).astype(np.uint8)
+                            rewards[-1] = 1
+                            language_instruction = task.encode('utf8')
+                            # Keep language instruction and dones shapes consistent
+                            language_instruction = np.array(
+                                [language_instruction] * len(actions), dtype='S'
+                            )
+                            # Save to HDF5
+                            ep_data_grp = grp.create_group(f'demo_{idx}')
+
+                            # Save metadata
+                            ep_data_grp.attrs['actions_removed'] = demo_info['actions_removed']
+                            ep_data_grp.attrs['noops_kept_after_transitions'] = demo_info[
+                                'noops_kept_after_transitions'
+                            ]
+
+                            # Save observation data
+                            obs_grp = ep_data_grp.create_group('obs')
                             obs_grp.create_dataset(
-                                camera + '_rgb',
-                                data=np.stack(replay_data[camera + '_images'], axis=0),
+                                'gripper_states',
+                                data=np.stack(replay_data['gripper_states'], axis=0),
+                            )
+                            obs_grp.create_dataset(
+                                'joint_states', data=np.stack(replay_data['joint_states'], axis=0)
+                            )
+                            obs_grp.create_dataset(
+                                'ee_states', data=np.stack(replay_data['ee_states'], axis=0)
+                            )
+                            obs_grp.create_dataset(
+                                'ee_pos', data=np.stack(replay_data['ee_states'], axis=0)[:, :3]
+                            )
+                            obs_grp.create_dataset(
+                                'ee_ori', data=np.stack(replay_data['ee_states'], axis=0)[:, 3:]
+                            )
+                            for camera in camera_names:
+                                obs_grp.create_dataset(
+                                    camera + '_rgb',
+                                    data=np.stack(replay_data[camera + '_images'], axis=0),
+                                )
+
+                            # Save action and state data
+                            ep_data_grp.create_dataset('actions', data=actions)
+                            ep_data_grp.create_dataset(
+                                'states', data=np.stack(replay_data['states'])
+                            )
+                            ep_data_grp.create_dataset(
+                                'robot_states', data=np.stack(replay_data['robot_states'], axis=0)
+                            )
+                            ep_data_grp.create_dataset('rewards', data=rewards)
+                            ep_data_grp.create_dataset('dones', data=dones)
+                            ep_data_grp.create_dataset(
+                                'language_instruction', data=language_instruction
                             )
 
-                        # Save action and state data
-                        ep_data_grp.create_dataset('actions', data=actions)
-                        ep_data_grp.create_dataset('states', data=np.stack(replay_data['states']))
-                        ep_data_grp.create_dataset(
-                            'robot_states',
-                            data=np.stack(replay_data['robot_states'], axis=0),
-                        )
-                        ep_data_grp.create_dataset('rewards', data=rewards)
-                        ep_data_grp.create_dataset('dones', data=dones)
-                        ep_data_grp.create_dataset(
-                            'language_instruction',
-                            data=language_instruction,
-                        )
+                            # Update metainfo
+                            task_key = f"{task.replace(' ', '_')}"
+                            episode_key = f'demo_{idx}'
+                            if task_key not in metainfo_json_dict:
+                                metainfo_json_dict[task_key] = {}
+                            metainfo_json_dict[task_key][episode_key] = {
+                                'success': True,  # All saved demos are successful
+                                'initial_state': demo_info['initial_state'].tolist(),
+                                'actions_removed': demo_info['actions_removed'],
+                                'noops_kept_after_transitions': demo_info[
+                                    'noops_kept_after_transitions'
+                                ],
+                            }
+                    data_file.close()
+                except Exception as e:
+                    import traceback
 
-                        # Update metainfo
-                        task_key = f"{task.replace(' ', '_')}"
-                        episode_key = f'demo_{idx}'
-                        if task_key not in metainfo_json_dict:
-                            metainfo_json_dict[task_key] = {}
-                        metainfo_json_dict[task_key][episode_key] = {
-                            'success': True,  # All saved demos are successful
-                            'initial_state': demo_info['initial_state'].tolist(),
-                            'actions_removed': demo_info['actions_removed'],
-                            'noops_kept_after_transitions': demo_info[
-                                'noops_kept_after_transitions'
-                            ],
-                        }
-                data_file.close()
-            except Exception as e:
-                import traceback
-
-                print(f'Error processing file {file}: {e!s}')
-                print('Full traceback:')
-                traceback.print_exc()
-                print('Continuing with next level...')
-                continue
+                    print(f'Error processing file {file} with BDDL {bddl_override}: {str(e)}')
+                    print('Full traceback:')
+                    traceback.print_exc()
+                    print('Continuing with next target...')
+                    continue
 
     # Print overall statistics
     print(f"\n{'='*60}")
@@ -908,29 +955,29 @@ def main(args):
         print(f"Total levels processed: {overall_stats['total_levels']}")
     print(f"Total tasks processed: {overall_stats['total_tasks']}")
     print(
-        f"Tasks with warnings (< {MIN_DEMOS_WARNING_THRESHOLD} initial demos): {overall_stats['total_tasks_with_warnings']}",
+        f"Tasks with warnings (< {MIN_DEMOS_WARNING_THRESHOLD} initial demos): {overall_stats['total_tasks_with_warnings']}"
     )
     print(f"Total successful demos: {overall_stats['total_final_success']}")
     print(
-        f"Demos filtered (wrong transitions): {overall_stats['total_demos_filtered_transitions']}",
+        f"Demos filtered (wrong transitions): {overall_stats['total_demos_filtered_transitions']}"
     )
     print(f"Demos filtered (all strategies failed): {overall_stats['total_demos_filtered_failed']}")
 
-    print('\nNoop retention strategy distribution:')
+    print(f'\nNoop retention strategy distribution:')
     for noop_count, count in overall_stats['overall_noop_strategy_distribution'].items():
         percentage = (count / max(overall_stats['total_final_success'], 1)) * 100
         print(f'  {noop_count} noops kept: {count} demos ({percentage:.1f}%)')
 
     if overall_stats['total_tasks_with_warnings'] > 0:
-        print('\n⚠️  WARNING SUMMARY:')
+        print(f'\n⚠️  WARNING SUMMARY:')
         print(
-            f"⚠️  {overall_stats['total_tasks_with_warnings']} task(s) had fewer than {MIN_DEMOS_WARNING_THRESHOLD} successful demos.",
+            f"⚠️  {overall_stats['total_tasks_with_warnings']} task(s) had fewer than {MIN_DEMOS_WARNING_THRESHOLD} successful demos."
         )
         print(
-            '⚠️  Consider collecting more demonstrations for these tasks to improve data quality.',
+            f'⚠️  Consider collecting more demonstrations for these tasks to improve data quality.'
         )
 
-    print('\nDataset regeneration complete!')
+    print(f'\nDataset regeneration complete!')
     print(f'Saved new dataset at: {args.target_dir}')
     print(f'Saved metainfo file at: {metainfo_json_out_path}')
 
@@ -944,10 +991,7 @@ if __name__ == '__main__':
         help='Name of the task suite (e.g., static_obstacles)',
     )
     parser.add_argument(
-        '--raw_data_dir',
-        type=str,
-        required=True,
-        help='Path to the raw HDF5 dataset directory',
+        '--raw_data_dir', type=str, required=True, help='Path to the raw HDF5 dataset directory'
     )
     parser.add_argument(
         '--target_dir',
@@ -961,6 +1005,16 @@ if __name__ == '__main__':
         nargs='+',
         required=False,
         help='List of task levels to process (e.g., 0 1 2)',
+    )
+    parser.add_argument(
+        '--bddl_path',
+        type=str,
+        required=False,
+        default=None,
+        help=(
+            'Optional path to a BDDL file or directory. If a file, use it directly when creating environments. '
+            'If a directory, recursively search for matching BDDL filenames under that directory.'
+        ),
     )
     args = parser.parse_args()
 

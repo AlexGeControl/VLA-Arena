@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import json
 
@@ -35,9 +34,7 @@ def get_dataset_info(dataset_path, filter_key=None, verbose=True):
         if 'mask' in f:
             all_filter_keys = {}
             for fk in f['mask']:
-                fk_demos = sorted(
-                    [elem.decode('utf-8') for elem in np.array(f[f'mask/{fk}'])],
-                )
+                fk_demos = sorted([elem.decode('utf-8') for elem in np.array(f[f'mask/{fk}'])])
                 all_filter_keys[fk] = fk_demos
 
     # put demonstration list in increasing episode order
@@ -81,7 +78,9 @@ def get_dataset_info(dataset_path, filter_key=None, verbose=True):
             print('==== Filter Key Contents ====')
             for fk in all_filter_keys:
                 print(
-                    f'filter_key {fk} with {len(all_filter_keys[fk])} demos: {all_filter_keys[fk]}',
+                    'filter_key {} with {} demos: {}'.format(
+                        fk, len(all_filter_keys[fk]), all_filter_keys[fk]
+                    )
                 )
         print('')
     env_meta = json.loads(f['data'].attrs['env_args'])
@@ -91,12 +90,7 @@ def get_dataset_info(dataset_path, filter_key=None, verbose=True):
 
     print('==== Dataset Structure ====')
     for ep in demos:
-        print(
-            'episode {} with {} transitions'.format(
-                ep,
-                f[f'data/{ep}'].attrs['num_samples'],
-            ),
-        )
+        print('episode {} with {} transitions'.format(ep, f[f'data/{ep}'].attrs['num_samples']))
         for k in f[f'data/{ep}']:
             if k in ['obs', 'next_obs']:
                 print(f'    key: {k}')

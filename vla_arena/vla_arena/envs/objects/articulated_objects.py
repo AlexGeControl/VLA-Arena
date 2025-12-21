@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,13 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import os
 import pathlib
 import re
+from dataclasses import dataclass
 
 import numpy as np
+from easydict import EasyDict
 from robosuite.models.objects import MujocoXMLObject
 
 
@@ -42,7 +43,7 @@ class ArticulatedObject(MujocoXMLObject):
             duplicate_collision_geoms=duplicate_collision_geoms,
         )
         self.category_name = '_'.join(
-            re.sub(r'([A-Z])', r' \1', self.__class__.__name__).split(),
+            re.sub(r'([A-Z])', r' \1', self.__class__.__name__).split()
         ).lower()
         self.rotation = (np.pi / 4, np.pi / 2)
         self.rotation_axis = 'x'
@@ -79,12 +80,14 @@ class Microwave(ArticulatedObject):
     def is_open(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_open_ranges']):
             return True
-        return False
+        else:
+            return False
 
     def is_close(self, qpos):
         if qpos > min(self.object_properties['articulation']['default_close_ranges']):
             return True
-        return False
+        else:
+            return False
 
 
 @register_object
@@ -143,12 +146,14 @@ class ShortCabinet(ArticulatedObject):
     def is_open(self, qpos):
         if qpos > min(self.object_properties['articulation']['default_open_ranges']):
             return True
-        return False
+        else:
+            return False
 
     def is_close(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_close_ranges']):
             return True
-        return False
+        else:
+            return False
 
 
 @register_object
@@ -167,12 +172,14 @@ class ShortFridge(ArticulatedObject):
     def is_open(self, qpos):
         if qpos > min(self.object_properties['articulation']['default_open_ranges']):
             return True
-        return False
+        else:
+            return False
 
     def is_close(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_close_ranges']):
             return True
-        return False
+        else:
+            return False
 
     # Sample initial joint positions for random door open or door closed
 
@@ -192,12 +199,14 @@ class WoodenCabinet(ArticulatedObject):
     def is_open(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_open_ranges']):
             return True
-        return False
+        else:
+            return False
 
     def is_close(self, qpos):
         if qpos > min(self.object_properties['articulation']['default_close_ranges']):
             return True
-        return False
+        else:
+            return False
 
 
 @register_object
@@ -228,12 +237,14 @@ class WhiteCabinet(ArticulatedObject):
     def is_open(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_open_ranges']):
             return True
-        return False
+        else:
+            return False
 
     def is_close(self, qpos):
         if qpos > min(self.object_properties['articulation']['default_close_ranges']):
             return True
-        return False
+        else:
+            return False
 
 
 @register_object
@@ -263,11 +274,12 @@ class FlatStove(ArticulatedObject):
                 True,
             )
             return True
-        self.object_properties['vis_site_names']['burner'] = (
-            self.naming_prefix + 'burner',
-            False,
-        )
-        return False
+        else:
+            self.object_properties['vis_site_names']['burner'] = (
+                self.naming_prefix + 'burner',
+                False,
+            )
+            return False
 
     def turn_off(self, qpos):
         if qpos < max(self.object_properties['articulation']['default_turnoff_ranges']):
@@ -276,11 +288,12 @@ class FlatStove(ArticulatedObject):
                 False,
             )
             return True
-        self.object_properties['vis_site_names']['burner'] = (
-            self.naming_prefix + 'burner',
-            True,
-        )
-        return False
+        else:
+            self.object_properties['vis_site_names']['burner'] = (
+                self.naming_prefix + 'burner',
+                True,
+            )
+            return False
 
 
 @register_object

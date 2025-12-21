@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import os
+from copy import deepcopy
 
 import mujoco
 import numpy as np
 import robosuite.macros as macros
 import robosuite.utils.transform_utils as T
+from robosuite.controllers import (
+    composite_controller_factory,
+    controller_factory,
+    load_part_controller_config,
+)
 from robosuite.environments.manipulation.manipulation_env import ManipulationEnv
 from robosuite.models.base import MujocoModel
+from robosuite.models.grippers import gripper_factory
 from robosuite.models.tasks import ManipulationTask
+from robosuite.robots.robot import Robot
+from robosuite.utils.buffers import DeltaBuffer, RingBuffer
+from robosuite.utils.mjcf_utils import CustomMaterial
 from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.placement_samplers import SequentialCompositeSampler
 from robosuite.utils.transform_utils import mat2quat
@@ -97,11 +106,12 @@ class SingleArmEnv(ManipulationEnv):
 
         if self.env_configuration == 'bimanual':
             return np.array(
-                self.sim.data.site_xmat[self.sim.model.site_name2id(pf + 'right_grip_site')],
+                self.sim.data.site_xmat[self.sim.model.site_name2id(pf + 'right_grip_site')]
             ).reshape(3, 3)
-        return np.array(
-            self.sim.data.site_xmat[self.sim.model.site_name2id(pf + 'grip_site')],
-        ).reshape(3, 3)
+        else:
+            return np.array(
+                self.sim.data.site_xmat[self.sim.model.site_name2id(pf + 'grip_site')]
+            ).reshape(3, 3)
 
     @property
     def _eef_xquat(self):
@@ -164,7 +174,6 @@ class BDDLBaseDomain(SingleArmEnv):
         light_adjustment=False,
         **kwargs,
     ):
-        t0 = time.time()
         # settings for table top (hardcoded since it's not an essential part of the environment)
         self.workspace_offset = workspace_offset
         # reward configuration
@@ -325,8 +334,7 @@ class BDDLBaseDomain(SingleArmEnv):
         raise NotImplementedError
 
     def _generate_object_state_wrapper(
-        self,
-        skip_object_names=['main_table', 'floor', 'countertop', 'coffee_table'],
+        self, skip_object_names=['main_table', 'floor', 'countertop', 'coffee_table']
     ):
         object_states_dict = {}
         tracking_object_states_changes = []
@@ -418,7 +426,7 @@ class BDDLBaseDomain(SingleArmEnv):
             )
         elif self._arena_type == 'kitchen':
             xpos = self.robots[0].robot_model.base_xpos_offset['kitchen_table'](
-                self.kitchen_table_full_size[0],
+                self.kitchen_table_full_size[0]
             )
             self.robots[0].robot_model.set_base_xpos(xpos)
             mujoco_arena = KitchenTableArena(
@@ -438,7 +446,7 @@ class BDDLBaseDomain(SingleArmEnv):
             )
         elif self._arena_type == 'coffee_table':
             xpos = self.robots[0].robot_model.base_xpos_offset['coffee_table'](
-                self.coffee_table_full_size[0],
+                self.coffee_table_full_size[0]
             )
             self.robots[0].robot_model.set_base_xpos(xpos)
             mujoco_arena = CoffeeTableArena(
@@ -448,7 +456,7 @@ class BDDLBaseDomain(SingleArmEnv):
 
         elif self._arena_type == 'living_room':
             xpos = self.robots[0].robot_model.base_xpos_offset['living_room_table'](
-                self.living_room_table_full_size[0],
+                self.living_room_table_full_size[0]
             )
             self.robots[0].robot_model.set_base_xpos(xpos)
             mujoco_arena = LivingRoomTableArena(
@@ -458,7 +466,7 @@ class BDDLBaseDomain(SingleArmEnv):
 
         elif self._arena_type == 'study':
             xpos = self.robots[0].robot_model.base_xpos_offset['study_table'](
-                self.study_table_full_size[0],
+                self.study_table_full_size[0]
             )
             self.robots[0].robot_model.set_base_xpos(xpos)
             mujoco_arena = StudyTableArena(
@@ -503,10 +511,10 @@ class BDDLBaseDomain(SingleArmEnv):
     def _setup_placement_initializer(self, mujoco_arena):
         self.placement_initializer = SequentialCompositeSampler(name='ObjectSampler')
         self.conditional_placement_initializer = SiteSequentialCompositeSampler(
-            name='ConditionalSiteSampler',
+            name='ConditionalSiteSampler'
         )
         self.conditional_placement_on_objects_initializer = SequentialCompositeSampler(
-            name='ConditionalObjectSampler',
+            name='ConditionalObjectSampler'
         )
         self._add_placement_initializer()
 
@@ -570,8 +578,7 @@ class BDDLBaseDomain(SingleArmEnv):
 
         for i, obj in enumerate(self.objects):
             obj_sensors, obj_sensor_names = self._create_obj_sensors(
-                obj_name=obj.name,
-                modality='object',
+                obj_name=obj.name, modality='object'
             )
 
             sensors += obj_sensors
@@ -626,7 +633,7 @@ class BDDLBaseDomain(SingleArmEnv):
                         f'{obj_name}_quat',
                         'world_pose_in_gripper',
                     ]
-                ],
+                ]
             ):
                 return np.zeros(3)
             obj_pose = T.pose2mat((obs_cache[f'{obj_name}_pos'], obs_cache[f'{obj_name}_quat']))
@@ -720,8 +727,7 @@ class BDDLBaseDomain(SingleArmEnv):
             if state[0] in ['open', 'close']:
                 # If "open" is implemented, we assume "close" is also implemented
                 if state[1] in self.object_states_dict and hasattr(
-                    self.object_states_dict[state[1]],
-                    'set_joint',
+                    self.object_states_dict[state[1]], 'set_joint'
                 ):
                     obj = self.get_object(state[1])
                     if state[0] == 'open':
@@ -738,8 +744,7 @@ class BDDLBaseDomain(SingleArmEnv):
             elif state[0] in ['turnon', 'turnoff']:
                 # If "turnon" is implemented, we assume "turnoff" is also implemented.
                 if state[1] in self.object_states_dict and hasattr(
-                    self.object_states_dict[state[1]],
-                    'set_joint',
+                    self.object_states_dict[state[1]], 'set_joint'
                 ):
                     obj = self.get_object(state[1])
                     if state[0] == 'turnon':
@@ -775,8 +780,7 @@ class BDDLBaseDomain(SingleArmEnv):
                 rotation_axis=self.objects_dict[object_name].rotation_axis,
             )
             self.conditional_placement_initializer.append_sampler(
-                sampler,
-                {'reference': target_name, 'site_name': region_name},
+                sampler, {'reference': target_name, 'site_name': region_name}
             )
         # Place objects that are on other objects
         for state in conditioned_initial_place_state_on_objects:
@@ -793,8 +797,7 @@ class BDDLBaseDomain(SingleArmEnv):
                 rotation_axis=self.objects_dict[object_name].rotation_axis,
             )
             self.conditional_placement_on_objects_initializer.append_sampler(
-                sampler,
-                {'reference': other_object_name},
+                sampler, {'reference': other_object_name}
             )
         # Place objects inside some containing regions
         for state in conditioned_initial_place_state_in_objects:
@@ -814,8 +817,7 @@ class BDDLBaseDomain(SingleArmEnv):
                 rotation_axis=self.objects_dict[object_name].rotation_axis,
             )
             self.conditional_placement_initializer.append_sampler(
-                sampler,
-                {'reference': target_name, 'site_name': region_name},
+                sampler, {'reference': target_name, 'site_name': region_name}
             )
 
     def _get_observations(self, force_update=False):
@@ -878,10 +880,10 @@ class BDDLBaseDomain(SingleArmEnv):
 
             # Sample from the placement initializer for all objects
             for object_property_initializer in self.object_property_initializers:
-                if isinstance(object_property_initializer, OpenCloseSampler) or isinstance(
-                    object_property_initializer,
-                    TurnOnOffSampler,
-                ):
+                if isinstance(object_property_initializer, OpenCloseSampler):
+                    joint_pos = object_property_initializer.sample()
+                    self.object_states_dict[object_property_initializer.name].set_joint(joint_pos)
+                elif isinstance(object_property_initializer, TurnOnOffSampler):
                     joint_pos = object_property_initializer.sample()
                     self.object_states_dict[object_property_initializer.name].set_joint(joint_pos)
                 else:
@@ -891,11 +893,10 @@ class BDDLBaseDomain(SingleArmEnv):
 
             object_placements = self.placement_initializer.sample()
             object_placements = self.conditional_placement_initializer.sample(
-                self.sim,
-                object_placements,
+                self.sim, object_placements
             )
             object_placements = self.conditional_placement_on_objects_initializer.sample(
-                object_placements,
+                object_placements
             )
             for obj_pos, obj_quat, obj in object_placements.values():
                 if obj.name not in list(self.fixtures_dict.keys()):
@@ -934,36 +935,36 @@ class BDDLBaseDomain(SingleArmEnv):
 
     def _set_mocap_motion_generator(self, object):
         if object['motion_type'] == 'circle':
-            # 获取物体的初始位置和四元数
+            # Get object's initial position and quaternion
             start_pos = self.object_original_pos[object['name']]
             start_quat = self.object_original_quat[object['name']]
-            # 创建圆周运动生成器
+            # Create circular motion generator
             return CircularMotionGenerator(
                 start_pos=start_pos,
                 center_pos=object.get('motion_center', [0, 0, 1.2]),
                 start_quat=start_quat,
-                period=object.get('motion_period', 1),  # 将速度转换为周期
+                period=object.get('motion_period', 1),  # Convert speed to period
             )
-        if object['motion_type'] == 'linear':
-            # 获取物体的初始位置和四元数
+        elif object['motion_type'] == 'linear':
+            # Get object's initial position and quaternion
             start_pos = self.object_original_pos[object['name']]
             start_quat = self.object_original_quat[object['name']]
-            # 创建线性运动生成器
+            # Create linear motion generator
             return LinearMotionGenerator(
                 start_pos=start_pos,
                 start_quat=start_quat,
                 direction=object.get('motion_direction', [0, 1, 0]),
-                cycle_time=object.get('motion_period', 1),  # 默认周期为1秒
-                travel_dist=object.get('motion_travel_dist', 1),  # 使用速度作为移动距离
+                cycle_time=object.get('motion_period', 1),  # Default period is 1 second
+                travel_dist=object.get('motion_travel_dist', 1),  # Use speed as travel distance
             )
-        if object['motion_type'] == 'waypoint':
+        elif object['motion_type'] == 'waypoint':
             return SmoothWaypointMotionGenerator(
                 waypoints=object.get('motion_waypoints', [[0, 0, 1.2]]),
                 start_quat=self.object_original_quat[object['name']],
                 dt=object.get('motion_dt', 0.01),
                 loop=object.get('motion_loop', True),
             )
-        if object['motion_type'] == 'parabolic':
+        elif object['motion_type'] == 'parabolic':
             return ParabolicMotionGenerator(
                 start_pos=object.get('motion_start_pos', [0, 0, 1.2]),
                 start_quat=object.get('motion_start_quat', [0, 0, 0, 1]),
@@ -972,7 +973,8 @@ class BDDLBaseDomain(SingleArmEnv):
                 dt=object.get('motion_dt', 0.01),
                 gravity=object.get('motion_gravity', np.array([0, 0, -9.81])),
             )
-        raise NotImplementedError(f"Invalid motion type: {object['motion_type']}")
+        else:
+            raise NotImplementedError(f"Invalid motion type: {object['motion_type']}")
 
     def _weld_mocap_joint(self, object_name, mocap_joint_name):
         self.sim.model.eq_active[self.sim.model.eq_obj1id[mocap_joint_name]] = 1
@@ -1054,7 +1056,7 @@ class BDDLBaseDomain(SingleArmEnv):
 
     def get_robot_state_vector(self, obs):
         return np.concatenate(
-            [obs['robot0_gripper_qpos'], obs['robot0_eef_pos'], obs['robot0_eef_quat']],
+            [obs['robot0_gripper_qpos'], obs['robot0_eef_pos'], obs['robot0_eef_quat']]
         )
 
     def is_fixture(self, object_name):
@@ -1108,7 +1110,7 @@ class BDDLBaseDomain(SingleArmEnv):
             )
             if (c1_in_g1 and c2_in_g2) or (c1_in_g2 and c2_in_g1):
                 print(
-                    f'contact: {self.sim.model.geom_id2name(contact.geom1)} {self.sim.model.geom_id2name(contact.geom2)}',
+                    f'contact: {self.sim.model.geom_id2name(contact.geom1)} {self.sim.model.geom_id2name(contact.geom2)}'
                 )
                 f6 = np.zeros(6)
                 mujoco.mj_contactForce(self.sim.model._model, self.sim.data._data, i, f6)
@@ -1130,10 +1132,10 @@ class BDDLBaseDomain(SingleArmEnv):
         # print(geoms_1)
         # print(geoms_2)
 
-        # 遍历所有几何体对
+        # Iterate through all geometry pairs
         for g1_name in geoms_1:
             for g2_name in geoms_2:
-                # 避免计算同一几何体与自身的距离
+                # Avoid calculating distance between the same geometry and itself
                 if g1_name == g2_name:
                     continue
 
@@ -1141,12 +1143,12 @@ class BDDLBaseDomain(SingleArmEnv):
                     g1_id = self.sim.model.geom_name2id(g1_name)
                     g2_id = self.sim.model.geom_name2id(g2_name)
                 except ValueError:
-                    # 如果找不到几何体，打印警告并跳过
-                    print(f"警告: 无法找到几何体 '{g1_name}' 或 '{g2_name}'")
+                    # If geometry not found, print warning and skip
+                    print(f"Warning: Unable to find geometry '{g1_name}' or '{g2_name}'")
                     continue
 
-                # 【修正点】: 添加了 distmax 参数
-                # distmax 是一个距离上限，用于优化。我们设置一个较大的值以获取精确距离。
+                # Note: Added distmax parameter
+                # distmax is a distance upper bound used for optimization. We set a large value to get accurate distance.
                 fromto = np.zeros(6, dtype=np.float64)
                 dist = mujoco.mj_geomDistance(
                     self.sim.model._model,
@@ -1290,29 +1292,28 @@ class BDDLBaseDomain(SingleArmEnv):
             # Checking binary logical predicates
             if predicate_fn_name == 'checkgrippercontactpart':
                 return eval_predicate_fn(
-                    predicate_fn_name,
-                    self.object_states_dict[state[1]],
-                    state[2],
+                    predicate_fn_name, self.object_states_dict[state[1]], state[2]
                 )
-            if predicate_fn_name == 'checkgripperdistance':
+            elif predicate_fn_name == 'checkgripperdistance':
                 object_1_name = state[1]
                 return float(state[2]) >= eval_predicate_fn(
                     predicate_fn_name,
                     self.object_states_dict[object_1_name],
                 )
-            object_1_name = state[1]
-            object_2_name = state[2]
-            return eval_predicate_fn(
-                predicate_fn_name,
-                self.object_states_dict[object_1_name],
-                self.object_states_dict[object_2_name],
-            )
-        if len(state) == 2:
+            else:
+                object_1_name = state[1]
+                object_2_name = state[2]
+                return eval_predicate_fn(
+                    predicate_fn_name,
+                    self.object_states_dict[object_1_name],
+                    self.object_states_dict[object_2_name],
+                )
+        elif len(state) == 2:
             # Checking unary logical predicates
             predicate_fn_name = state[0]
             object_name = state[1]
             return eval_predicate_fn(predicate_fn_name, self.object_states_dict[object_name])
-        if len(state) == 4:
+        elif len(state) == 4:
             # Checking binary logical predicates
             predicate_fn_name = state[0]
             object_1_name = state[1]
@@ -1323,18 +1324,19 @@ class BDDLBaseDomain(SingleArmEnv):
                     self.object_states_dict[object_1_name],
                     self.object_states_dict[object_2_name],
                 )
-            if predicate_fn_name == 'checkgripperdistancepart':
+            elif predicate_fn_name == 'checkgripperdistancepart':
                 return float(state[3]) >= eval_predicate_fn(
                     predicate_fn_name,
                     self.object_states_dict[object_1_name],
                     state[2],
                 )
-            return float(state[3]) < eval_predicate_fn(
-                predicate_fn_name,
-                self.object_states_dict[object_1_name],
-                self.object_states_dict[object_2_name],
-            )
-        if len(state) == 5:
+            else:
+                return float(state[3]) < eval_predicate_fn(
+                    predicate_fn_name,
+                    self.object_states_dict[object_1_name],
+                    self.object_states_dict[object_2_name],
+                )
+        elif len(state) == 5:
             # Checking binary logical predicates
             predicate_fn_name = state[0]
             if predicate_fn_name == 'incontactpart':
@@ -1355,8 +1357,10 @@ class BDDLBaseDomain(SingleArmEnv):
                 else:
                     raise NotImplementedError(f'Invalid geom_name_2: {geom_name_2}')
                 return self._check_contact(geom_name_1, geom_name_2)
+            else:
+                raise NotImplementedError(f'Invalid state length: {len(state)}')
+        else:
             raise NotImplementedError(f'Invalid state length: {len(state)}')
-        raise NotImplementedError(f'Invalid state length: {len(state)}')
 
 
 from PIL import Image, ImageEnhance
@@ -1364,28 +1368,35 @@ from PIL import Image, ImageEnhance
 
 def ajust_image(img, brightness=0, contrast=0, saturation=0, temperature=6500):
     """
-    brightness:亮度
-    contrast:对比度
-    saturation:饱和度
-    均在-1~1之间取值
-    """
-    img_pil = Image.fromarray(img)  # 数组→PIL
+    Adjust image brightness, contrast, saturation, and color temperature.
 
-    # 1. 亮度调节（1.0=原亮度，>1提亮，<1变暗）
+    Args:
+        img: numpy array, input image
+        brightness: float, brightness adjustment value in range [-1, 1]
+        contrast: float, contrast adjustment value in range [-1, 1]
+        saturation: float, saturation adjustment value in range [-1, 1]
+        temperature: float, color temperature in Kelvin (2000~10000K, default 6500K is neutral white light)
+
+    Returns:
+        numpy array: adjusted image
+    """
+    img_pil = Image.fromarray(img)  # Convert array to PIL Image
+
+    # 1. Adjust brightness (1.0 = original brightness, >1 brighten, <1 darken)
     if brightness:
         bright_enhancer = ImageEnhance.Brightness(img_pil)
         img_pil = bright_enhancer.enhance(1 + brightness)
 
-    # 2. 对比度调节
+    # 2. Adjust contrast
     if contrast:
         contrast_enhancer = ImageEnhance.Contrast(img_pil)
         img_pil = contrast_enhancer.enhance(1 + contrast)
 
-    # 3. 饱和度调节（Color模块对应饱和度）
+    # 3. Adjust saturation (Color module corresponds to saturation)
     if saturation:
         saturate_enhancer = ImageEnhance.Color(img_pil)
         img_pil = saturate_enhancer.enhance(1 + saturation)
-    # 转回NumPy数组
+    # Convert back to NumPy array
     img_final = np.array(img_pil)
     if temperature != 6500:
         img_final = adjust_temperature(img_final, temperature)
@@ -1394,54 +1405,77 @@ def ajust_image(img, brightness=0, contrast=0, saturation=0, temperature=6500):
 
 def adjust_temperature(img, temperature=6500):
     """
-    用PIL调节图像色温
-    :param img: PIL.Image 对象(RGB格式)
-    :param temperature: 目标色温(2000~10000K,默认6500K为中性白光)
-    :return: 调节后的 PIL.Image 对象
+    Adjust image color temperature using RGB scaling factors.
+
+    Args:
+        img: numpy array, input image in RGB format
+        temperature: float, target color temperature in Kelvin (2000~10000K, default 6500K is neutral white light)
+
+    Returns:
+        numpy array: adjusted image
     """
 
-    # 2. 定义色温对应的 RGB 缩放因子（基于常见光谱分布）
+    # Define RGB scaling factors based on color temperature (based on common spectral distribution)
     if temperature <= 6500:
-        # 低色温（暖）：增强R，减弱B
-        r_factor = 1.0 + (6500 - temperature) / 6500 * 0.4  # R最多增强40%
-        g_factor = 1.0  # G保持不变
-        b_factor = 1.0 - (6500 - temperature) / 6500 * 0.4  # B最多减弱40%
+        # Low color temperature (warm): enhance R, reduce B
+        r_factor = 1.0 + (6500 - temperature) / 6500 * 0.4  # R can be enhanced up to 40%
+        g_factor = 1.0  # G remains unchanged
+        b_factor = 1.0 - (6500 - temperature) / 6500 * 0.4  # B can be reduced up to 40%
     else:
-        # 高色温（冷）：增强B，减弱R
-        r_factor = 1.0 - (temperature - 6500) / 6500 * 0.4  # R最多减弱40%
-        g_factor = 1.0  # G保持不变
-        b_factor = 1.0 + (temperature - 6500) / 6500 * 0.4  # B最多增强40%
+        # High color temperature (cool): enhance B, reduce R
+        r_factor = 1.0 - (temperature - 6500) / 6500 * 0.4  # R can be reduced up to 40%
+        g_factor = 1.0  # G remains unchanged
+        b_factor = 1.0 + (temperature - 6500) / 6500 * 0.4  # B can be enhanced up to 40%
 
-    # 3. 按因子调节各通道（避免溢出，限制在0~255）
-    img[..., 0] = np.clip(img[..., 0] * r_factor, 0, 255)  # R通道
-    img[..., 1] = np.clip(img[..., 1] * g_factor, 0, 255)  # G通道
-    img[..., 2] = np.clip(img[..., 2] * b_factor, 0, 255)  # B通道
+    # Adjust each channel by factor (avoid overflow, clamp to 0~255)
+    img[..., 0] = np.clip(img[..., 0] * r_factor, 0, 255)  # R channel
+    img[..., 1] = np.clip(img[..., 1] * g_factor, 0, 255)  # G channel
+    img[..., 2] = np.clip(img[..., 2] * b_factor, 0, 255)  # B channel
 
     return img.astype(np.uint8)
 
 
 def add_gaussian_noise(image, mean=0, var=0.01):
-    """添加高斯噪声"""
-    # 将图像归一化到[0,1]范围处理
+    """
+    Add Gaussian noise to an image.
+
+    Args:
+        image: numpy array, input image
+        mean: float, mean of Gaussian noise (default 0)
+        var: float, variance of Gaussian noise (default 0.01)
+
+    Returns:
+        numpy array: image with Gaussian noise added
+    """
+    # Normalize image to [0,1] range for processing
     image = image / 255.0
     sigma = var**0.5
-    # 生成高斯噪声
+    # Generate Gaussian noise
     gauss = np.random.normal(mean, sigma, image.shape)
-    # 添加噪声到图像
+    # Add noise to image
     noisy_image = image + gauss
-    # 确保像素值在[0,1]范围内
+    # Ensure pixel values are in [0,1] range
     noisy_image = np.clip(noisy_image, 0, 1)
-    # 转换回[0,255]整数范围
+    # Convert back to [0,255] integer range
     return (noisy_image * 255).astype(np.uint8)
 
 
 def add_salt_pepper_noise(image, prob=0.05):
-    """添加椒盐噪声"""
+    """
+    Add salt and pepper noise to an image.
+
+    Args:
+        image: numpy array, input image
+        prob: float, probability of noise (default 0.05)
+
+    Returns:
+        numpy array: image with salt and pepper noise added
+    """
     output = np.copy(image)
-    # 计算椒盐噪声的像素数量
+    # Calculate threshold for salt and pepper noise
     thres = 1 - prob
-    # 添加盐噪声（白色）
+    # Add salt noise (white pixels)
     output[np.random.random(image.shape) < prob] = 255
-    # 添加椒噪声（黑色）
+    # Add pepper noise (black pixels)
     output[np.random.random(image.shape) > thres] = 0
     return output

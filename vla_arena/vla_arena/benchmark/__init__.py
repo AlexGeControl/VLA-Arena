@@ -1,4 +1,4 @@
-# Copyright (c) 2024-2025 VLA-Arena Team. All Rights Reserved.
+# Copyright 2025 The VLA-Arena Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
 
 import abc
 import os
@@ -36,7 +35,7 @@ def register_benchmark(target_class):
 def get_benchmark_dict(help=False):
     if help:
         print('Available benchmarks:')
-        for benchmark_name in BENCHMARK_MAPPING:
+        for benchmark_name in BENCHMARK_MAPPING.keys():
             print(f'\t{benchmark_name}')
     return BENCHMARK_MAPPING
 
@@ -98,10 +97,7 @@ def grab_language_from_filename(x):
 def grab_language_from_bddl_file(bddl_filename, problem_folder, level_dir):
     domain_name = 'robosuite'
     bddl_file_path = os.path.join(
-        get_vla_arena_path('bddl_files'),
-        problem_folder,
-        level_dir,
-        bddl_filename,
+        get_vla_arena_path('bddl_files'), problem_folder, level_dir, bddl_filename
     )
     tokens = scan_tokens(filename=bddl_file_path)
     if isinstance(tokens, list) and tokens.pop(0) == 'define':
@@ -138,7 +134,7 @@ def grab_language_from_bddl_file(bddl_filename, problem_folder, level_dir):
                     else:
                         object_list.append(group.pop(0))
                 if object_list:
-                    if 'object' not in objects:
+                    if not 'object' in objects:
                         objects['object'] = []
                     objects['object'] += object_list
             elif t == ':obj_of_interest':
@@ -156,7 +152,7 @@ def grab_language_from_bddl_file(bddl_filename, problem_folder, level_dir):
                     else:
                         fixture_list.append(group.pop(0))
                 if fixture_list:
-                    if 'fixture' not in fixtures:
+                    if not 'fixture' in fixtures:
                         fixtures['fixture'] = []
                     fixtures['fixture'] += fixture_list
             elif t == ':regions':
@@ -198,7 +194,8 @@ def grab_language_from_bddl_file(bddl_filename, problem_folder, level_dir):
             'moving_objects': moving_objects,
             'image_settings': image_settings,
         }
-    raise Exception('Problem does not match problem pattern')
+    else:
+        raise Exception(f'Problem does not match problem pattern')
 
 
 def grab_language_from_bddl_path(bddl_file_path):
@@ -238,7 +235,7 @@ def grab_language_from_bddl_path(bddl_file_path):
                     else:
                         object_list.append(group.pop(0))
                 if object_list:
-                    if 'object' not in objects:
+                    if not 'object' in objects:
                         objects['object'] = []
                     objects['object'] += object_list
             elif t == ':obj_of_interest':
@@ -256,7 +253,7 @@ def grab_language_from_bddl_path(bddl_file_path):
                     else:
                         fixture_list.append(group.pop(0))
                 if fixture_list:
-                    if 'fixture' not in fixtures:
+                    if not 'fixture' in fixtures:
                         fixtures['fixture'] = []
                     fixtures['fixture'] += fixture_list
             elif t == ':regions':
@@ -298,7 +295,8 @@ def grab_language_from_bddl_path(bddl_file_path):
             'moving_objects': moving_objects,
             'image_settings': image_settings,
         }
-    raise Exception('Problem does not match problem pattern')
+    else:
+        raise Exception(f'Problem does not match problem pattern')
 
 
 def assign_task_level(task_name, task_index=None):
@@ -325,17 +323,17 @@ vla_arena_suites = [
     # Safety benchmarks
     'safety_dynamic_obstacles',
     'safety_hazard_avoidance',
-    'safety_object_state_preservation',
-    'safety_risk_aware_grasping',
+    'safety_state_preservation',
+    'safety_cautious_grasp',
     'safety_static_obstacles',
-    # Robustness benchmarks
-    'robustness_dynamic_distractors',
-    'robustness_static_distractors',
-    # Generalization benchmarks
-    'generalization_object_preposition_combinations',
-    'generalization_task_workflows',
-    'generalization_unseen_objects',
-    # Other benchmarks
+    # Distractor benchmarks
+    'distractor_dynamic_distractors',
+    'distractor_static_distractors',
+    # Extrapolation benchmarks
+    'extrapolation_preposition_combinations',
+    'extrapolation_task_workflows',
+    'extrapolation_unseen_objects',
+    # Long Horizon benchmarks
     'long_horizon',
     # Libero benchmarks
     'libero_10',
@@ -351,17 +349,17 @@ suite_to_problem_folder = {
     # Safety benchmarks
     'safety_dynamic_obstacles': 'safety_dynamic_obstacles',
     'safety_hazard_avoidance': 'safety_hazard_avoidance',
-    'safety_object_state_preservation': 'safety_object_state_preservation',
-    'safety_risk_aware_grasping': 'safety_risk_aware_grasping',
+    'safety_state_preservation': 'safety_state_preservation',
+    'safety_cautious_grasp': 'safety_cautious_grasp',
     'safety_static_obstacles': 'safety_static_obstacles',
-    # Robustness benchmarks
-    'robustness_dynamic_distractors': 'robustness_dynamic_distractors',
-    'robustness_static_distractors': 'robustness_static_distractors',
-    # Generalization benchmarks
-    'generalization_object_preposition_combinations': 'generalization_object_preposition_combinations',
-    'generalization_task_workflows': 'generalization_task_workflows',
-    'generalization_unseen_objects': 'generalization_unseen_objects',
-    # Other benchmarks
+    # Distractor benchmarks
+    'distractor_dynamic_distractors': 'distractor_dynamic_distractors',
+    'distractor_static_distractors': 'distractor_static_distractors',
+    # Extrapolation benchmarks
+    'extrapolation_preposition_combinations': 'extrapolation_preposition_combinations',
+    'extrapolation_task_workflows': 'extrapolation_task_workflows',
+    'extrapolation_unseen_objects': 'extrapolation_unseen_objects',
+    # Long Horizon benchmarks
     'long_horizon': 'long_horizon',
     # Libero benchmarks
     'libero_10': 'libero_10',
@@ -441,7 +439,7 @@ class Benchmark(abc.ABC):
     def get_task_bddl_files(self):
         return [task.bddl_file for task in self.tasks]
 
-    def get_task_by_level_id(self, level: int, level_id: int) -> Optional[Task]:
+    def get_task_by_level_id(self, level: int, level_id: int) -> Task | None:
         """
         Get task by level and level_id.
 
@@ -461,15 +459,12 @@ class Benchmark(abc.ABC):
         level_tasks = self.level_task_maps[level]
         if 0 <= level_id < len(level_tasks):
             return level_tasks[level_id]
-        return None
+        else:
+            return None
 
     def _get_task_file_path(
-        self,
-        level: int,
-        level_id: int,
-        file_type: str,
-        file_extension: str,
-    ) -> Optional[str]:
+        self, level: int, level_id: int, file_type: str, file_extension: str
+    ) -> str | None:
         """
         Generic method to get file paths by level and level_id.
 
@@ -493,14 +488,11 @@ class Benchmark(abc.ABC):
             return None
 
         file_path = os.path.join(
-            get_vla_arena_path(file_type),
-            task.problem_folder,
-            level_dir,
-            filename,
+            get_vla_arena_path(file_type), task.problem_folder, level_dir, filename
         )
         return file_path
 
-    def get_task_bddl_file_path_by_level_id(self, level: int, level_id: int) -> Optional[str]:
+    def get_task_bddl_file_path_by_level_id(self, level: int, level_id: int) -> str | None:
         """Get the bddl file path by level and level_id."""
         return self._get_task_file_path(level, level_id, 'bddl_files', '.bddl')
 
@@ -511,7 +503,7 @@ class Benchmark(abc.ABC):
             return None
         return torch.load(init_states_path, weights_only=False)
 
-    def get_task_demonstration_by_level_id(self, level: int, level_id: int) -> Optional[str]:
+    def get_task_demonstration_by_level_id(self, level: int, level_id: int) -> str | None:
         """Get demonstration path by level and level_id."""
         task = self.get_task_by_level_id(level, level_id)
         if task is None:
@@ -529,7 +521,7 @@ class Benchmark(abc.ABC):
             raise ValueError(f'Level must be 0, 1, or 2, got {level}')
         return len(self.level_task_maps.get(level, []))
 
-    def get_all_tasks_by_level(self, level: int) -> List[Task]:
+    def get_all_tasks_by_level(self, level: int) -> list[Task]:
         """Get all tasks for a specific level."""
         if level not in [0, 1, 2]:
             raise ValueError(f'Level must be 0, 1, or 2, got {level}')
@@ -542,7 +534,7 @@ class Benchmark(abc.ABC):
     def get_task_demonstration(self, i):
         """Get demonstration path by task index."""
         assert (
-            i >= 0 and i < self.n_tasks
+            0 <= i and i < self.n_tasks
         ), f'[error] task number {i} is outer of range {self.n_tasks}'
 
         task = self.tasks[i]
@@ -605,17 +597,17 @@ benchmark_names = [
     # Safety benchmarks
     'safety_dynamic_obstacles',
     'safety_hazard_avoidance',
-    'safety_object_state_preservation',
-    'safety_risk_aware_grasping',
+    'safety_state_preservation',
+    'safety_cautious_grasp',
     'safety_static_obstacles',
-    # Robustness benchmarks
-    'robustness_dynamic_distractors',
-    'robustness_static_distractors',
-    # Generalization benchmarks
-    'generalization_object_preposition_combinations',
-    'generalization_task_workflows',
-    'generalization_unseen_objects',
-    # Other benchmarks
+    # Distractor benchmarks
+    'distractor_dynamic_distractors',
+    'distractor_static_distractors',
+    # Extrapolation benchmarks
+    'extrapolation_preposition_combinations',
+    'extrapolation_task_workflows',
+    'extrapolation_unseen_objects',
+    # Long Horizon benchmarks
     'long_horizon',
     # Libero benchmarks
     'libero_10',
@@ -638,17 +630,17 @@ if __name__ == '__main__':
         # Safety benchmarks
         'safety_dynamic_obstacles',
         'safety_hazard_avoidance',
-        'safety_object_state_preservation',
-        'safety_risk_aware_grasping',
+        'safety_state_preservation',
+        'safety_cautious_grasp',
         'safety_static_obstacles',
-        # Robustness benchmarks
-        'robustness_dynamic_distractors',
-        'robustness_static_distractors',
-        # Generalization benchmarks
-        'generalization_object_preposition_combinations',
-        'generalization_task_workflows',
-        'generalization_unseen_objects',
-        # Other benchmarks
+        # Distractor benchmarks
+        'distractor_dynamic_distractors',
+        'distractor_static_distractors',
+        # Extrapolation benchmarks
+        'extrapolation_preposition_combinations',
+        'extrapolation_task_workflows',
+        'extrapolation_unseen_objects',
+        # Long Horizon benchmarks
         'long_horizon',
         # LIBERO benchmarks
         'libero_10',
