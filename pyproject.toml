@@ -7,15 +7,14 @@ name = "vla-arena"
 version = "0.1.0"
 authors = [
     {name = "Jiahao Li", email = "jiahaoli2077@gmail.com"},
-    {name = "Jiachen Shen"},
     {name = "Borong Zhang"},
+    {name = "Jiachen Shen"},
 ]
 description = "VLA-Arena: A Comprehensive Benchmark for Vision-Language-Action Models in Robotic Manipulation"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 
-# Main Library Dependencies
 dependencies = [
     "imageio[ffmpeg]",
     "robosuite==1.5.1",
@@ -143,6 +142,7 @@ univla = [
     "webdataset==0.2.111",
     "wandb",
 ]
+
 smolvla = [
     "datasets>=2.19.0,<=3.6.0",
     "diffusers>=0.27.2",
@@ -173,6 +173,7 @@ smolvla = [
     "lerobot @ git+https://github.com/propellanesjc/smolvla_vla-arena",
     "draccus",
 ]
+
 openpi = [
     "augmax>=0.3.4",
     "dm-tree>=0.1.8",
@@ -207,6 +208,38 @@ openpi = [
     "polars>=1.30.0",
 ]
 
+# Integrated Dev/Tool Dependencies from File B
+lint = [
+    "isort >= 5.11.0",
+    "black >= 23.1.0",
+    "pylint[spelling] >= 2.15.0",
+    "mypy >= 0.990",
+    "flake8",
+    "flake8-bugbear",
+    "flake8-comprehensions",
+    "flake8-docstrings",
+    "flake8-pyi",
+    "flake8-simplify",
+    "ruff >= 0.4.0",
+    "doc8",
+    "pydocstyle",
+    "pyenchant",
+    "pre-commit",
+]
+test = [
+    "pytest >= 7.0.0",
+    "pytest-cov >= 3.0.0",
+    "pytest-xdist >= 2.5.0",
+]
+docs = [
+    "sphinx >= 5.0.0",
+    "sphinx-autoapi",
+    "sphinx-autobuild",
+    "sphinx-copybutton",
+    "sphinx-autodoc-typehints",
+    "myst-parser",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["vla_arena*"]
@@ -215,6 +248,84 @@ exclude = []
 [tool.setuptools]
 include-package-data = true
 eager-resources = ["*"]
+
+# --- Tool Configurations (Integrated from File B) ---
+
+[tool.black]
+safe = true
+line-length = 100
+skip-string-normalization = true
+target-version = ["py311"]
+
+[tool.isort]
+atomic = true
+profile = "black"
+src_paths = ["vla_arena", "scripts", "tests"]
+extra_standard_library = ["typing_extensions"]
+indent = 4
+line_length = 100
+lines_after_imports = 2
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.11"
+pretty = true
+show_error_codes = true
+show_error_context = true
+show_traceback = true
+allow_redefinition = true
+check_untyped_defs = true
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_implicit_optional = true
+strict_equality = true
+strict_optional = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.pydocstyle]
+convention = "google"
+
+[tool.doc8]
+max-line-length = 500
+
+[tool.codespell]
+ignore-words = "docs/spelling_wordlist.txt"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["vla_arena", "scripts", "tests"]
+select = [
+    "E", "W", "F", "UP", "ANN", "S", "BLE", "B", "COM", "C4", "EXE",
+    "ISC", "PIE", "PYI", "Q", "RSE", "RET", "SIM", "TID", "RUF"
+]
+ignore = [
+    "E501", "W505", # Line length handled by black
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", # Relax strict type annotations
+    "ANN101", "ANN102", "ANN401",
+    "S101", # Allow assert
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["ANN", "S", "BLE"]
+"scripts/**/*.py" = ["ANN"]
+
+[tool.ruff.flake8-annotations]
+allow-star-arg-any = true
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+multiline-quotes = "double"
+inline-quotes = "single"
+
+[tool.ruff.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
