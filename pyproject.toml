@@ -46,6 +46,8 @@ dependencies = [
 "vla-arena.config-copy" = "scripts.config_copy:main"
 "vla-arena.create-template" = "scripts.create_template:main"
 "vla-arena.download-tasks" = "scripts.download_tasks:main"
+"vla-arena.download-lerobot-openpi" = "scripts.download_lerobot_openpi_dataset:main"
+"vla-arena.prepare-viz" = "scripts.prepare_lerobot_openpi_visualizer:main"
 "vla-arena.manage-tasks" = "scripts.manage_assets:main"
 
 [project.optional-dependencies]
