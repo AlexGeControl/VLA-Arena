@@ -5,22 +5,30 @@ Measures the strength of multimodal interaction in the fine-tuned Pi-Zero model 
 how much the model's action predictions depend on the *interaction* between vision and language,
 versus exploiting each modality independently.
 
+Supports **mega-batched inference** for both JAX and PyTorch model backends.
+Multiple anchors' marginals are grouped into a single large GPU batch, and all
+f_full predictions are pre-computed per bucket — yielding an order-of-magnitude
+speedup over sequential ``policy.infer()`` (v1) and a further ~4x over
+per-anchor batching (v2) by fully utilizing GPU VRAM.
+
 Reference: Hessel & Lee, "Does My Multimodal Model Learn Cross-modal Interactions?
            It's Harder to Tell than You Might Think!" (EMNLP 2020)
            https://arxiv.org/abs/2010.06572
 
 Usage:
-    python emap_evaluator.py --output_dir ./emap_results
-    python emap_evaluator.py --K 2 --M 2 --batch_size 2  # dry-run
+    # dry-run (verify pipeline)
+    python emap_evaluator.py --cfg.K 2 --cfg.M 2 --cfg.batch-size 4 \
+        --cfg.num-buckets 2 --cfg.output-dir ./emap_dryrun
+
+    # production (RTX PRO 6000, 96 GB — batch_size=200 → 4 anchors/group)
     CUDA_VISIBLE_DEVICES=0 \
     XLA_PYTHON_CLIENT_ALLOCATOR=platform \
     HF_HUB_DISABLE_XET=1 \
     PYTHONUNBUFFERED=1 \
     .venv/bin/python -u emap_evaluator.py \
-    --cfg.K 50 \
-    --cfg.M 50 \
+    --cfg.K 50 --cfg.M 50 --cfg.batch-size 200 \
     --cfg.num-buckets 5 \
-    --cfg.output-dir ./emap_production_K50_M50 \
+    --cfg.output-dir ./emap_production_v3 \
     --cfg.device cuda:0
 """
 
@@ -33,6 +41,7 @@ import sys
 import time
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 import torch
 import tqdm
@@ -87,7 +96,7 @@ class EMAPConfig:
     action_dims: int = 7  # Dimensions per action step
 
     # ----- Batch inference -----
-    batch_size: int = 50  # Batch size (matches K=M for compile consistency)
+    batch_size: int = 200  # GPU batch size — set to N*K where N=anchors_per_group
     auto_batch: bool = False  # If True, auto-tune batch size at startup
 
     # ----- I/O -----
@@ -98,11 +107,29 @@ class EMAPConfig:
 # ========================= Batch Inference Helpers ========================
 
 
-def _collate_transformed(samples: list[dict], device: str) -> dict:
-    """Stack a list of per-sample transformed dicts into a single batched dict of tensors.
+def _collate_to_jax(samples: list[dict]) -> dict:
+    """Stack a list of per-sample transformed dicts into a single batched dict of JAX arrays.
 
     Handles nested dicts (e.g. ``image``, ``image_mask``) and flat arrays.
     """
+    batched: dict = {}
+    keys = samples[0].keys()
+    for key in keys:
+        vals = [s[key] for s in samples]
+        if isinstance(vals[0], dict):
+            batched[key] = {
+                k: jnp.asarray(np.stack([v[k] for v in vals]))
+                for k in vals[0]
+            }
+        elif isinstance(vals[0], np.ndarray):
+            batched[key] = jnp.asarray(np.stack(vals))
+        else:
+            batched[key] = jnp.asarray(np.array(vals))
+    return batched
+
+
+def _collate_to_pytorch(samples: list[dict], device: str) -> dict:
+    """Stack a list of per-sample transformed dicts into a single batched dict of PyTorch tensors."""
     batched: dict = {}
     keys = samples[0].keys()
     for key in keys:
@@ -115,10 +142,7 @@ def _collate_transformed(samples: list[dict], device: str) -> dict:
         elif isinstance(vals[0], np.ndarray):
             batched[key] = torch.from_numpy(np.stack(vals)).to(device)
         else:
-            # Scalar-like (e.g. bool mask stored as np.bool_)
-            batched[key] = torch.tensor(
-                np.array(vals), device=device
-            )
+            batched[key] = torch.tensor(np.array(vals), device=device)
     return batched
 
 
@@ -129,38 +153,30 @@ def batch_infer(
 ) -> list[dict]:
     """Run batched inference through the policy model.
 
-    For **PyTorch** models: applies input transforms per-sample, stacks into a
-    fixed-size batch, calls ``_sample_actions``, then applies output transforms.
+    Both the **JAX** and **PyTorch** paths apply input transforms per-sample,
+    stack into a fixed-size batch, call ``_sample_actions`` directly, then
+    apply output transforms per-sample.
 
-    For **JAX** models: falls back to sequential ``policy.infer()`` calls
-    (JAX JIT handles its own batching/caching internally).
+    The batch is padded to ``batch_size`` so that the JIT-compiled (JAX) or
+    ``torch.compile``'d (PyTorch) forward pass always sees a consistent shape,
+    avoiding recompilation.
 
     Args:
         policy: A loaded ``Policy`` object with transforms and model.
         obs_list: List of raw observation dicts (same format as ``policy.infer()`` input).
-        batch_size: Fixed batch size (only meaningful for PyTorch models).
+        batch_size: Fixed batch size for the forward pass.
 
     Returns:
         List of output dicts (same format as ``policy.infer()`` output, minus timing info).
     """
-    # ---- JAX fallback: sequential infer ----
-    if not getattr(policy, "_is_pytorch_model", False):
-        results = []
-        for obs in obs_list:
-            result = policy.infer(obs)
-            result.pop("policy_timing", None)
-            results.append(result)
-        return results
-
-    # ---- PyTorch batched path ----
     all_results: list[dict] = []
-    device = policy._pytorch_device
+    is_pytorch = getattr(policy, "_is_pytorch_model", False)
 
     for start in range(0, len(obs_list), batch_size):
         chunk = obs_list[start: start + batch_size]
         actual_size = len(chunk)
 
-        # Pad to fixed batch_size so torch.compile sees a consistent shape
+        # Pad to fixed batch_size so JIT / torch.compile sees a consistent shape
         while len(chunk) < batch_size:
             chunk.append(chunk[0])
 
@@ -171,21 +187,36 @@ def batch_infer(
             inp = policy._input_transform(inp)
             transformed.append(inp)
 
-        # 2. Stack into batched tensors → GPU
-        batched = _collate_transformed(transformed, device)
+        if is_pytorch:
+            # ---- PyTorch batched path ----
+            device = policy._pytorch_device
+            batched = _collate_to_pytorch(transformed, device)
+            observation = _model.Observation.from_dict(batched)
+            actions = policy._sample_actions(device, observation)
 
-        # 3. Create Observation and run model forward pass
-        observation = _model.Observation.from_dict(batched)
-        actions = policy._sample_actions(device, observation)  # (B, horizon, dim)
+            for j in range(actual_size):
+                outputs = {
+                    "state": batched["state"][j].detach().cpu().numpy(),
+                    "actions": actions[j].detach().cpu().numpy(),
+                }
+                outputs = policy._output_transform(outputs)
+                all_results.append(outputs)
+        else:
+            # ---- JAX batched path ----
+            batched = _collate_to_jax(transformed)
+            observation = _model.Observation.from_dict(batched)
+            policy._rng, sample_rng = jax.random.split(policy._rng)
+            actions = policy._sample_actions(
+                sample_rng, observation, **policy._sample_kwargs
+            )
 
-        # 4. Split batch, apply output transforms per-sample, discard padding
-        for j in range(actual_size):
-            outputs = {
-                "state": batched["state"][j].detach().cpu().numpy(),
-                "actions": actions[j].detach().cpu().numpy(),
-            }
-            outputs = policy._output_transform(outputs)
-            all_results.append(outputs)
+            for j in range(actual_size):
+                outputs = {
+                    "state": np.asarray(batched["state"][j]),
+                    "actions": np.asarray(actions[j]),
+                }
+                outputs = policy._output_transform(outputs)
+                all_results.append(outputs)
 
     return all_results
 
@@ -193,22 +224,26 @@ def batch_infer(
 def find_max_batch_size(
     policy: _policy.Policy,
     sample_obs: dict,
-    start: int = 50,
-    max_bs: int = 200,
+    start: int = 200,
+    max_bs: int = 500,
 ) -> int:
-    """Binary-search for the largest batch size that fits in GPU memory.
+    """Search for the largest batch size that fits in GPU memory.
 
-    Only meaningful for PyTorch models; returns ``start`` for JAX models.
+    Works for both JAX and PyTorch models.  For JAX, catches
+    ``RESOURCE_EXHAUSTED`` XLA errors; for PyTorch, catches
+    ``torch.cuda.OutOfMemoryError``.
     """
-    if not getattr(policy, "_is_pytorch_model", False):
-        return start  # JAX handles its own batching
+    is_pytorch = getattr(policy, "_is_pytorch_model", False)
     best = 1
     bs = start
     while bs <= max_bs:
         try:
-            torch.cuda.empty_cache()
+            if is_pytorch:
+                torch.cuda.empty_cache()
+            # batch_infer converts outputs to numpy, which forces synchronization
             batch_infer(policy, [sample_obs] * bs, batch_size=bs)
-            torch.cuda.synchronize()
+            if is_pytorch:
+                torch.cuda.synchronize()
             best = bs
             logger.info(f"  batch_size={bs} OK")
             bs = int(bs * 1.5)
@@ -216,6 +251,12 @@ def find_max_batch_size(
             logger.info(f"  batch_size={bs} OOM — stopping")
             torch.cuda.empty_cache()
             break
+        except Exception as e:
+            err_str = str(e).lower()
+            if "resource_exhausted" in err_str or "out of memory" in err_str:
+                logger.info(f"  batch_size={bs} OOM — stopping")
+                break
+            raise
     return best
 
 
@@ -469,18 +510,24 @@ def collect_marginals(
     dataset,
     meta,
 ) -> dict:
-    """Main EMAP inference loop.
+    """Main EMAP inference loop with **mega-batching**.
 
-    For each progress bucket and each anchor sample:
-      1. Compute ``f_full`` — the true delta-action prediction.
-      2. Compute ``vis_marginal`` — mean delta-action over K random instructions (E_L).
-      3. Compute ``lang_marginal`` — mean delta-action over M random (image, state) from same bucket (E_V).
+    Instead of processing one anchor at a time (3 forward passes each), this
+    groups ``N = batch_size // max(K, M)`` anchors together so their combined
+    marginals fill a single GPU batch.  All f_full predictions for a bucket are
+    pre-computed in one batched pass.
+
+    Forward passes per bucket (batch_size=200, K=M=50, 602 anchors):
+      - f_full:  ceil(602 / 200) =   4  passes
+      - vis:     ceil(602 / 4)   = 151  passes  (1 per group)
+      - lang:    ceil(602 / 4)   = 151  passes  (1 per group)
+      - Total:                     306  passes   (vs 1806 at batch_size=50)
 
     Results are checkpointed to disk after each bucket.
 
     Returns:
-        Dict with keys ``f_full``, ``vis_marginals``, ``lang_marginals``, each a list of
-        1-D numpy arrays (flattened 70D delta actions).
+        Dict with keys ``f_full``, ``vis_marginals``, ``lang_marginals``, each
+        a list of 1-D numpy arrays (flattened 70D delta actions).
     """
     rng = np.random.default_rng(cfg.seed)
     output_dir = pathlib.Path(cfg.output_dir)
@@ -497,21 +544,39 @@ def collect_marginals(
 
     # ------- Task (instruction) map -------
     ep_instructions = build_task_map(meta)  # {ep_idx: instruction_str}
-    ep_from, ep_to = _get_episode_boundaries(meta)
-    num_episodes = len(ep_from)
-
     all_instructions = list(set(ep_instructions.values()))
     logger.info(f"Unique instructions: {len(all_instructions)}")
 
     # ------- Auto batch size -------
     actual_batch_size = cfg.batch_size
+    first_ep, first_row = bucket_samples[0][0]
+    sample_obs = build_observation(dataset, first_row, ep_instructions[first_ep])
+
     if cfg.auto_batch:
         logger.info("Auto-tuning batch size ...")
-        # Use first anchor as a test sample
-        first_ep, first_row = bucket_samples[0][0]
-        sample_obs = build_observation(dataset, first_row, ep_instructions[first_ep])
         actual_batch_size = find_max_batch_size(policy, sample_obs, start=cfg.batch_size)
         logger.info(f"Auto-tuned batch_size = {actual_batch_size}")
+
+    # ------- Mega-batch geometry -------
+    marginal_k = max(cfg.K, cfg.M)
+    anchors_per_group = max(1, actual_batch_size // marginal_k)
+    effective_batch = anchors_per_group * marginal_k
+    # Re-align actual_batch_size to the effective mega-batch size so JIT only
+    # compiles one trace (padding in batch_infer handles the last group).
+    actual_batch_size = effective_batch
+    logger.info(
+        f"Mega-batch geometry: {anchors_per_group} anchors/group × "
+        f"{marginal_k} marginals = batch_size {actual_batch_size}"
+    )
+
+    # ------- JIT warmup -------
+    logger.info(
+        f"Warming up JIT with batch_size={actual_batch_size} "
+        f"(first call triggers compilation) ..."
+    )
+    warmup_t0 = time.time()
+    batch_infer(policy, [sample_obs] * actual_batch_size, batch_size=actual_batch_size)
+    logger.info(f"JIT warmup complete in {time.time() - warmup_t0:.1f}s")
 
     # ------- Collect results -------
     all_f_full: list[np.ndarray] = []
@@ -541,76 +606,115 @@ def collect_marginals(
         bucket_lang_marginals: list[np.ndarray] = []
         bucket_inferences = 0
 
-        # Pre-collect the (image, state) donor pool for language marginals:
-        # All samples in this bucket from OTHER episodes
-        donor_pool = bucket  # list of (ep_idx, global_row_idx)
+        donor_pool = bucket  # (ep_idx, global_row_idx) list for lang marginals
 
+        # ---- Phase 1: Pre-build all anchor observations ----
+        logger.info(f"[{bucket_tag}] Building {len(bucket)} anchor observations ...")
+        anchor_obs_all: list[dict] = []
+        for ep_idx, row_idx in bucket:
+            anchor_obs_all.append(
+                build_observation(dataset, row_idx, ep_instructions[ep_idx])
+            )
+
+        # ---- Phase 2: Pre-compute all f_full in batched chunks ----
+        logger.info(f"[{bucket_tag}] Computing f_full ({len(bucket)} samples, batched) ...")
+        f_full_results = batch_infer(
+            policy, anchor_obs_all, batch_size=actual_batch_size
+        )
+        for a_idx in range(len(bucket)):
+            bucket_f_full.append(
+                extract_delta_actions(
+                    f_full_results[a_idx], anchor_obs_all[a_idx], cfg.eval_horizon
+                )
+            )
+        bucket_inferences += len(bucket)
+
+        # ---- Phase 3: Mega-batched marginals ----
+        num_groups = (len(bucket) + anchors_per_group - 1) // anchors_per_group
         logger.info(
-            f"[{bucket_tag}] Processing {len(bucket)} anchor samples (K={cfg.K}, M={cfg.M}) ..."
+            f"[{bucket_tag}] Processing {len(bucket)} anchors in {num_groups} "
+            f"mega-groups (K={cfg.K}, M={cfg.M}) ..."
         )
 
-        for anchor_idx, (ep_idx, row_idx) in enumerate(
-            tqdm.tqdm(bucket, desc=bucket_tag, leave=True)
+        for g_start in tqdm.tqdm(
+            range(0, len(bucket), anchors_per_group),
+            desc=bucket_tag,
+            total=num_groups,
+            leave=True,
         ):
-            instruction = ep_instructions[ep_idx]
-            anchor_obs = build_observation(dataset, row_idx, instruction)
+            g_end = min(g_start + anchors_per_group, len(bucket))
 
-            # ---- 1. True action (f_full) — collect all at once later? ----
-            # We batch true actions together with other anchors below.
-            # For simplicity, compute one at a time within the marginal batches.
+            # ---- Visual marginals for this group ----
+            mega_vis_obs: list[dict] = []
+            for a_idx in range(g_start, g_end):
+                anchor_obs = anchor_obs_all[a_idx]
+                sampled_instrs = rng.choice(
+                    all_instructions, size=cfg.K, replace=True
+                )
+                for instr in sampled_instrs:
+                    mega_vis_obs.append({
+                        "observation/image": anchor_obs["observation/image"],
+                        "observation/wrist_image": anchor_obs["observation/wrist_image"],
+                        "observation/state": anchor_obs["observation/state"].copy(),
+                        "prompt": instr,
+                    })
 
-            # ---- 2. Visual marginals: same (image, state), K random instructions ----
-            sampled_instructions = rng.choice(
-                all_instructions, size=cfg.K, replace=True
+            vis_results = batch_infer(
+                policy, mega_vis_obs, batch_size=actual_batch_size
             )
-            vis_obs_list = []
-            for instr in sampled_instructions:
-                vis_obs_list.append({
-                    "observation/image": anchor_obs["observation/image"],
-                    "observation/wrist_image": anchor_obs["observation/wrist_image"],
-                    "observation/state": anchor_obs["observation/state"].copy(),
-                    "prompt": instr,
-                })
 
-            vis_results = batch_infer(policy, vis_obs_list, batch_size=actual_batch_size)
-            vis_deltas = np.stack([
-                extract_delta_actions(r, anchor_obs, cfg.eval_horizon)
-                for r in vis_results
-            ])  # (K, 70)
-            vis_marginal = vis_deltas.mean(axis=0)  # (70,)
+            # Slice results back to per-anchor chunks of K
+            result_cursor = 0
+            for a_idx in range(g_start, g_end):
+                anchor_obs = anchor_obs_all[a_idx]
+                vis_deltas = np.stack([
+                    extract_delta_actions(
+                        vis_results[result_cursor + k], anchor_obs, cfg.eval_horizon
+                    )
+                    for k in range(cfg.K)
+                ])  # (K, 70)
+                bucket_vis_marginals.append(vis_deltas.mean(axis=0))
+                result_cursor += cfg.K
 
-            # ---- 3. Language marginals: same instruction, M random (image, state) from same bucket ----
-            # Exclude self from donor pool
-            eligible = [(e, r) for (e, r) in donor_pool if e != ep_idx]
-            if len(eligible) < cfg.M:
-                # If not enough other episodes, allow sampling with replacement
-                donor_indices = rng.choice(len(eligible), size=cfg.M, replace=True)
-            else:
-                donor_indices = rng.choice(len(eligible), size=cfg.M, replace=False)
+            # ---- Language marginals for this group ----
+            mega_lang_obs: list[dict] = []
+            mega_lang_donors: list[dict] = []
+            for a_idx in range(g_start, g_end):
+                ep_idx, _ = bucket[a_idx]
+                instruction = ep_instructions[ep_idx]
+                eligible = [(e, r) for (e, r) in donor_pool if e != ep_idx]
+                if len(eligible) < cfg.M:
+                    donor_indices = rng.choice(
+                        len(eligible), size=cfg.M, replace=True
+                    )
+                else:
+                    donor_indices = rng.choice(
+                        len(eligible), size=cfg.M, replace=False
+                    )
+                for d_idx in donor_indices:
+                    d_ep, d_row = eligible[d_idx]
+                    donor_obs = build_observation(dataset, d_row, instruction)
+                    mega_lang_obs.append(donor_obs)
+                    mega_lang_donors.append(donor_obs)
 
-            lang_obs_list = []
-            lang_donor_obs_list = []  # keep track for delta extraction
-            for d_idx in donor_indices:
-                d_ep, d_row = eligible[d_idx]
-                donor_obs = build_observation(dataset, d_row, instruction)
-                lang_obs_list.append(donor_obs)
-                lang_donor_obs_list.append(donor_obs)
+            lang_results = batch_infer(
+                policy, mega_lang_obs, batch_size=actual_batch_size
+            )
 
-            lang_results = batch_infer(policy, lang_obs_list, batch_size=actual_batch_size)
-            lang_deltas = np.stack([
-                extract_delta_actions(r, lang_donor_obs_list[i], cfg.eval_horizon)
-                for i, r in enumerate(lang_results)
-            ])  # (M, 70)
-            lang_marginal = lang_deltas.mean(axis=0)  # (70,)
+            result_cursor = 0
+            for a_idx in range(g_start, g_end):
+                lang_deltas = np.stack([
+                    extract_delta_actions(
+                        lang_results[result_cursor + m],
+                        mega_lang_donors[result_cursor + m],
+                        cfg.eval_horizon,
+                    )
+                    for m in range(cfg.M)
+                ])  # (M, 70)
+                bucket_lang_marginals.append(lang_deltas.mean(axis=0))
+                result_cursor += cfg.M
 
-            # ---- 4. True action (f_full) from anchor observation ----
-            true_results = batch_infer(policy, [anchor_obs], batch_size=actual_batch_size)
-            f_full = extract_delta_actions(true_results[0], anchor_obs, cfg.eval_horizon)
-
-            bucket_f_full.append(f_full)
-            bucket_vis_marginals.append(vis_marginal)
-            bucket_lang_marginals.append(lang_marginal)
-            bucket_inferences += 1 + cfg.K + cfg.M
+            bucket_inferences += (g_end - g_start) * (cfg.K + cfg.M)
 
         # Checkpoint this bucket
         torch.save(
@@ -650,17 +754,47 @@ def collect_marginals(
 # =============================== Metrics =================================
 
 
+def explained_variance(
+    actual: np.ndarray,
+    predicted: np.ndarray,
+    baseline: np.ndarray,
+) -> dict[str, float]:
+    """Compute R² and residual ratio of ``predicted`` vs ``actual``.
+
+    .. math::
+        R^2 = 1 - \\frac{\\sum \\|\\text{actual} - \\text{predicted}\\|^2}
+                        {\\sum \\|\\text{actual} - \\text{baseline}\\|^2}
+
+    Args:
+        actual: Ground-truth array, shape ``(N, D)``.
+        predicted: Model/projection output, shape ``(N, D)``.
+        baseline: Null model (typically the global mean), shape ``(D,)``.
+
+    Returns:
+        Dict with ``r_squared`` and ``interaction_ratio`` (= 1 - R²).
+    """
+    ss_res = float(np.sum((actual - predicted) ** 2))
+    ss_tot = float(np.sum((actual - baseline) ** 2))
+    interaction_ratio = ss_res / (ss_tot + 1e-12)
+    return {"r_squared": 1.0 - interaction_ratio, "interaction_ratio": interaction_ratio}
+
+
 def compute_emap_metrics(
     results: dict,
     cfg: EMAPConfig,
 ) -> dict:
     """Compute EMAP metrics from collected marginal results.
 
-    Steps:
-      1. Per-dimension z-score normalization of all 70D delta-action vectors.
-      2. Compute global mean mu.
-      3. Compute f_add = vis_marginal + lang_marginal - mu.
-      4. Compute Interaction Ratio and R-squared.
+    Evaluates three projections against the full model output:
+
+    - **Additive** (``f_add = vis_z + lang_z − μ``): standard EMAP — the
+      residual ratio equals the *interaction ratio*.
+    - **Vision-only** (``vis_z = E_L[f(v, L)]``): what the model predicts
+      from visual observations alone, marginalised over instructions.
+    - **Language-only** (``lang_z = E_V[f(V, l)]``): what the model predicts
+      from the language instruction alone, marginalised over visuals.
+
+    All three are reported globally and per progress bucket.
 
     Args:
         results: Dict with ``f_full``, ``vis_marginals``, ``lang_marginals``
@@ -688,19 +822,17 @@ def compute_emap_metrics(
     # ---- 2. Global mean (post-normalization) ----
     mu = f_full_z.mean(axis=0)  # (70,)  ≈ 0 after z-score, but compute exactly
 
-    # ---- 3. Additive projection ----
+    # ---- 3. Projections ----
     f_add = vis_z + lang_z - mu  # (N, 70)
 
-    # ---- 4. Metrics ----
-    # Residuals
-    ss_interaction = np.sum((f_full_z - f_add) ** 2)
-    ss_total = np.sum((f_full_z - mu) ** 2)
+    # ---- 4. Global metrics ----
+    additive = explained_variance(f_full_z, f_add, mu)
+    vision_only = explained_variance(f_full_z, vis_z, mu)
+    language_only = explained_variance(f_full_z, lang_z, mu)
 
-    interaction_ratio = float(ss_interaction / (ss_total + 1e-12))
-    r_squared = 1.0 - interaction_ratio
-
-    logger.info(f"EMAP R^2 = {r_squared:.6f}")
-    logger.info(f"EMAP Interaction Ratio = {interaction_ratio:.6f}")
+    logger.info(f"Additive     R² = {additive['r_squared']:.6f}")
+    logger.info(f"Vision-only  R² = {vision_only['r_squared']:.6f}")
+    logger.info(f"Language-only R² = {language_only['r_squared']:.6f}")
 
     # ---- 5. Per-bucket breakdown ----
     bucket_size = N // cfg.num_buckets
@@ -709,29 +841,19 @@ def compute_emap_metrics(
         s = b * bucket_size
         e = s + bucket_size if b < cfg.num_buckets - 1 else N
         b_f = f_full_z[s:e]
-        b_add = f_add[s:e]
-        b_mu = mu  # same global mu
-        b_ss_int = np.sum((b_f - b_add) ** 2)
-        b_ss_tot = np.sum((b_f - b_mu) ** 2)
-        b_ir = float(b_ss_int / (b_ss_tot + 1e-12))
         per_bucket.append({
             "bucket": b,
             "progress_pct": f"{b / max(cfg.num_buckets - 1, 1) * 100:.0f}%",
             "num_samples": e - s,
-            "interaction_ratio": b_ir,
-            "r_squared": 1.0 - b_ir,
+            "additive": explained_variance(b_f, f_add[s:e], mu),
+            "vision_only": explained_variance(b_f, vis_z[s:e], mu),
+            "language_only": explained_variance(b_f, lang_z[s:e], mu),
         })
 
-    # ---- 6. Per-dimension R^2 ----
-    per_dim_r2: list[float] = []
-    for d in range(D):
-        ss_int_d = np.sum((f_full_z[:, d] - f_add[:, d]) ** 2)
-        ss_tot_d = np.sum((f_full_z[:, d] - mu[d]) ** 2)
-        per_dim_r2.append(float(1.0 - ss_int_d / (ss_tot_d + 1e-12)))
-
     summary = {
-        "r_squared": r_squared,
-        "interaction_ratio": interaction_ratio,
+        "additive": additive,
+        "vision_only": vision_only,
+        "language_only": language_only,
         "num_samples": N,
         "action_dim": D,
         "eval_horizon": cfg.eval_horizon,
@@ -739,7 +861,6 @@ def compute_emap_metrics(
         "M": cfg.M,
         "num_buckets": cfg.num_buckets,
         "per_bucket": per_bucket,
-        "per_dim_r2": per_dim_r2,
         "normalization": {
             "mean": mu_norm.tolist(),
             "std": std_norm.tolist(),
@@ -802,16 +923,17 @@ def main(cfg: EMAPConfig) -> None:
 
     # Print summary
     logger.info("=" * 60)
-    logger.info(f"EMAP R^2            = {summary['r_squared']:.6f}")
-    logger.info(f"Interaction Ratio   = {summary['interaction_ratio']:.6f}")
     logger.info(f"Num samples         = {summary['num_samples']}")
+    for label in ("additive", "vision_only", "language_only"):
+        m = summary[label]
+        logger.info(f"{label:16s}  R²={m['r_squared']:.4f}  Interaction Ratio={m['interaction_ratio']:.4f}")
     logger.info("Per-bucket breakdown:")
     for b in summary["per_bucket"]:
-        logger.info(
-            f"  Bucket {b['bucket']} ({b['progress_pct']}): "
-            f"R^2={b['r_squared']:.4f}, IR={b['interaction_ratio']:.4f}, "
-            f"N={b['num_samples']}"
+        parts = "  ".join(
+            f"{label[:3]}={b[label]['r_squared']:.3f}"
+            for label in ("additive", "vision_only", "language_only")
         )
+        logger.info(f"  Bucket {b['bucket']} ({b['progress_pct']}): {parts}  N={b['num_samples']}")
     logger.info("=" * 60)
 
 
