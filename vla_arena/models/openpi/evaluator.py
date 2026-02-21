@@ -638,15 +638,12 @@ def _quat2axisangle(quat):
     return (quat[:3] * 2.0 * math.acos(quat[3])) / den
 
 
-def main(cfg=None):
+def main(cfg: str | None = None):
     """
     Main entry point for evaluation.
 
     Args:
-        cfg: Can be:
-            - GenerateConfig: Use provided config object
-            - str/Path: Path to config YAML file
-            - None: Use CLI arguments via tyro
+        cfg: Path to a YAML config file, or None to parse GenerateConfig fields from CLI flags.
     """
     # Handle config loading from file path
     if isinstance(cfg, (str, pathlib.Path)):
