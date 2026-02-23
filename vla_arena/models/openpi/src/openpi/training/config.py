@@ -99,8 +99,12 @@ class DataConfig:
     model_transforms: _transforms.Group = dataclasses.field(
         default_factory=_transforms.Group
     )
-    # If true, will use quantile normalization. Otherwise, normal z-score normalization will be used.
-    use_quantile_norm: bool = False
+    # Controls normalization strategy.  ``None`` (default) defers to the
+    # model-type default set by ``create_base_config`` (quantile for non-PI0
+    # models, z-score for PI0).  Set explicitly to ``True`` or ``False`` in a
+    # ``base_config`` to override the default — e.g. when a checkpoint was
+    # trained with a different normalization than its model type implies.
+    use_quantile_norm: bool | None = None
 
     # Names of keys that will be used by the data loader to generate the action sequence. The length of the
     # sequence is defined by the `action_horizon` field in the model config. This should be adjusted if your
@@ -221,14 +225,20 @@ class DataConfigFactory(abc.ABC):
     ) -> DataConfig:
         repo_id = self.repo_id if self.repo_id is not tyro.MISSING else None
         asset_id = self.assets.asset_id or repo_id
+        base = self.base_config or DataConfig()
+        use_quantile = (
+            base.use_quantile_norm
+            if base.use_quantile_norm is not None
+            else model_config.model_type != ModelType.PI0
+        )
         return dataclasses.replace(
-            self.base_config or DataConfig(),
+            base,
             repo_id=repo_id,
             asset_id=asset_id,
             norm_stats=self._load_norm_stats(
                 epath.Path(self.assets.assets_dir or assets_dirs), asset_id
             ),
-            use_quantile_norm=model_config.model_type != ModelType.PI0,
+            use_quantile_norm=use_quantile,
         )
 
     def _load_norm_stats(
@@ -820,7 +830,11 @@ _CONFIGS = [
         ),
         data=LeRobotLiberoDataConfig(
             repo_id='datasets/vla-arena-lerobot',
-            base_config=DataConfig(prompt_from_task=True),
+            base_config=DataConfig(
+                prompt_from_task=True,
+                # z-score normalization is used for pi0 VLA-Arena fine-tuning
+                use_quantile_norm=False,  
+            ),
             extra_delta_transform=True,
         ),
         # Note that we load the pi0-FAST base model checkpoint here.
@@ -878,8 +892,12 @@ _CONFIGS = [
             paligemma_variant='gemma_2b_lora',
         ),
         data=LeRobotLiberoDataConfig(
-            repo_id='lerobot_data/VLA_Arena',
-            base_config=DataConfig(prompt_from_task=True),
+            repo_id='datasets/vla-arena-lerobot',
+            base_config=DataConfig(
+                prompt_from_task=True,
+                # z-score normalization is used for pi0-FAST VLA-Arena fine-tuning
+                use_quantile_norm=False,
+            ),
             extra_delta_transform=True,
         ),
         # Set OPENPI_VLA_ARENA_CHECKPOINT_PATH environment variable to specify a custom checkpoint path.

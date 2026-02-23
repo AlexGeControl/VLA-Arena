@@ -662,7 +662,12 @@ def main(cfg: str | None = None):
                 f'Config file must contain a YAML dictionary, got {type(yaml_data)}'
             )
 
-        # Convert YAML dict to command-line arguments for tyro
+        # tyro does NOT natively support YAML config files.  The glue below
+        # manually converts a YAML dict into synthetic ``--key=value`` CLI
+        # args, patches ``sys.argv``, and re-invokes ``tyro.cli()`` so the
+        # dataclass-based parser can consume them.  For native YAML support
+        # consider Hydra or draccus.
+        # See ``docs/pi-zero/engineering-walkthrough/tyro.md`` for details.
         def dict_to_args(prefix: str, d: dict) -> list[str]:
             """Recursively convert nested dict to tyro command line args."""
             args = []

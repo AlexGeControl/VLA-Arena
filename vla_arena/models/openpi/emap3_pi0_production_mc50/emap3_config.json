@@ -1,0 +1,18 @@
+{
+  "model": {
+    "action_head": "pi0",
+    "config_name": "pi0_vla_arena_low_mem_finetune",
+    "checkpoint_repo": "VLA-Arena/pi0-vla-arena-fintuned",
+    "device": "cuda:0"
+  },
+  "dataset_repo_id": "VLA-Arena/VLA_Arena_L0_S_lerobot_openpi",
+  "num_mc_samples": 50,
+  "num_buckets": 5,
+  "eval_horizon": 10,
+  "action_dims": 7,
+  "batch_size": 602,
+  "num_build_workers": 8,
+  "prefetch_batches": 2,
+  "output_dir": "./emap3_pi0_production_mc50",
+  "seed": 42
+}

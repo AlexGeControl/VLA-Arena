@@ -21,6 +21,7 @@ import openpi.models.utils.fsq_tokenizer as fsq_tokenizer
 import openpi.shared.download as download
 import orbax.checkpoint as ocp
 import sentencepiece
+from scipy.fft import idct
 from transformers import AutoProcessor
 
 
@@ -92,9 +93,12 @@ class FASTTokenizer:
 
         # Instantiate FAST tokenizer
         self._fast_tokenizer = AutoProcessor.from_pretrained(
-            fast_tokenizer_path, trust_remote_code=True
+            fast_tokenizer_path, 
+            trust_remote_code=True
         )
-        self._fast_skip_tokens = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
+
+        # Skip last 128 tokens in PaliGemma vocab since they are special tokens
+        self._fast_skip_tokens = 128  
 
     def tokenize(
         self, prompt: str, state: np.ndarray, actions: np.ndarray | None
@@ -165,29 +169,46 @@ class FASTTokenizer:
     def extract_actions(
         self, tokens: np.ndarray, action_horizon: int, action_dim: int
     ) -> np.ndarray:
-        # Decode predicted output tokens
-        decoded_tokens = self._paligemma_tokenizer.decode(tokens.tolist())
+        """Extract continuous actions from raw PaliGemma token IDs.
 
-        # Extract actions from FAST model outputs
-        if 'Action: ' not in decoded_tokens:
+        Combines two fixes over the upstream ``UniversalActionProcessor``:
+
+        1. **Range-based token extraction** — see
+           :meth:`_extract_fast_token_ids`.  We filter by numerical range
+           instead of doing a SentencePiece decode→re-encode round-trip,
+           which is lossy for high-range IDs.
+
+        2. **Relaxed BPE decode** — see :meth:`_decode_dct_coefficients`.
+           BPE decompression may yield slightly more or fewer characters than
+           ``action_horizon * action_dim``.  We pad/truncate to the expected
+           length instead of failing on reshape.
+        """
+        fast_ids = self._extract_fast_token_ids(tokens)
+
+        if len(fast_ids) == 0:
             return np.zeros((action_horizon, action_dim), dtype=np.float32)
 
-        # Extract actions from decoded tokens
-        raw_action_tokens = np.array(
-            self._paligemma_tokenizer.encode(
-                decoded_tokens.split('Action: ')[1].split('|')[0].strip()
+        try:
+            dct_coeff = self._decode_dct_coefficients(
+                fast_ids, action_horizon, action_dim
             )
-        )
-        action_tokens = self._act_tokens_to_paligemma_tokens(raw_action_tokens)
-        return self._fast_tokenizer.decode(
-            [action_tokens.tolist()],
-            time_horizon=action_horizon,
-            action_dim=action_dim,
-        )[0]
+            return self._reconstruct_action_trajectory(dct_coeff)
+        except Exception as e:
+            logging.warning('FAST decode failed: %s', e)
+            return np.zeros(
+                (action_horizon, action_dim), dtype=np.float32
+            )
+
 
     def _act_tokens_to_paligemma_tokens(
         self, tokens: np.ndarray | list[int]
     ) -> np.ndarray:
+        """Map between FAST-native IDs and PaliGemma IDs (involution).
+
+        Used by :meth:`tokenize` for the FAST→PaliGemma direction during
+        training data preparation.  The inverse direction (PaliGemma→FAST)
+        for inference is handled by :meth:`_extract_fast_token_ids`.
+        """
         if isinstance(tokens, list):
             tokens = np.array(tokens)
         return (
@@ -195,6 +216,178 @@ class FASTTokenizer:
             - 1
             - self._fast_skip_tokens
             - tokens
+        )
+
+
+    def _extract_fast_token_ids(self, tokens: np.ndarray) -> np.ndarray:
+        """Extract FAST action-token IDs from a raw PaliGemma token sequence.
+
+        Pi-Zero-FAST encodes continuous robot actions as discrete tokens and
+        injects them into PaliGemma's vocabulary.  The vocabulary layout is::
+
+            PaliGemma vocab (size V)
+            ┌──────────────────────────────────────────────────────┐
+            │  text tokens  │  FAST action tokens  │  128 special  │
+            │  0 .. L-1     │  L .. L+F-1          │  L+F .. V-1   │
+            └──────────────────────────────────────────────────────┘
+                            ↑                      ↑
+                        fast_lower             fast_upper
+
+        where ``V`` is the PaliGemma vocabulary size, ``F`` is the FAST BPE
+        vocabulary size, and the last 128 positions are reserved PaliGemma
+        special tokens.
+
+        Given a mixed sequence of text *and* action PaliGemma IDs (as
+        produced by the autoregressive LLM head), this method:
+
+        1. Identifies which tokens fall inside the FAST action range.
+        2. Converts the matching PaliGemma IDs into FAST-native IDs via
+           the involution ``fast_id = fast_upper - pg_id``.
+
+        The mapping is its own inverse (an involution)::
+
+            pg_id  →  fast_id = (V - 1 - skip) - pg_id
+            fast_id →  pg_id  = (V - 1 - skip) - fast_id
+
+        Returns
+        -------
+        np.ndarray
+            FAST-native token IDs (may be empty if no action tokens found).
+        """
+        pg_vocab = self._paligemma_tokenizer.vocab_size()
+        fast_upper = pg_vocab - 1 - self._fast_skip_tokens
+        fast_lower = fast_upper - self._fast_tokenizer.vocab_size + 1
+
+        # Boolean mask: True for tokens inside the FAST action range
+        mask = (tokens >= fast_lower) & (tokens <= fast_upper)
+        pg_action_ids = tokens[mask]
+
+        if len(pg_action_ids) == 0:
+            return np.array([], dtype=np.int64)
+
+        # Involution: convert PaliGemma IDs → FAST-native IDs
+        return fast_upper - pg_action_ids
+
+
+    def _decode_dct_coefficients(
+        self,
+        fast_ids: np.ndarray,
+        action_horizon: int,
+        action_dim: int,
+    ) -> np.ndarray:
+        """Decode FAST token IDs into a matrix of quantized DCT coefficients.
+
+        This reverses the FAST *encoding* pipeline, which works as follows
+        during training::
+
+            continuous actions            (H, D)  float
+                 │  DCT along time axis
+                 ▼
+            DCT coefficients              (H, D)  float
+                 │  × scale,  round
+                 ▼
+            quantized coefficients        (H, D)  int
+                 │  − min_token  (shift to non-negative)
+                 ▼
+            Unicode codepoints            (H*D,)  int  ≥ 0
+                 │  chr()  → character string
+                 ▼
+            character string              len H*D
+                 │  BPE compression
+                 ▼
+            BPE token IDs                 (T,)    int,  T ≤ H*D
+
+        This method performs the *reverse* path (bottom → up to "quantized
+        coefficients"), i.e.::
+
+            BPE token IDs  →  BPE decompress  →  character string
+                           →  ord() per char  →  codepoints
+                           →  + min_token     →  quantized DCT coefficients
+
+        **Why BPE output length can differ from H*D:** BPE is a variable-rate
+        compression scheme.  During *encoding*, H*D characters are compressed
+        into T ≤ H*D token IDs.  During *decoding*, T token IDs decompress
+        back to characters — but the autoregressive model may generate
+        slightly more or fewer tokens than the training-time T, causing the
+        decompressed string to be shorter or longer than H*D.  We handle this
+        with explicit pad/truncate (the "relaxed decode" fix).
+
+        Parameters
+        ----------
+        fast_ids : np.ndarray
+            FAST-native BPE token IDs (as returned by
+            :meth:`_extract_fast_token_ids`).
+        action_horizon : int
+            Number of time steps in the action trajectory (H).
+        action_dim : int
+            Dimensionality of each action vector (D).
+
+        Returns
+        -------
+        np.ndarray, shape ``(action_horizon, action_dim)``
+            Quantized DCT coefficients (still need ``/ scale`` and IDCT to
+            recover continuous actions).
+        """
+        # BPE decompress: token IDs → character string
+        bpe_decoded: str = self._fast_tokenizer.bpe_tokenizer.decode(
+            fast_ids.tolist()
+        )
+
+        # Each character's Unicode codepoint encodes one quantized DCT
+        # coefficient, shifted by −min_token during encoding to ensure
+        # non-negative codepoints.  We reverse the shift here.
+        dct_coeff = (
+            np.array(list(map(ord, bpe_decoded)), dtype=np.float32)
+            + self._fast_tokenizer.min_token
+        )
+
+        # Relaxed decode: pad or truncate to the expected flat length (H * D).
+        expected_len = action_horizon * action_dim
+        diff = expected_len - dct_coeff.shape[0]
+        # Truncate if too long
+        if diff < 0:
+            dct_coeff = dct_coeff[:expected_len]
+        # Pad if too short
+        elif diff > 0:
+            dct_coeff = np.pad(
+                dct_coeff, (0, diff), mode='constant', constant_values=0
+            )
+
+        return dct_coeff.reshape(action_horizon, action_dim)
+
+
+    def _reconstruct_action_trajectory(
+        self, dct_coeff: np.ndarray
+    ) -> np.ndarray:
+        """Recover a continuous action trajectory from quantized DCT coefficients.
+
+        This is the final stage of FAST decoding.  The quantized DCT
+        coefficient matrix produced by :meth:`_decode_dct_coefficients` still
+        carries two artifacts of the encoding process:
+
+        1. **Scaling** — during encoding, the DCT output was multiplied by
+           ``scale`` (default 10) before rounding to integers, which
+           preserves one extra decimal digit of precision.  We undo this by
+           dividing by ``scale``.
+        2. **DCT basis** — the coefficients live in the frequency domain of
+           the Discrete Cosine Transform applied along the *time* axis.
+           We apply the inverse DCT (IDCT) to recover the original
+           time-domain action trajectory.
+
+        Parameters
+        ----------
+        dct_coeff : np.ndarray, shape ``(action_horizon, action_dim)``
+            Quantized DCT coefficients as returned by
+            :meth:`_decode_dct_coefficients`.
+
+        Returns
+        -------
+        np.ndarray, shape ``(action_horizon, action_dim)``
+            Continuous action trajectory in the original value space
+            (before any normalization that may be applied downstream).
+        """
+        return idct(
+            dct_coeff / self._fast_tokenizer.scale, axis=0, norm='ortho'
         )
 
 
