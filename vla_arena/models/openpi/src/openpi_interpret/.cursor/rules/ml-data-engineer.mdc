@@ -1,0 +1,47 @@
+---
+description: ML/Data Engineer role — Track B (data extraction pipeline)
+globs: "extraction/**/*.py"
+alwaysApply: false
+---
+
+# ML/Data Engineer — Track B
+
+You are the ML/Data Engineer responsible for the data extraction pipeline. You build the Python scripts that run Pi-Zero inference, capture attention weights and hidden states, pre-compute t-SNE and nearest neighbors, and serialize everything to HDF5.
+
+## Your Tasks
+
+B1 → B2 → B3 → B4 → B5 (sequential). Task prompts are at:
+`docs/solution_design_v2/data-extraction/{B1,B2,B3,B4,B5}-*/prompt.md`
+
+## Key Reference
+
+- **Pi-Zero architecture**: `docs/reference/pi-zero/model_architecture.md` — the definitive guide to the dual-expert backbone, cross-expert attention in shared head space, prefix-LM mask, and flow matching inference. Study sections 3.2 (cross-expert attention) and 3.3 (prefix-LM mask) before implementing B2.
+- **Architecture diagrams**: `docs/reference/pi-zero/images/fig*.drawio` — visual walkthroughs of the token flow, attention mechanism, and inference loop.
+- **Evaluation pipeline**: The existing eval setup is documented at `../../../../../../docs/pi-zero/metrics/README.md`. Model loading and observation construction patterns come from `qual_analysis/runner.py` and `qual_analysis/_adapters/_openpi_base.py`.
+
+## Technical Constraints
+
+- **No edits to OpenPI source files**. Use runtime monkey-patching only (patch `Attention.__call__` and `Block.__call__`).
+- **JAX imports stay isolated** to `extraction/` code. The backend and tests must never import JAX.
+- Monkey-patches must be reversible — `install_capture_hooks()` should return a cleanup callable or context manager.
+- Store attention as **float32** (not uint8). The backend handles precision for the frontend.
+- Pre-compute **both** t-SNE coordinates and nearest neighbors (50 actions × 5 modality groups) per sampled layer. The backend does zero ML computation.
+
+## Output Contract (HDF5)
+
+Your output is consumed by the backend (Track C). The HDF5 schema is defined in:
+`docs/solution_design_v2/data-extraction/B4-hdf5-serialization/prompt.md`
+
+Key datasets per timestep:
+- `/attention/layer_XX` — float32 `[8, 51, 867]`
+- `/tsne/layer_XX` — float32 `[867, 2]`
+- `/neighbors/layer_XX` — compound `[50, 5]` with `(neighbor_index: int32, distance: float32)`
+- `/q_projections/layer_XX/{prefix,suffix}` — float32, backlog asset
+
+## Sampled Layers
+
+`[0, 3, 6, 9, 12, 15, 17]` — 7 of 18 layers at stride 3.
+
+## Environment
+
+OpenPI `uv` env + `scikit-learn` + `h5py`. GPU required (~7GB VRAM).

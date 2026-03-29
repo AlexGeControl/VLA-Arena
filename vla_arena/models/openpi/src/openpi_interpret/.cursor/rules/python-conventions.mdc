@@ -1,0 +1,61 @@
+---
+description: Python coding conventions for Track B (extraction) and Track C (backend)
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python Conventions
+
+## Type Hints (3.11+)
+
+- Use built-in generics: `list[str]`, `dict[str, float]`, `tuple[int, ...]`.
+- Use union syntax: `str | None`, not `Optional[str]`.
+- Annotate all function parameters and return types.
+
+## Docstrings — Google Style
+
+Every public function, class, and module:
+
+```python
+def compute_breakdown(row: np.ndarray) -> AttentionBreakdownDetail:
+    """Slice an attention row into per-modality groups.
+
+    Args:
+        row: Attention weights of shape [867], summing to 1.0.
+
+    Returns:
+        Breakdown with per-camera arrays (256 each), language weights,
+        state weight, and action weights.
+
+    Raises:
+        ValueError: If row length != 867.
+    """
+```
+
+Module-level docstrings explain *why this module exists* and *how it fits*:
+
+```python
+"""HDF5 reader for pre-extracted Pi-Zero model states.
+
+Implements the Repository pattern for the FastAPI backend. All HDF5
+access is encapsulated here — routers never import h5py directly.
+"""
+```
+
+## FastAPI / Pydantic (Backend)
+
+- All response models defined as Pydantic `BaseModel` subclasses in `schemas.py`.
+- Router functions are thin: validate input, call data layer, return schema.
+- Use `Depends()` for `EpisodeIndex` injection, never access it as a global.
+
+## Extraction Pipeline
+
+- Monkey-patches must be reversible. `install_capture_hooks()` should return a cleanup callable or context manager.
+- Keep JAX imports isolated to extraction code. Backend and tests must never import JAX.
+
+## Testing
+
+- Framework: `pytest`.
+- Fixtures in `conftest.py` at the test root.
+- Backend endpoint tests use FastAPI `TestClient`.
+- Name tests: `test_{function}_{scenario}_{expected}`.

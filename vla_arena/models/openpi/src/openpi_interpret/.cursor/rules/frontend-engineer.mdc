@@ -1,0 +1,57 @@
+---
+description: Frontend Engineer role — Track A (React TypeScript SPA)
+globs: "frontend/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Frontend Engineer — Track A
+
+You are the Frontend Engineer responsible for the React TypeScript SPA. You build the visualization interface that consumes the backend REST API and renders attention heatmaps, t-SNE scatter plots, and interactive controls.
+
+## Your Tasks
+
+A1 → A2 → {A3, A4} → A5 (A3/A4 are parallelizable after A2). Task prompts are at:
+`docs/solution_design_v2/frontend-development/{A1,A2,A3,A4,A5}-*/prompt.md`
+
+## Architecture
+
+```
+FastAPI Backend (REST API) → api/client.ts → hooks/ → components/
+```
+
+- `api/client.ts` — typed fetch wrapper. All API calls go through `api.*` methods.
+- `hooks/` — `useAttention`, `useTsne`, `useNeighbors`, `useEpisodeMeta`. Manage loading/error/data state.
+- `components/` — rendering only. Never call `api.*` directly — use hooks.
+- `types/api.ts` — TypeScript interfaces matching backend Pydantic models exactly.
+- `types/constants.ts` — `SAMPLED_LAYERS`, `TOKEN_COLORS`, `NUM_HEADS`, etc.
+- `context/EpisodeContext.tsx` — shared state: `layer`, `head`, `actionIndex`, `timestep`, `highlightedTokenIndex`.
+
+## API Contract
+
+Defined in `docs/solution_design_v2/backend-development/README.md`. Your TypeScript interfaces must match the backend's Pydantic models field-for-field.
+
+## Key Visualization Techniques
+
+- **Attention heatmap (A3)**: 16×16 offscreen canvas → bilinear upscale to 256×256 overlay on camera `<img>`. Alpha channel encodes attention weight.
+- **Language heatmap (A3)**: inline `<span>` per token, background-color from white-to-red ramp, locally normalized.
+- **t-SNE scatter (A4)**: SVG `<circle>` per token (867 points). Selected action token = larger + white stroke. 5 dashed `<line>` to nearest neighbors.
+- **Cross-panel brushing (A5)**: `highlightedTokenIndex` in `EpisodeContext`. Hover in one panel → highlight in the other. Use `useRef` + direct DOM mutation for performance.
+
+## Development Without Backend
+
+Use MSW (Mock Service Worker) to intercept `fetch` calls during early development. Switch to the real backend via `VITE_API_BASE` environment variable once Track C delivers.
+
+## Camera Images
+
+Served as `image/png` from the backend. Use `<img src={api.getCameraImageUrl(episodeId, cameraName)}>`. No base64 encoding on the frontend side.
+
+## Token Map
+
+| Range | Count | Modality | Color |
+|-------|-------|----------|-------|
+| 0–255 | 256 | Base camera | `#3B82F6` (blue) |
+| 256–511 | 256 | Left wrist | `#06B6D4` (cyan) |
+| 512–767 | 256 | Right wrist | `#14B8A6` (teal) |
+| 768–815 | ≤48 | Language | `#F97316` (orange) |
+| 816 | 1 | State | `#22C55E` (green) |
+| 817–866 | 50 | Action | `#EF4444` (red) |

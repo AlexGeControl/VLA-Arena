@@ -1,0 +1,257 @@
+<mxfile host="app.diagrams.net" modified="2026-03-28" agent="CMU-VLN" version="24.0">
+  <diagram name="Cross-Expert Attention" id="fig3">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;Cross-Expert Attention: Three-Phase Mechanism&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="250" y="10" width="500" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="How tokens from Expert 0 (width=2048) and Expert 1 (width=1024) interact through shared head space (head_dim=256)" style="text;html=1;align=center;fontSize=10;fontColor=#6D6E71;fontFamily=Helvetica;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="150" y="40" width="700" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE 1 ==================== -->
+        <mxCell id="p1_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#6D6E71;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="30" y="75" width="370" height="275" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1_label" value="&lt;b&gt;Phase 1: Per-Expert Q/K/V Projection&lt;/b&gt;" style="text;html=1;align=center;fontSize=13;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="350" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1_note" value="&lt;i&gt;Each expert uses its OWN projection weights&lt;br&gt;to map from its width to the shared head space&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="55" y="102" width="320" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- Expert 0 projection -->
+        <mxCell id="e0_input" value="Expert 0 tokens&lt;br&gt;[B, 816, &lt;b&gt;2048&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="50" y="140" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0_proj" value="&lt;b&gt;q_einsum&lt;/b&gt;&lt;br&gt;[2048→8×256]&lt;br&gt;&lt;b&gt;kv_einsum&lt;/b&gt;&lt;br&gt;[2048→1×256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="50" y="195" width="130" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0_qkv" value="Q₀ [B, 816, 8, &lt;b&gt;256&lt;/b&gt;]&lt;br&gt;K₀ [B, 816, 1, &lt;b&gt;256&lt;/b&gt;]&lt;br&gt;V₀ [B, 816, 1, &lt;b&gt;256&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=9;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="50" y="275" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_e0_proj" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e0_input" target="e0_proj" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_e0_qkv" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e0_proj" target="e0_qkv" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Expert 1 projection -->
+        <mxCell id="e1_input" value="Expert 1 tokens&lt;br&gt;[B, 51, &lt;b&gt;1024&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="250" y="140" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_proj" value="&lt;b&gt;q_einsum_1&lt;/b&gt;&lt;br&gt;[1024→8×256]&lt;br&gt;&lt;b&gt;kv_einsum_1&lt;/b&gt;&lt;br&gt;[1024→1×256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="250" y="195" width="130" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_qkv" value="Q₁ [B, 51, 8, &lt;b&gt;256&lt;/b&gt;]&lt;br&gt;K₁ [B, 51, 1, &lt;b&gt;256&lt;/b&gt;]&lt;br&gt;V₁ [B, 51, 1, &lt;b&gt;256&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=9;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="250" y="275" width="130" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_e1_proj" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e1_input" target="e1_proj" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_e1_qkv" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e1_proj" target="e1_qkv" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Key insight callout -->
+        <mxCell id="p1_insight" value="💡 Different input widths → &lt;b&gt;same head_dim=256&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="195" y="335" width="200" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE 2 ==================== -->
+        <mxCell id="p2_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F0F0;strokeColor=#008B8B;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="420" y="75" width="360" height="275" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2_label" value="&lt;b&gt;Phase 2: Joint Attention (Shared Softmax)&lt;/b&gt;" style="text;html=1;align=center;fontSize=13;fontColor=#008B8B;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="430" y="80" width="340" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2_note" value="&lt;i&gt;Concatenate Q/K/V along sequence axis,&lt;br&gt;apply ONE softmax over all 867 tokens&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#006666;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="440" y="102" width="330" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- Concatenated Q/K/V -->
+        <mxCell id="cat_qkv" value="&lt;b&gt;Concatenate along sequence axis&lt;/b&gt;&lt;br&gt;&lt;br&gt;Q = [Q₀ | Q₁] → [B, &lt;b&gt;867&lt;/b&gt;, 8, 256]&lt;br&gt;K = [K₀ | K₁] → [B, &lt;b&gt;867&lt;/b&gt;, 1, 256]&lt;br&gt;V = [V₀ | V₁] → [B, &lt;b&gt;867&lt;/b&gt;, 1, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E0E0;strokeColor=#008B8B;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="440" y="140" width="320" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- RoPE + scale -->
+        <mxCell id="rope_box" value="Apply &lt;b&gt;RoPE&lt;/b&gt; to Q, K&lt;br&gt;Scale Q by √head_dim" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="440" y="230" width="155" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Softmax -->
+        <mxCell id="softmax_box" value="&lt;b&gt;Unified Softmax&lt;/b&gt;&lt;br&gt;logits = Q · K&lt;sup&gt;T&lt;/sup&gt;&lt;br&gt;[B, 1, 8, &lt;b&gt;867, 867&lt;/b&gt;]&lt;br&gt;+ attention mask" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="610" y="230" width="150" height="65" as="geometry"/>
+        </mxCell>
+
+        <!-- Weighted sum -->
+        <mxCell id="weighted_sum" value="encoded = probs · V&lt;br&gt;[B, &lt;b&gt;867&lt;/b&gt;, 8, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E0E0;strokeColor=#008B8B;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="480" y="310" width="240" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows within phase 2 -->
+        <mxCell id="e_cat_rope" style="rounded=1;strokeColor=#008B8B;exitX=0.3;exitY=1;entryX=0.5;entryY=0;" edge="1" source="cat_qkv" target="rope_box" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_rope_soft" style="rounded=1;strokeColor=#008B8B;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="rope_box" target="softmax_box" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_soft_ws" style="rounded=1;strokeColor=#008B8B;exitX=0.5;exitY=1;entryX=0.7;entryY=0;" edge="1" source="softmax_box" target="weighted_sum" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase 2 insight -->
+        <mxCell id="p2_insight" value="💡 Action tokens see image &amp;amp; language keys → &lt;b&gt;cross-modal attention&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#008B8B;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="430" y="345" width="340" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE 3 ==================== -->
+        <mxCell id="p3_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#6D6E71;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="30" y="385" width="750" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3_label" value="&lt;b&gt;Phase 3: Split and Project Back to Per-Expert Widths&lt;/b&gt;" style="text;html=1;align=center;fontSize=13;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="390" width="500" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3_note" value="&lt;i&gt;Slice the attended output by token range, then project back to each expert's own width&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="40" y="412" width="500" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Encoded input -->
+        <mxCell id="encoded_full" value="encoded [B, &lt;b&gt;867&lt;/b&gt;, 8, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E0E0;strokeColor=#008B8B;fontSize=11;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="200" y="440" width="200" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Split -->
+        <mxCell id="split_label" value="&lt;b&gt;Split by token range&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="220" y="480" width="160" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Expert 0 slice -->
+        <mxCell id="e0_slice" value="encoded[:, 0:816]&lt;br&gt;[B, 816, 8, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="505" width="145" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0_out_proj" value="&lt;b&gt;attn_vec_einsum&lt;/b&gt;&lt;br&gt;[8, 256] → &lt;b&gt;2048&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="60" y="555" width="145" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0_result" value="Expert 0 output&lt;br&gt;[B, 816, &lt;b&gt;2048&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="610" width="145" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Expert 1 slice -->
+        <mxCell id="e1_slice" value="encoded[:, 816:867]&lt;br&gt;[B, 51, 8, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="395" y="505" width="155" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_out_proj" value="&lt;b&gt;attn_vec_einsum_1&lt;/b&gt;&lt;br&gt;[8, 256] → &lt;b&gt;1024&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="395" y="555" width="155" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1_result" value="Expert 1 output&lt;br&gt;[B, 51, &lt;b&gt;1024&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="395" y="610" width="155" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows phase 3 -->
+        <mxCell id="e_enc_split0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C41230;exitX=0.3;exitY=1;entryX=0.5;entryY=0;" edge="1" source="encoded_full" target="e0_slice" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_enc_split1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C99700;exitX=0.7;exitY=1;entryX=0.5;entryY=0;" edge="1" source="encoded_full" target="e1_slice" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s0_proj" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e0_slice" target="e0_out_proj" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s0_res" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e0_out_proj" target="e0_result" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_proj" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e1_slice" target="e1_out_proj" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1_res" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="e1_out_proj" target="e1_result" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Phase 3 insight -->
+        <mxCell id="p3_insight" value="💡 Same head space enables interaction → &lt;b&gt;different output widths maintain capacity&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#6D6E71;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="655" width="490" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE ARROWS ==================== -->
+        <mxCell id="e_p1_p2_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C41230;strokeWidth=2;dashed=1;exitX=1;exitY=0.85;entryX=0;entryY=0.45;" edge="1" source="p1_bg" target="p2_bg" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_p1_p2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C99700;strokeWidth=2;dashed=1;exitX=1;exitY=0.85;entryX=0;entryY=0.55;" edge="1" source="p1_bg" target="p2_bg" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Summary box on the right -->
+        <mxCell id="summary_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0F0F0;strokeColor=#333333;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="75" width="350" height="590" as="geometry"/>
+        </mxCell>
+        <mxCell id="summary_title" value="&lt;b&gt;Key Design Principle&lt;/b&gt;" style="text;html=1;align=center;fontSize=14;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="830" y="82" width="330" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="summary_text" value="The two experts have &lt;b&gt;different widths&lt;/b&gt;&lt;br&gt;(2048 vs 1024) but &lt;b&gt;identical head&lt;br&gt;configurations&lt;/b&gt;:&lt;br&gt;&lt;br&gt;• 8 query heads&lt;br&gt;• 1 KV head (GQA)&lt;br&gt;• head_dim = 256&lt;br&gt;&lt;br&gt;This enables the &lt;b&gt;project → fuse →&lt;br&gt;split&lt;/b&gt; pattern:&lt;br&gt;&lt;br&gt;1. Each expert independently maps&lt;br&gt;   from its width to &lt;b&gt;head space&lt;/b&gt;&lt;br&gt;&lt;br&gt;2. Q, K, V are concatenated in&lt;br&gt;   head space — same dim everywhere&lt;br&gt;&lt;br&gt;3. One unified softmax lets action&lt;br&gt;   tokens attend to VL tokens&lt;br&gt;&lt;br&gt;4. Output is split and projected&lt;br&gt;   back to each expert's own width&lt;br&gt;&lt;br&gt;This is why &lt;b&gt;cross-modal attention&lt;br&gt;works despite different widths.&lt;/b&gt;" style="text;html=1;align=left;fontSize=11;fontColor=#333333;fontFamily=Helvetica;spacing=4;" vertex="1" parent="1">
+          <mxGeometry x="840" y="110" width="315" height="380" as="geometry"/>
+        </mxCell>
+
+        <!-- Dimension flow diagram in summary -->
+        <mxCell id="dim_flow_title" value="&lt;b&gt;Dimension Flow&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="840" y="500" width="310" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_e0" value="2048" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="855" y="525" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_arrow1" value="" style="shape=mxgraph.arrows2.arrow;dy=0.6;dx=20;notch=0;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="915" y="533" width="25" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_head" value="256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="945" y="525" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_arrow2" value="" style="shape=mxgraph.arrows2.arrow;dy=0.6;dx=20;notch=0;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="533" width="25" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_e0_out" value="2048" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="525" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_e0_label" value="Expert 0" style="text;html=1;align=center;fontSize=9;fontColor=#C41230;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="855" y="556" width="55" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_shared_label" value="shared" style="text;html=1;align=center;fontSize=9;fontColor=#008B8B;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="945" y="556" width="55" height="14" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="df_e1" value="1024" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="855" y="580" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_arrow3" value="" style="shape=mxgraph.arrows2.arrow;dy=0.6;dx=20;notch=0;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="915" y="588" width="25" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_head2" value="256" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="945" y="580" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_arrow4" value="" style="shape=mxgraph.arrows2.arrow;dy=0.6;dx=20;notch=0;strokeColor=#333333;fillColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="588" width="25" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_e1_out" value="1024" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;fontSize=12;fontFamily=Helvetica;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="580" width="55" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_e1_label" value="Expert 1" style="text;html=1;align=center;fontSize=9;fontColor=#C99700;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="855" y="611" width="55" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_out_label" value="Expert 0" style="text;html=1;align=center;fontSize=9;fontColor=#C41230;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="556" width="55" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_out_label2" value="Expert 1" style="text;html=1;align=center;fontSize=9;fontColor=#C99700;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="611" width="55" height="14" as="geometry"/>
+        </mxCell>
+        <mxCell id="df_phase_labels" value="&lt;i&gt;Phase 1             Phase 2            Phase 3&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="845" y="635" width="260" height="14" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

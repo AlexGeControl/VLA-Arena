@@ -1,0 +1,224 @@
+<mxfile host="app.diagrams.net" modified="2026-03-28" agent="CMU-VLN" version="24.0">
+  <diagram name="Block Processing" id="fig5">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="750" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;Per-Block Dual-Expert Processing (×18 layers)&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="200" y="10" width="500" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- Input -->
+        <mxCell id="input_e0" value="Expert 0 tokens&lt;br&gt;[B, 816, &lt;b&gt;2048&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="90" y="60" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="input_e1" value="Expert 1 tokens&lt;br&gt;[B, 51, &lt;b&gt;1024&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="660" y="60" width="150" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== STAGE 1: RMSNorm (pre-attention) ==================== -->
+        <mxCell id="s1_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#6D6E71;strokeWidth=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="115" width="820" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_label" value="&lt;b&gt;Stage 1&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="410" y="118" width="80" height="18" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="s1_e0" value="&lt;b&gt;RMSNorm&lt;/b&gt;&lt;br&gt;(learned scale, dim=2048)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="75" y="140" width="180" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_e1" value="&lt;b&gt;RMSNorm&lt;/b&gt;&lt;br&gt;(learned scale, dim=1024)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="645" y="140" width="180" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1_sep" value="&lt;i&gt;Independent&lt;br&gt;per expert&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="390" y="145" width="120" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows into stage 1 -->
+        <mxCell id="e_in0_s1" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="input_e0" target="s1_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_in1_s1" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="input_e1" target="s1_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== STAGE 2: Joint Attention ==================== -->
+        <mxCell id="s2_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5F0F0;strokeColor=#008B8B;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="210" width="820" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_label" value="&lt;b&gt;Stage 2: Joint Attention (SHARED across experts)&lt;/b&gt;" style="text;html=1;align=center;fontSize=12;fontColor=#008B8B;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="250" y="215" width="400" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Q/K/V projections -->
+        <mxCell id="s2_qkv0" value="&lt;b&gt;Q₀, K₀, V₀&lt;/b&gt;&lt;br&gt;q_einsum&lt;br&gt;[2048→8×256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="75" y="245" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_qkv1" value="&lt;b&gt;Q₁, K₁, V₁&lt;/b&gt;&lt;br&gt;q_einsum_1&lt;br&gt;[1024→8×256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="695" y="245" width="130" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Fused attention -->
+        <mxCell id="s2_fused" value="&lt;b&gt;Concatenate Q, K, V in head space&lt;/b&gt;&lt;br&gt;[B, &lt;b&gt;867&lt;/b&gt;, 8, 256] — unified softmax — split output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="260" y="245" width="380" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Output projections -->
+        <mxCell id="s2_out0" value="&lt;b&gt;attn_vec_einsum&lt;/b&gt;&lt;br&gt;[8×256→2048]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="75" y="310" width="130" height="38" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2_out1" value="&lt;b&gt;attn_vec_einsum_1&lt;/b&gt;&lt;br&gt;[8×256→1024]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="695" y="310" width="130" height="38" as="geometry"/>
+        </mxCell>
+
+        <!-- Arrows in stage 2 -->
+        <mxCell id="e_s1e0_qkv" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s1_e0" target="s2_qkv0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s1e1_qkv" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s1_e1" target="s2_qkv1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_qkv0_fused" style="rounded=1;strokeColor=#C41230;exitX=1;exitY=0.5;entryX=0;entryY=0.4;" edge="1" source="s2_qkv0" target="s2_fused" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_qkv1_fused" style="rounded=1;strokeColor=#C99700;exitX=0;exitY=0.5;entryX=1;entryY=0.4;" edge="1" source="s2_qkv1" target="s2_fused" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_fused_out0" style="rounded=1;strokeColor=#C41230;exitX=0;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s2_fused" target="s2_out0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_fused_out1" style="rounded=1;strokeColor=#C99700;exitX=1;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s2_fused" target="s2_out1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Residual arrows (skip connections around stage 2) -->
+        <mxCell id="res1_e0" value="&lt;b&gt;+&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="150" y="390" width="25" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="res1_e1" value="&lt;b&gt;+&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="723" y="390" width="25" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_out0_res" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s2_out0" target="res1_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_out1_res" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s2_out1" target="res1_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_skip0" value="residual" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C41230;dashed=1;fontSize=8;fontColor=#C41230;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="input_e0" target="res1_e0" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="50" y="78"/>
+              <mxPoint x="50" y="403"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_skip1" value="residual" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C99700;dashed=1;fontSize=8;fontColor=#C99700;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" source="input_e1" target="res1_e1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="78"/>
+              <mxPoint x="850" y="403"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ==================== STAGE 3: RMSNorm (pre-FFN) ==================== -->
+        <mxCell id="s3_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#6D6E71;strokeWidth=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="820" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3_label" value="&lt;b&gt;Stage 3&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="410" y="433" width="80" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3_e0" value="&lt;b&gt;RMSNorm&lt;/b&gt;&lt;br&gt;(dim=2048)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="100" y="455" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3_e1" value="&lt;b&gt;RMSNorm&lt;/b&gt;&lt;br&gt;(dim=1024)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="670" y="455" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3_sep" value="&lt;i&gt;Independent&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="405" y="462" width="90" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_res0_s3" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="res1_e0" target="s3_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_res1_s3" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="res1_e1" target="s3_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== STAGE 4: Feed-Forward ==================== -->
+        <mxCell id="s4_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#6D6E71;strokeWidth=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="820" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4_label" value="&lt;b&gt;Stage 4&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="410" y="523" width="80" height="18" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4_e0" value="&lt;b&gt;Feed-Forward (+ LoRA)&lt;/b&gt;&lt;br&gt;2048 → 16,384 → 2048&lt;br&gt;&lt;i&gt;Gated GELU&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="60" y="548" width="210" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4_e1" value="&lt;b&gt;Feed-Forward (+ LoRA)&lt;/b&gt;&lt;br&gt;1024 → 4,096 → 1024&lt;br&gt;&lt;i&gt;Gated GELU&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="630" y="548" width="210" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4_sep" value="&lt;i&gt;Independent — different&lt;br&gt;weights AND dimensions&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="375" y="555" width="150" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s3e0_s4" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s3_e0" target="s4_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s3e1_s4" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s3_e1" target="s4_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Residual + Output -->
+        <mxCell id="res2_e0" value="&lt;b&gt;+&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="150" y="620" width="25" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="res2_e1" value="&lt;b&gt;+&lt;/b&gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="723" y="620" width="25" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s4e0_res2" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s4_e0" target="res2_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_s4e1_res2" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="s4_e1" target="res2_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_skip2_0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C41230;dashed=1;exitX=0;exitY=1;entryX=0;entryY=0.5;" edge="1" source="res1_e0" target="res2_e0" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="50" y="415"/>
+              <mxPoint x="50" y="633"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_skip2_1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C99700;dashed=1;exitX=1;exitY=1;entryX=1;entryY=0.5;" edge="1" source="res1_e1" target="res2_e1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="850" y="415"/>
+              <mxPoint x="850" y="633"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Outputs -->
+        <mxCell id="out_e0" value="Updated Expert 0&lt;br&gt;[B, 816, &lt;b&gt;2048&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="90" y="665" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="out_e1" value="Updated Expert 1&lt;br&gt;[B, 51, &lt;b&gt;1024&lt;/b&gt;]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="660" y="665" width="150" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_res2_out0" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="res2_e0" target="out_e0" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_res2_out1" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="res2_e1" target="out_e1" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Key takeaway -->
+        <mxCell id="takeaway" value="&lt;b&gt;Key:&lt;/b&gt; Only Stage 2 (Attention) fuses information across experts. Stages 1, 3, 4 are fully &lt;b&gt;independent per expert&lt;/b&gt;." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="200" y="715" width="500" height="25" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

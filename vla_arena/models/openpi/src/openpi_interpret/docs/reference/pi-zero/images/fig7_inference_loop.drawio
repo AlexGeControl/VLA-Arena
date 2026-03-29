@@ -1,0 +1,215 @@
+<mxfile host="app.diagrams.net" modified="2026-03-28" agent="CMU-VLN" version="24.0">
+  <diagram name="Inference Loop" id="fig7">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="&lt;b&gt;Pi-Zero Inference: Iterative Denoising with KV Cache&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="250" y="10" width="600" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE A: PREFILL (Once) ==================== -->
+        <mxCell id="prefill_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="30" y="60" width="440" height="230" as="geometry"/>
+        </mxCell>
+        <mxCell id="prefill_title" value="&lt;b&gt;Phase A: Prefill (runs ONCE)&lt;/b&gt;" style="text;html=1;align=center;fontSize=14;fontColor=#C41230;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="110" y="65" width="280" height="22" as="geometry"/>
+        </mxCell>
+
+        <!-- Observation inputs -->
+        <mxCell id="obs_images" value="🖼 3 camera images&lt;br&gt;[224×224×3] each" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6D6E71;fontSize=9;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="45" y="100" width="120" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="obs_lang" value="📝 &quot;pick up the cup...&quot;&lt;br&gt;[tokenized, ≤48]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6D6E71;fontSize=9;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="45" y="150" width="120" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- SigLIP + Embedder -->
+        <mxCell id="encoders" value="&lt;b&gt;SigLIP ViT&lt;/b&gt;&lt;br&gt;+&lt;br&gt;&lt;b&gt;PaliGemma Embedder&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C41230;fontColor=#FFFFFF;strokeColor=#8B0D21;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="195" y="100" width="130" height="58" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_obs_enc1" style="rounded=1;strokeColor=#C41230;exitX=1;exitY=0.5;entryX=0;entryY=0.3;" edge="1" source="obs_images" target="encoders" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_obs_enc2" style="rounded=1;strokeColor=#C41230;exitX=1;exitY=0.5;entryX=0;entryY=0.7;" edge="1" source="obs_lang" target="encoders" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- prefix tokens -->
+        <mxCell id="prefix_tokens" value="prefix_tokens&lt;br&gt;[B, 816, 2048]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FADCE1;strokeColor=#C41230;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="195" y="175" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_enc_pfx" style="rounded=1;strokeColor=#C41230;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="encoders" target="prefix_tokens" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Backbone prefill -->
+        <mxCell id="bb_prefill" value="&lt;b&gt;Backbone&lt;/b&gt;&lt;br&gt;(prefix only,&lt;br&gt;Expert 1 = None)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="195" y="225" width="130" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_pfx_bb" style="rounded=1;strokeColor=#008B8B;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="prefix_tokens" target="bb_prefill" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- KV Cache -->
+        <mxCell id="kv_cache" value="&lt;b&gt;KV Cache&lt;/b&gt;&lt;br&gt;K: [18, B, 816, 1, 256]&lt;br&gt;V: [18, B, 816, 1, 256]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="360" y="200" width="95" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_bb_kv" style="rounded=1;strokeColor=#008B8B;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="bb_prefill" target="kv_cache" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="once_badge" value="&lt;b&gt;COMPUTED&lt;br&gt;ONCE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2D682E;fontColor=#FFFFFF;strokeColor=#1A4A1C;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="370" y="160" width="65" height="35" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== PHASE B: DENOISING LOOP (×10) ==================== -->
+        <mxCell id="denoise_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="60" width="670" height="540" as="geometry"/>
+        </mxCell>
+        <mxCell id="denoise_title" value="&lt;b&gt;Phase B: Denoising Loop (×10 steps)&lt;/b&gt;" style="text;html=1;align=center;fontSize=14;fontColor=#C99700;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="650" y="65" width="340" height="22" as="geometry"/>
+        </mxCell>
+        <mxCell id="denoise_subtitle" value="t = 1.0 → 0.9 → 0.8 → ... → 0.1" style="text;html=1;align=center;fontSize=11;fontColor=#8B6800;fontFamily=Helvetica;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="650" y="85" width="340" height="18" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 1: Initialize noise -->
+        <mxCell id="noise_init" value="&lt;b&gt;Initialize:&lt;/b&gt; x&lt;sub&gt;1.0&lt;/sub&gt; = noise ~ N(0, I)&lt;br&gt;[B, 50, 32]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6D6E71;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="520" y="115" width="200" height="38" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 2: embed_suffix -->
+        <mxCell id="embed_suffix" value="&lt;b&gt;embed_suffix&lt;/b&gt;&lt;br&gt;(obs, x&lt;sub&gt;t&lt;/sub&gt;, t)&lt;br&gt;&lt;br&gt;state_proj → 1 token&lt;br&gt;action_in_proj + sincos&lt;br&gt;+ action_time MLPs → 50 tokens" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="520" y="180" width="200" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="suffix_out_label" value="suffix_tokens&lt;br&gt;[B, 51, 1024]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="550" y="290" width="140" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_noise_emb" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="noise_init" target="embed_suffix" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_emb_sfx" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="embed_suffix" target="suffix_out_label" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 3: Backbone with KV cache -->
+        <mxCell id="bb_denoise" value="&lt;b&gt;Backbone&lt;/b&gt;&lt;br&gt;(suffix only,&lt;br&gt;Expert 0 = None,&lt;br&gt;uses KV cache)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008B8B;fontColor=#FFFFFF;strokeColor=#006666;fontSize=10;fontFamily=Helvetica;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="760" y="200" width="150" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_sfx_bb2" style="rounded=1;strokeColor=#008B8B;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.7;" edge="1" source="suffix_out_label" target="bb_denoise" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- KV cache arrow -->
+        <mxCell id="e_kv_bb2" value="cached K, V" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#008B8B;strokeWidth=2;dashed=1;fontSize=9;fontColor=#008B8B;exitX=1;exitY=0.5;entryX=0;entryY=0.3;" edge="1" source="kv_cache" target="bb_denoise" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="238"/>
+              <mxPoint x="480" y="140"/>
+              <mxPoint x="740" y="140"/>
+              <mxPoint x="740" y="221"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- suffix_out -->
+        <mxCell id="sfx_output" value="suffix_out&lt;br&gt;[B, 51, 1024]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3D5;strokeColor=#C99700;fontSize=10;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="790" y="295" width="100" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_bb2_sfxout" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="bb_denoise" target="sfx_output" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 4: action_out_proj -->
+        <mxCell id="out_proj" value="&lt;b&gt;action_out_proj&lt;/b&gt;&lt;br&gt;Linear(1024→32)&lt;br&gt;on last 50 positions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C99700;fontColor=#FFFFFF;strokeColor=#8B6800;fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="755" y="355" width="170" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_sfxout_proj" style="rounded=1;strokeColor=#C99700;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="sfx_output" target="out_proj" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- v_t -->
+        <mxCell id="vt" value="&lt;b&gt;v&lt;sub&gt;t&lt;/sub&gt;&lt;/b&gt; (velocity field)&lt;br&gt;[B, 50, 32]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#FFFFFF;strokeColor=#000000;fontSize=11;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="775" y="430" width="130" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_proj_vt" style="rounded=1;strokeColor=#333333;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="out_proj" target="vt" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Step 5: Euler step -->
+        <mxCell id="euler" value="&lt;b&gt;Euler Integration&lt;/b&gt;&lt;br&gt;x&lt;sub&gt;t+dt&lt;/sub&gt; = x&lt;sub&gt;t&lt;/sub&gt; + dt · v&lt;sub&gt;t&lt;/sub&gt;&lt;br&gt;&lt;i&gt;dt = −1/10 = −0.1&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;fontColor=#FFFFFF;strokeColor=#000000;fontSize=11;fontFamily=Helvetica;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="760" y="500" width="160" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_vt_euler" style="rounded=1;strokeColor=#333333;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" source="vt" target="euler" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Feedback loop -->
+        <mxCell id="e_feedback" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#C99700;strokeWidth=3;exitX=0;exitY=0.5;entryX=0;entryY=0.8;" edge="1" source="euler" target="embed_suffix" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="520" y="528"/>
+              <mxPoint x="510" y="528"/>
+              <mxPoint x="510" y="256"/>
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="feedback_label" value="&lt;b&gt;updated x&lt;sub&gt;t&lt;/sub&gt;&lt;/b&gt;&lt;br&gt;&lt;i&gt;(cleaner trajectory)&lt;/i&gt;" style="text;html=1;align=center;fontSize=9;fontColor=#C99700;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="510" y="390" width="110" height="28" as="geometry"/>
+        </mxCell>
+
+        <!-- ==================== TIMELINE ==================== -->
+        <mxCell id="timeline_bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0F0F0;strokeColor=#6D6E71;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="110" width="195" height="480" as="geometry"/>
+        </mxCell>
+        <mxCell id="timeline_title" value="&lt;b&gt;Denoising Timeline&lt;/b&gt;" style="text;html=1;align=center;fontSize=11;fontColor=#333333;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="965" y="115" width="185" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Timeline steps -->
+        <mxCell id="ts0" value="t = 1.0 → x&lt;sub&gt;1.0&lt;/sub&gt; = &lt;b&gt;pure noise&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E85070;fontColor=#FFFFFF;strokeColor=#C41230;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="145" width="170" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts1" value="t = 0.9 → x&lt;sub&gt;0.9&lt;/sub&gt; (noisy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E87070;fontColor=#FFFFFF;strokeColor=#C41230;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="180" width="170" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts2" value="t = 0.8 → x&lt;sub&gt;0.8&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8A070;fontColor=#FFFFFF;strokeColor=#C99700;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="215" width="170" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts_dots" value="⋮" style="text;html=1;align=center;fontSize=16;fontColor=#6D6E71;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="245" width="40" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts7" value="t = 0.3 → x&lt;sub&gt;0.3&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#90C890;fontColor=#333333;strokeColor=#2D682E;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="280" width="170" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts8" value="t = 0.2 → x&lt;sub&gt;0.2&lt;/sub&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#70B870;fontColor=#333333;strokeColor=#2D682E;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="315" width="170" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="ts9" value="t = 0.1 → x&lt;sub&gt;0.1&lt;/sub&gt; (nearly clean)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#50A050;fontColor=#FFFFFF;strokeColor=#2D682E;fontSize=9;fontFamily=Helvetica;" vertex="1" parent="1">
+          <mxGeometry x="975" y="350" width="170" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- Gradient arrow -->
+        <mxCell id="grad_arrow" value="" style="shape=mxgraph.arrows2.arrow;dy=0.3;dx=40;notch=0;strokeColor=#6D6E71;fillColor=none;rotation=90;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="375" width="30" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="grad_label" value="noise → clean" style="text;html=1;align=center;fontSize=9;fontColor=#6D6E71;fontFamily=Helvetica;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="980" y="413" width="80" height="14" as="geometry"/>
+        </mxCell>
+
+        <!-- Final output -->
+        <mxCell id="x0_final" value="&lt;b&gt;x&lt;sub&gt;0&lt;/sub&gt;&lt;/b&gt; = &lt;b&gt;clean trajectory&lt;/b&gt;&lt;br&gt;[B, 50, 32]&lt;br&gt;50 future action steps" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2D682E;fontColor=#FFFFFF;strokeColor=#1A4A1C;fontSize=11;fontFamily=Helvetica;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="975" y="480" width="170" height="55" as="geometry"/>
+        </mxCell>
+
+        <!-- Key insights -->
+        <mxCell id="insight1" value="&lt;b&gt;Efficiency:&lt;/b&gt; Prefix (816 tokens)&lt;br&gt;processed once. Each denoise step&lt;br&gt;only forwards 51 suffix tokens." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFCC;strokeColor=#C99700;fontSize=9;fontFamily=Helvetica;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="975" y="545" width="170" height="48" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

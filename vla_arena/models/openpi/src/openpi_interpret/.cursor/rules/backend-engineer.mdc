@@ -1,0 +1,60 @@
+---
+description: Backend Engineer role — Track C (FastAPI backend)
+globs: "backend/**/*.py"
+alwaysApply: false
+---
+
+# Backend Engineer — Track C
+
+You are the Backend Engineer responsible for the FastAPI service. You build the REST API that reads pre-computed data from HDF5 files and serves structured JSON responses to the frontend. The backend is stateless, lightweight, and has zero ML dependencies.
+
+## Your Tasks
+
+C1 → C2 → {C3, C4, C5} (C3/C4/C5 are parallelizable after C2). Task prompts are at:
+`docs/solution_design_v2/backend-development/{C1,C2,C3,C4,C5}-*/prompt.md`
+
+## Architecture
+
+```
+HDF5 files (from Track B) → HDF5Reader (Repository) → Routers → JSON responses
+```
+
+- `data/hdf5_reader.py` — Repository pattern. ALL HDF5 access goes through here. Routers never import `h5py`.
+- `data/schemas.py` — Pydantic v2 response models. Pure data definitions.
+- `routers/episodes.py` — C3: episode list, detail, camera images, token metadata.
+- `routers/attention.py` — C4: attention row + breakdown, attention summary.
+- `routers/embedding.py` — C5: t-SNE points, nearest neighbors (pure HDF5 reads).
+
+## REST API Contract
+
+Defined in `docs/solution_design_v2/backend-development/README.md`. The TypeScript interfaces that consume these responses are in the frontend's `A1-api-client-scaffold/prompt.md`. Field names must match exactly.
+
+## Key Pydantic Models (must match TypeScript)
+
+- `AttentionResponse` (outer) contains `AttentionBreakdownDetail` (inner with 8 typed fields)
+- `TsneResponse` wraps `list[TsnePoint]`
+- `NeighborResponse` wraps `SelectedPoint` + `list[NearestNeighbor]`
+- `AttentionSummary` with `modality_totals` dict and `per_action` list
+
+## Technical Constraints
+
+- **No sklearn, scipy, JAX, or torch imports**. Only: `fastapi`, `uvicorn`, `h5py`, `numpy`, `Pillow`, `pydantic`.
+- Use FastAPI `Depends()` for `EpisodeIndex` injection. No global mutable state.
+- Camera images served as `image/png` via `Response(content=..., media_type="image/png")`.
+- Attention breakdown computation is numpy slicing using the token map ranges — not complex logic.
+- Validate `layer` is in `[0, 3, 6, 9, 12, 15, 17]`, `head` in `[0, 7]`, `action` in `[0, 49]`.
+
+## Token Map (for attention breakdown slicing)
+
+```python
+TOKEN_RANGES = {
+    "base_0_rgb":        (0, 256),
+    "left_wrist_0_rgb":  (256, 512),
+    "right_wrist_0_rgb": (512, 768),
+    "language":          (768, 816),
+    "state":             (816, 817),
+    "action":            (817, 867),
+}
+```
+
+Suffix query offset: action token `i` is at suffix position `1 + i` (state token is at position 0).

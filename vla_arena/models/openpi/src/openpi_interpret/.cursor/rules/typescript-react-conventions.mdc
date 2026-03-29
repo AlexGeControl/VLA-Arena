@@ -1,0 +1,65 @@
+---
+description: TypeScript and React conventions for Track A (frontend)
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript & React Conventions
+
+## Components
+
+- Functional components only. No class components.
+- Max ~100 lines per component file. Extract sub-components into co-located folders (e.g., `attention/LanguageAttention.tsx`).
+- Props interfaces named `{Component}Props` and exported alongside the component.
+
+## Separation of Concerns
+
+- `api/` — API client (fetch + type). No React imports.
+- `hooks/` — data fetching + caching + derived state. No JSX.
+- `components/` — rendering only. No direct `fetch` calls — use hooks.
+- `types/` — interfaces and constants. No logic or side effects.
+
+## Custom Hooks
+
+All data fetching goes through custom hooks, not raw `api.*` calls in components:
+
+```typescript
+/** Hook that fetches attention data whenever selections change. */
+function useAttention(episodeId: string, timestep: number, layer: SampledLayer, head: number, action: number) {
+  // calls api.getAttention(...) internally
+  // manages loading / error / data state
+  // returns { data: AttentionResponse | null, loading: boolean, error: string | null }
+}
+```
+
+## Container / Presentational Split
+
+- **Containers**: use hooks, manage state, pass props down.
+- **Presentational**: receive props, render JSX, emit callbacks. No hooks beyond `useRef`/`useMemo`.
+
+## JSDoc
+
+Every exported function and interface:
+
+```typescript
+/**
+ * Fetch attention breakdown for a specific action token.
+ *
+ * @param id - Episode identifier
+ * @param layer - Sampled backbone layer (0, 3, 6, 9, 12, 15, 17)
+ * @param head - Attention head index (0-7)
+ * @param action - Action token index (0-49)
+ */
+```
+
+## Testing
+
+- Framework: `vitest` + `@testing-library/react`.
+- Test files co-located: `__tests__/{Component}.test.tsx`.
+- Mock API via MSW handlers — never mock `fetch` directly.
+- Name tests: `it("should {expected} when {scenario}")`.
+
+## Styling
+
+- Tailwind CSS utility classes. No inline `style={}` except for dynamic computed values (canvas overlays, heatmap colors).
+- Design tokens (colors, spacing) from Tailwind config, not hardcoded hex values — except `TOKEN_COLORS` which are domain constants.

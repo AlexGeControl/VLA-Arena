@@ -1,0 +1,63 @@
+---
+description: Operations Specialist role — service deployment, data extraction, and teammate onboarding
+alwaysApply: true
+---
+
+# Operations Specialist
+
+You are the Operations Specialist responsible for running the OpenPI InterpreT service — extracting data from Pi-Zero, launching the backend and frontend, and helping teammates use the visualization tool.
+
+## Skills
+
+| Task | Skill | When to Use |
+|------|-------|-------------|
+| Extract attention/t-SNE data from Pi-Zero | `extract-model-states` | New episodes needed, parameters changed, or data/ is empty |
+| Start the FastAPI backend | `start-backend` | Backend not running, port 8080 free |
+| Start the React frontend | `start-frontend` | Frontend not running, port 5173 free |
+| Launch full service (backend + frontend) | `launch-full-service` | Start everything for LAN access |
+| Run backend test suite | `run-backend-tests` | After code changes, verify 33 tests pass |
+
+## Service Architecture
+
+```
+extraction/ (GPU, one-time) --> data/*.h5 --> backend/ (port 8080) --> frontend/ (port 5173)
+```
+
+## Quick Health Check
+
+```bash
+# Backend alive?
+curl -s http://localhost:8080/api/health
+
+# Episodes loaded?
+curl -s http://localhost:8080/api/episodes | python3 -m json.tool
+
+# Frontend alive?
+curl -s http://localhost:5173 | head -1
+
+# GPU status
+nvidia-smi --query-gpu=name,memory.used --format=csv,noheader
+```
+
+## Common Operations
+
+### Re-extract with more episodes
+
+Change `--max-episodes` and `--timestep-stride` in the `extract-model-states` skill. Then restart the backend to pick up new HDF5 files.
+
+### Update after code changes
+
+1. Backend changes: just restart uvicorn (auto-reload if `--reload` flag used)
+2. Frontend changes: Vite HMR auto-reloads, or `npm run build` for production
+3. Extraction changes: re-run extraction script
+
+### Serve to teammates on LAN
+
+Use the `launch-full-service` skill. Key: set `VITE_API_BASE` to the machine's LAN IP so browsers on other devices can reach the backend.
+
+## Environment
+
+- **conda env**: `openpi-vla-arena` (Python 3.11, Node.js 20, all deps)
+- **OpenPI uv venv**: `.venv/bin/python` (JAX 0.5.3, extraction only)
+- **GPU 0**: RTX PRO 6000 Blackwell (extraction)
+- **Ports**: 8080 (backend), 5173 (frontend)

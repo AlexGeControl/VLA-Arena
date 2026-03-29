@@ -1,0 +1,43 @@
+---
+description: Test coverage expectations across all three tracks (extraction, backend, frontend)
+alwaysApply: true
+---
+
+# Testing Standards
+
+## Principle
+
+Every acceptance criterion in a task prompt maps to at least one test case. If the prompt says "attention rows sum to ~1.0", a test must assert this.
+
+## Unit Tests (per task)
+
+| Track | Framework | Location | Naming |
+|-------|-----------|----------|--------|
+| B (Extraction) | `pytest` | `extraction/tests/test_{module}.py` | `test_{fn}_{scenario}_{expected}` |
+| C (Backend) | `pytest` + FastAPI `TestClient` | `backend/tests/test_{router}.py` | `test_{fn}_{scenario}_{expected}` |
+| A (Frontend) | `vitest` + `@testing-library/react` | `src/__tests__/{Component}.test.tsx` | `it("should {expected} when {scenario}")` |
+
+## Fixtures
+
+- **Backend**: A small test `.h5` file (1 episode, 1 timestep, valid structure) shared across all router tests via `conftest.py`.
+- **Frontend**: MSW request handlers returning fixture JSON for every API endpoint used by the component under test.
+- **Extraction**: Pre-saved numpy arrays mimicking captured attention/Q-projections, so t-SNE and serialization tests run without a GPU.
+
+## Integration Tests (per epic)
+
+| Epic | What to test | How |
+|------|-------------|-----|
+| Track B | Extract 1 synthetic episode end-to-end → validate HDF5 schema and shapes | `pytest` with mock model outputs or pre-saved tensors |
+| Track C | Hit every endpoint against the test `.h5` fixture → validate response schemas and status codes | FastAPI `TestClient` in a single `pytest` session |
+| Track A | Render full episode page with MSW mocks → verify controls update visualizations | `vitest` + `@testing-library/react` + MSW |
+
+## End-to-End Tests (cross-epic)
+
+- **Contract test**: Load a real HDF5 from Track B → start backend → call every endpoint → validate response shapes match TypeScript interfaces. Implemented in `pytest`.
+- **Smoke test**: Backend + frontend running → navigate to episode → attention heatmap and t-SNE scatter render without console errors. Manual for first iteration; Playwright automation is a backlog item.
+
+## What NOT to Test
+
+- Don't test third-party library internals (h5py read/write, sklearn t-SNE correctness).
+- Don't test Pydantic validation beyond custom validators you wrote.
+- Don't test Tailwind CSS class application.

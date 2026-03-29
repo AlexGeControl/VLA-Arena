@@ -1,0 +1,39 @@
+---
+description: General software quality, clean architecture, and code hygiene standards for the OpenPI InterpreT project
+alwaysApply: true
+---
+
+# Engineering Standards
+
+## Function & Module Design
+
+- Max ~30 lines per function. Extract helpers when exceeded.
+- Single Responsibility: one function does one thing, one module owns one concern.
+- No magic numbers. Domain constants (token ranges, shapes, sampled layers) live in a dedicated constants module per track and are imported everywhere.
+
+## Type Safety
+
+- Python: no `Any` in function signatures. Use `dict[str, float]` not bare `dict`. Use `X | None` not `Optional[X]`. Python 3.11+ syntax.
+- TypeScript: strict mode enforced. No `any` types. All API responses typed via interfaces in `types/api.ts`.
+
+## Error Handling
+
+- Fail fast with descriptive messages. Never silently swallow exceptions.
+- Backend: return proper HTTP status codes (404 for missing episodes, 422 for invalid parameters).
+- Frontend: surface API errors to the user via loading/error states, never ignore rejected promises.
+
+## Clean Architecture (Backend — Track C)
+
+- `data/` — data access (HDF5 reader, episode index). No HTTP concerns here.
+- `routers/` — HTTP routing + request validation. No business logic beyond calling the data layer.
+- `schemas/` — Pydantic models. Pure data definitions, no logic.
+- Routers never import `h5py` directly — all HDF5 access goes through `HDF5Reader` (Repository pattern).
+- Use FastAPI `Depends()` for dependency injection. No global mutable state.
+
+## Design Patterns
+
+- **Repository**: `HDF5Reader` encapsulates all storage access behind typed methods.
+- **Strategy**: Extraction capture hooks (`CaptureStore` + `install_capture_hooks()`) are decoupled from the inference loop.
+- **Builder**: `write_episode_hdf5()` assembles HDF5 from discrete data components.
+- **Context + Provider**: Frontend shared state via `EpisodeContext`.
+- **Container/Presentational**: Smart containers (with hooks) wrap stateless presentational components.
