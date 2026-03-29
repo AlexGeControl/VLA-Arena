@@ -130,6 +130,7 @@ def create_test_h5(h5_path: Path) -> None:
             tsne_grp = ts.create_group("tsne")
             nbr_grp = ts.create_group("neighbors")
             qproj_grp = ts.create_group("q_projections")
+            cmf_grp = ts.create_group("cmf_attended")
 
             for layer in SAMPLED_LAYERS:
                 layer_key = f"layer_{layer:02d}"
@@ -159,6 +160,20 @@ def create_test_h5(h5_path: Path) -> None:
                 )
                 lyr_qproj.create_dataset(
                     "suffix",
+                    data=rng.standard_normal((51, 8, 256)).astype(
+                        np.float32
+                    ),
+                )
+
+                lyr_cmf = cmf_grp.create_group(layer_key)
+                lyr_cmf.create_dataset(
+                    "language",
+                    data=rng.standard_normal((51, 8, 256)).astype(
+                        np.float32
+                    ),
+                )
+                lyr_cmf.create_dataset(
+                    "visual",
                     data=rng.standard_normal((51, 8, 256)).astype(
                         np.float32
                     ),

@@ -105,6 +105,7 @@ def _write_timestep(f: h5py.File, ts_data: dict) -> None:
     _write_tsne(ts_grp, ts_data["tsne"])
     _write_neighbors(ts_grp, ts_data["neighbors"])
     _write_q_projections(ts_grp, ts_data.get("q_prefix", {}), ts_data.get("q_suffix", {}))
+    _write_cmf_attended(ts_grp, ts_data.get("cmf_attended", {}))
 
 
 def _write_token_meta(ts_grp: h5py.Group, token_meta: list[dict]) -> None:
@@ -145,6 +146,27 @@ def _write_neighbors(ts_grp: h5py.Group, neighbors: dict[int, np.ndarray]) -> No
     nbr_grp = ts_grp.create_group("neighbors")
     for layer_idx, arr in neighbors.items():
         nbr_grp.create_dataset(f"layer_{layer_idx:02d}", data=arr)
+
+
+def _write_cmf_attended(
+    ts_grp: h5py.Group,
+    cmf_attended: dict[int, dict[str, np.ndarray]],
+) -> None:
+    """Write ``cmf_attended/layer_XX/{language,visual}`` datasets.
+
+    Each value is float32 with shape ``(51, 8, 256)``.
+    """
+    if not cmf_attended:
+        return
+    cmf_grp = ts_grp.create_group("cmf_attended")
+    for layer_idx in sorted(cmf_attended.keys()):
+        layer_grp = cmf_grp.create_group(f"layer_{layer_idx:02d}")
+        for modality, arr in cmf_attended[layer_idx].items():
+            layer_grp.create_dataset(
+                modality,
+                data=arr.astype(np.float32),
+                compression="gzip",
+            )
 
 
 def _write_q_projections(

@@ -40,7 +40,7 @@ from PIL import Image
 OPENPI_ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(OPENPI_ROOT / "src"))
 
-from openpi_interpret.extraction import capture, serialize, tsne  # noqa: E402
+from openpi_interpret.extraction import capture, cmf_attended as cmf_mod, serialize, tsne  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -401,6 +401,15 @@ def _process_timestep(
 
     q_prefix_squeezed = {k: v[0] for k, v in captured.q_prefix.items()}
     q_suffix_squeezed = {k: v[0] for k, v in captured.q_suffix.items()}
+    v_prefix_squeezed = {k: v[0] for k, v in captured.v_prefix.items()}
+
+    cmf_attended_results: dict[int, dict[str, np.ndarray]] = {}
+    for layer_idx in SAMPLED_LAYERS:
+        if layer_idx in captured.attention and layer_idx in v_prefix_squeezed:
+            cmf_attended_results[layer_idx] = cmf_mod.compute_cmf_attended(
+                captured.attention[layer_idx],
+                v_prefix_squeezed[layer_idx],
+            )
 
     return {
         "timestep": frame_idx,
@@ -410,6 +419,7 @@ def _process_timestep(
         "neighbors": neighbor_results,
         "q_prefix": q_prefix_squeezed,
         "q_suffix": q_suffix_squeezed,
+        "cmf_attended": cmf_attended_results,
     }
 
 

@@ -35,11 +35,13 @@ SAMPLED_LAYERS: list[int] = [0, 3, 6, 9, 12, 15, 17]
 
 @dataclasses.dataclass
 class CapturedData:
-    """Attention and Q-projection tensors extracted from a single forward pass."""
+    """Attention, Q-projection, and V-projection tensors from a single forward pass."""
 
     attention: dict[int, np.ndarray]
     q_prefix: dict[int, np.ndarray]
     q_suffix: dict[int, np.ndarray]
+    v_prefix: dict[int, np.ndarray]
+    v_suffix: dict[int, np.ndarray]
     prefix_len: int
     suffix_len: int
 
@@ -51,11 +53,13 @@ class CaptureStore:
         self.layer_counter: int = 0
         self.probs: dict[int, jax.Array] = {}
         self.q_pre_gqa: dict[int, jax.Array] = {}
+        self.v_concat: dict[int, jax.Array] = {}
 
     def reset(self) -> None:
         self.layer_counter = 0
         self.probs.clear()
         self.q_pre_gqa.clear()
+        self.v_concat.clear()
 
 
 _store = CaptureStore()
@@ -82,9 +86,13 @@ def _capturing_softmax(x: jax.Array, *, axis: int = -1) -> jax.Array:
 
 
 def _capturing_einsum(*args, **kwargs):
-    """Drop-in for ``jnp.einsum`` that intercepts the Q·K logits call to grab Q.
+    """Drop-in for ``jnp.einsum`` that intercepts Q and V projections.
 
-    Captures ALL layers and increments the counter on every ``BTKGH,BSKH->BKGTS`` call.
+    Intercepts two subscripts per Gemma layer:
+      1. ``BTKGH,BSKH->BKGTS`` (logits = Q @ K^T) — captures Q, increments counter.
+      2. ``BKGTS,BSKH->BTKGH`` (output = probs @ V) — captures V at counter - 1
+         so it aligns with Q's key.
+
     Sampled-layer filtering happens in ``_extract_results``.
     """
     result = _original_einsum(*args, **kwargs)
@@ -98,6 +106,13 @@ def _capturing_einsum(*args, **kwargs):
                 _store.q_pre_gqa[idx] = np.array(arr)
             jax.debug.callback(_store_q, q)
             _store.layer_counter += 1
+        elif subscript == "BKGTS,BSKH->BTKGH":
+            layer_idx = _store.layer_counter - 1
+            v_bskh = args[2]
+            v = v_bskh[:, :, 0, :]
+            def _store_v(arr: jax.Array, idx: int = layer_idx) -> None:
+                _store.v_concat[idx] = np.array(arr)
+            jax.debug.callback(_store_v, v)
     return result
 
 
@@ -174,20 +189,25 @@ def run_capture_pass(
 
 
 def _extract_results(prefix_len: int, suffix_len: int) -> CapturedData:
-    """Slice captured tensors to suffix-query attention and split Q-projections.
+    """Slice captured tensors to suffix-query attention and split Q/V projections.
 
     The backbone forward produces extra einsum/softmax calls before the first
     Gemma layer (from the embedder or initial projection). We detect the
     offset automatically: the Q dict should have exactly 18 entries (one per
     Gemma layer). The smallest key in Q corresponds to Gemma layer 0.
+    V projections are stored at the same keys as Q (aligned by counter - 1
+    in the output einsum).
     """
     attention: dict[int, np.ndarray] = {}
     q_prefix: dict[int, np.ndarray] = {}
     q_suffix: dict[int, np.ndarray] = {}
+    v_prefix: dict[int, np.ndarray] = {}
+    v_suffix: dict[int, np.ndarray] = {}
 
     if not _store.q_pre_gqa:
         logger.warning("No Q-projections captured — returning empty CapturedData")
         return CapturedData(attention={}, q_prefix={}, q_suffix={},
+                            v_prefix={}, v_suffix={},
                             prefix_len=prefix_len, suffix_len=suffix_len)
 
     q_keys = sorted(_store.q_pre_gqa.keys())
@@ -197,6 +217,9 @@ def _extract_results(prefix_len: int, suffix_len: int) -> CapturedData:
     probs_keys = sorted(_store.probs.keys())
     probs_offset = probs_keys[0] if probs_keys else q_offset + 1
     logger.info("Probs capture offset=%d (keys %d–%d)", probs_offset, probs_keys[0] if probs_keys else -1, probs_keys[-1] if probs_keys else -1)
+
+    v_keys = sorted(_store.v_concat.keys())
+    logger.info("V capture: %d entries (keys %s)", len(v_keys), f"{v_keys[0]}–{v_keys[-1]}" if v_keys else "none")
 
     for layer_idx in SAMPLED_LAYERS:
         probs_key = layer_idx + probs_offset
@@ -211,12 +234,22 @@ def _extract_results(prefix_len: int, suffix_len: int) -> CapturedData:
             q_prefix[layer_idx] = q[:, :prefix_len]
             q_suffix[layer_idx] = q[:, prefix_len:]
 
-    logger.info("Extracted %d attention layers, %d Q-projection layers", len(attention), len(q_prefix))
+        if q_key in _store.v_concat:
+            v = _store.v_concat[q_key]
+            v_prefix[layer_idx] = v[:, :prefix_len]
+            v_suffix[layer_idx] = v[:, prefix_len:]
+
+    logger.info(
+        "Extracted %d attention, %d Q-projection, %d V-projection layers",
+        len(attention), len(q_prefix), len(v_prefix),
+    )
 
     return CapturedData(
         attention=attention,
         q_prefix=q_prefix,
         q_suffix=q_suffix,
+        v_prefix=v_prefix,
+        v_suffix=v_suffix,
         prefix_len=prefix_len,
         suffix_len=suffix_len,
     )
