@@ -113,6 +113,10 @@ Two data contracts:
 | 11 | ImagePatchPopup timestep | Popup showed first frame instead of current | Pass `timestep` prop through component chain |
 | 12 | Policy attribute name | `policy.model` doesn't exist | Correct attribute is `policy._model` |
 | 13 | t-SNE dark token contrast | CMU palette uses dark tones (navy, teal); invisible on dark/transparent SVG background | White SVG background, black highlight strokes, dark gray neighbor lines |
+| 14 | Q-projection CMF inflation | Using Q-projections for both query and target inflates cross-expert CMF (Q has 8 per-expert heads with apparent overlap) | Use exact V-projections (single KV head) for target embeddings |
+| 15 | V-capture counter alignment | Output einsum `BKGTS,BSKH->BTKGH` fires after logits einsum incremented counter | Store V at `counter - 1` to align with Q's offset key |
+| 16 | Right wrist zero placeholder | Right wrist camera is all zeros for Pi-Zero on VLA-Arena | Exclude from silhouette clustering (256 noise tokens) |
+| 17 | State singleton cluster | State is 1 token; singleton cluster contributes silhouette = 0 | Merge state with action (both Expert 1, same projection weights) |
 
 ## Implementation Plan
 
@@ -133,6 +137,12 @@ Sprint 3: Track A visualization (A3-A4-A5)
     - Connect to live backend with real data
     - A3 and A4 in parallel (separate agents)
     - A5 after both complete
+
+Sprint 4: Track D (Data Analytics D1-D4)
+    - D1 scaffold + D2a extraction extension in parallel
+    - D2b CMF + D3 Silhouette after D1
+    - D4 CLI integrates both
+    - Re-extraction needed for V-projection capture (GPU)
 
 Integration: Human-in-the-loop testing
     - Timestamp slider, camera updates, cross-panel brushing
@@ -174,6 +184,18 @@ Integration: Human-in-the-loop testing
 | [A3. Attention View](frontend-development/A3-attention-view/prompt.md) | Language heatmap, image overlay | Pass `timestep` to `ImageAttention` |
 | [A4. Embedding View](frontend-development/A4-embedding-view/prompt.md) | t-SNE scatter, neighbors | |
 | [A5. Polish & Integration](frontend-development/A5-polish/prompt.md) | Cross-panel brushing, pop-ups | #11 (ImagePatchPopup timestep) |
+
+### Epic: Data Analytics (Track D)
+
+**[Full epic overview -->](data-analytics/README.md)**
+
+| Task | Deliverable | Key Pitfalls |
+|------|------------|-------------|
+| [D1. Analytics Scaffold](data-analytics/D1-analytics-scaffold/prompt.md) | Module structure, constants, types, reader | |
+| [D2a. V-Capture + CMF Attended](data-analytics/D2a-v-capture-cmf-attended/prompt.md) | V-projection capture, attended representations | #14 (Q-approx inflation), #15 (counter alignment) |
+| [D2b. CMF Computation](data-analytics/D2b-cmf-computation/prompt.md) | Per-head 256-d cosine, 5 pairs | |
+| [D3. Silhouette Coefficient](data-analytics/D3-silhouette/prompt.md) | 3-group clustering, sklearn integration | #16 (right wrist placeholder), #17 (state singleton) |
+| [D4. CLI + Report](data-analytics/D4-cli-report/prompt.md) | Batch CLI, YAML report | |
 
 ## Visual Theme — CMU Brand Alignment
 
