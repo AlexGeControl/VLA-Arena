@@ -1,0 +1,21 @@
+\subsection{Cross-Modal Fusion Metrics}
+\label{sec:cross_modal_fusion}
+Cross-Modal Fusion (CMF) evaluates how effectively the Transformer integrates vision (VLM tokens), proprioception (state tokens), and motor intent (action queries) within the shared embedding space. A high CMF score means action queries successfully align with their relevant visual context, while a low score indicates that the modalities remain in isolated subspaces and are poorly integrated.\footnote{This interpretation builds on the well-documented ``modality gap'' phenomenon in multimodal contrastive representations.}
+
+We quantify this via an attention-weighted cross-modal cosine similarity. For each action query token $q_k$ and the sequence of VLM tokens $\{v_1, \dots, v_{128}\}$:
+
+\begin{enumerate}
+    \item We extract the scalar attention weight $\alpha_{k,j}$ from the final Transformer layer, representing the attention from query $k$ to VLM token $j$ \citep{vaswani2017attention,nagrani2021attention}.
+
+    \item We compute the attention-weighted contextual visual representation:
+    \[
+        v_{\text{attended\_k}} = \sum_{j} \alpha_{k,j} \cdot v_j
+    \]
+
+    \item We calculate the cosine similarity between the query token and this attended visual context:
+    \[
+        CMF(k) = \frac{q_k \cdot v_{\text{attended\_k}}}{\|q_k\| \|v_{\text{attended\_k}}\|}
+    \]
+\end{enumerate}
+
+The global CMF score is then aggregated by averaging across all 50 action queries in the chunk, and then across all sampled episodes. This formulation draws on standard practices in multimodal alignment measurement \citep{radford2021learning,goel2022cyclip,liang2022modality}.
