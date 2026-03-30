@@ -66,6 +66,8 @@ to this workspace can perform all operational tasks using pre-built skills.
 | Start only the backend | *"Start the backend server"* |
 | Start only the frontend | *"Start the frontend dev server"* |
 | Run the test suite | *"Run the backend tests"* |
+| Compute CMF + Silhouette metrics | *"Run analytics on the extracted data"* |
+| Run the analytics tests | *"Run the analytics test suite"* |
 | Shut everything down | *"Shutdown the service"* |
 | Check if services are healthy | *"Check the service health"* |
 
@@ -81,6 +83,8 @@ agent. Each skill contains step-by-step operational recipes:
 | `start-frontend` | `.cursor/skills/start-frontend/SKILL.md` | Vite on port 5173 |
 | `launch-full-service` | `.cursor/skills/launch-full-service/SKILL.md` | Both services for LAN |
 | `run-backend-tests` | `.cursor/skills/run-backend-tests/SKILL.md` | 33 pytest tests |
+| `run-analytics` | `.cursor/skills/run-analytics/SKILL.md` | CMF + Silhouette metrics |
+| `run-analytics-tests` | `.cursor/skills/run-analytics-tests/SKILL.md` | 24 pytest tests |
 
 ### Agent Roles
 

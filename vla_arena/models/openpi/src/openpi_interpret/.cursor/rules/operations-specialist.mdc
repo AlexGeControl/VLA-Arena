@@ -16,11 +16,15 @@ You are the Operations Specialist responsible for running the OpenPI InterpreT s
 | Start the React frontend | `start-frontend` | Frontend not running, port 5173 free |
 | Launch full service (backend + frontend) | `launch-full-service` | Start everything for LAN access |
 | Run backend test suite | `run-backend-tests` | After code changes, verify 33 tests pass |
+| Compute CMF + Silhouette metrics | `run-analytics` | After extraction, when analytics report needed |
+| Run analytics test suite | `run-analytics-tests` | After analytics code changes, verify 24 tests pass |
 
 ## Service Architecture
 
 ```
 extraction/ (GPU, one-time) --> data/*.h5 --> backend/ (port 8080) --> frontend/ (port 5173)
+                                    |
+                                    └──> analytics/ (CPU) --> analytics_report.yaml
 ```
 
 ## Quick Health Check
@@ -50,6 +54,10 @@ Change `--max-episodes` and `--timestep-stride` in the `extract-model-states` sk
 1. Backend changes: just restart uvicorn (auto-reload if `--reload` flag used)
 2. Frontend changes: Vite HMR auto-reloads, or `npm run build` for production
 3. Extraction changes: re-run extraction script
+
+### Run analytics after extraction
+
+Use the `run-analytics` skill. Reads HDF5 files from `data/`, computes CMF (5 pairs) and Silhouette (3-group), writes YAML report. CPU-only, < 5 seconds. Requires `cmf_attended/` groups in HDF5 for CMF scores — see skill for backfill instructions if missing.
 
 ### Serve to teammates on LAN
 
