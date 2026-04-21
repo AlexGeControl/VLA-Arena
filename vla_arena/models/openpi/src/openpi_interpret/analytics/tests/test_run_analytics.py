@@ -33,6 +33,27 @@ class TestProcessEpisode:
         for ts_sil in result.silhouette_per_timestep:
             assert -1.0 <= ts_sil.score <= 1.0
 
+    def test_visual_attention_by_layer(self, analytics_reader) -> None:
+        from analytics.run_analytics import process_episode
+
+        result = process_episode(analytics_reader, layer=17)
+        assert len(result.visual_attention_by_layer) == 7
+        for lv in result.visual_attention_by_layer:
+            assert lv.layer in [0, 3, 6, 9, 12, 15, 17]
+            assert len(lv.head_scores) == 8
+            for h in lv.head_scores:
+                assert 0.0 <= h <= 1.0
+            assert 0.0 <= lv.layer_mean <= 1.0
+
+    def test_silhouette_by_layer(self, analytics_reader) -> None:
+        from analytics.run_analytics import process_episode
+
+        result = process_episode(analytics_reader, layer=17)
+        assert len(result.silhouette_by_layer) == 7
+        for ls in result.silhouette_by_layer:
+            assert ls.layer in [0, 3, 6, 9, 12, 15, 17]
+            assert -1.0 <= ls.score <= 1.0
+
 
 class TestReportGeneration:
     def test_full_pipeline_writes_yaml(self, analytics_data_dir: Path, tmp_path: Path) -> None:
@@ -66,3 +87,22 @@ class TestReportGeneration:
         assert "silhouette" in ep
         assert "mean" in ep["silhouette"]
         assert "per_timestep" in ep["silhouette"]
+
+        assert "visual_attention_ranking" in loaded
+        va = loaded["visual_attention_ranking"]
+        assert "uniform_baseline" in va
+        assert "global_mean" in va
+        assert len(va["layers"]) == 7
+        for entry in va["layers"]:
+            assert "layer" in entry
+            assert "layer_mean" in entry
+            assert len(entry["heads"]) == 8
+            for h in entry["heads"]:
+                assert "head" in h
+                assert "visual_share" in h
+                assert isinstance(h["head"], int)
+                assert 0 <= h["visual_share"] <= 1.0
+
+        assert "silhouette_profile" in loaded
+        sp = loaded["silhouette_profile"]
+        assert len(sp["layers"]) == 7
