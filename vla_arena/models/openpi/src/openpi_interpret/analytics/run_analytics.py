@@ -25,11 +25,17 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import numpy as np
+
 from analytics.cmf import compute_all_cmf
 from analytics.constants import DEFAULT_CMF_LAYER, SAMPLED_LAYERS
 from analytics.reader import AnalyticsReader, scan_episodes
 from analytics.silhouette import compute_silhouette
-from analytics.types import AnalyticsReport, EpisodeAnalytics, TimestepCmf, TimestepSilhouette
+from analytics.types import (
+    AnalyticsReport, EpisodeAnalytics, LayerHeadVisualAttention,
+    LayerSilhouette, TimestepCmf, TimestepSilhouette,
+)
+from analytics.visual_attention import compute_visual_attention, UNIFORM_VISUAL_BASELINE
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +114,38 @@ def process_episode(
             f"  cmf_A_to_L={cmf.A_to_L:.3f}" if has_cmf else "",
         )
 
+    visual_attn_by_layer: list[LayerHeadVisualAttention] = []
+    sil_by_layer: list[LayerSilhouette] = []
+
+    for l in SAMPLED_LAYERS:
+        layer_head_accum: list[np.ndarray] = []
+        layer_sil_accum: list[float] = []
+
+        for t in range(n_ts):
+            attn = reader.get_attention(t, l)
+            layer_head_accum.append(compute_visual_attention(attn))
+
+            tsne_l = reader.get_tsne(t, l)
+            layer_sil_accum.append(compute_silhouette(tsne_l).score)
+
+        mean_heads = np.stack(layer_head_accum).mean(axis=0)
+        visual_attn_by_layer.append(LayerHeadVisualAttention(
+            layer=l,
+            head_scores=mean_heads.tolist(),
+            layer_mean=float(mean_heads.mean()),
+        ))
+        sil_by_layer.append(LayerSilhouette(
+            layer=l,
+            score=float(np.mean(layer_sil_accum)),
+        ))
+
     return EpisodeAnalytics(
         episode_id=ep_id,
         num_timesteps=n_ts,
         cmf_per_timestep=cmf_results,
         silhouette_per_timestep=sil_results,
+        visual_attention_by_layer=visual_attn_by_layer,
+        silhouette_by_layer=sil_by_layer,
     )
 
 
@@ -166,6 +199,36 @@ def report_to_dict(report: AnalyticsReport) -> dict:
         result["global"]["cmf"] = {
             k: round(v, 4) for k, v in report.global_cmf.items()
         }
+
+    ranking = report.global_visual_attention_ranking
+    if ranking:
+        result["visual_attention_ranking"] = {
+            "uniform_baseline": round(UNIFORM_VISUAL_BASELINE, 4),
+            "global_mean": round(
+                sum(e["layer_mean"] for e in ranking) / len(ranking), 4
+            ),
+            "layers": [
+                {
+                    "layer": e["layer"],
+                    "layer_mean": round(e["layer_mean"], 4),
+                    "heads": [
+                        {"head": h["head"], "visual_share": round(h["visual_share"], 4)}
+                        for h in e["heads"]
+                    ],
+                }
+                for e in ranking
+            ],
+        }
+
+    sil_profile = report.global_silhouette_profile
+    if sil_profile:
+        result["silhouette_profile"] = {
+            "layers": [
+                {"layer": ls.layer, "score": round(ls.score, 4)}
+                for ls in sil_profile
+            ],
+        }
+
     return result
 
 
@@ -207,6 +270,21 @@ def main() -> None:
     if report.episodes and report.episodes[0].cmf_per_timestep:
         for k, v in report.global_cmf.items():
             logger.info("Global CMF %s: %.4f", k, v)
+
+    ranking = report.global_visual_attention_ranking
+    if ranking:
+        logger.info("=== Visual Attention Ranking (uniform baseline=%.4f) ===",
+                     UNIFORM_VISUAL_BASELINE)
+        for e in ranking:
+            head_strs = [f"h{h['head']}={h['visual_share']:.3f}" for h in e["heads"]]
+            logger.info("  layer %2d: mean=%.4f  [%s]",
+                        e["layer"], e["layer_mean"], ", ".join(head_strs))
+
+    sil_profile = report.global_silhouette_profile
+    if sil_profile:
+        logger.info("=== Silhouette Profile (per layer) ===")
+        for ls in sil_profile:
+            logger.info("  layer %2d: %.4f", ls.layer, ls.score)
 
 
 if __name__ == "__main__":

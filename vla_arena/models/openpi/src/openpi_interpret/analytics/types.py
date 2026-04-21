@@ -27,6 +27,28 @@ class TimestepSilhouette:
 
 
 @dataclasses.dataclass
+class LayerHeadVisualAttention:
+    """Visual attention share per head for a single layer, averaged across timesteps.
+
+    ``head_scores`` is in original head order: index 0 = head 0.
+    Sorting by score with head identity happens at presentation time
+    via ``rank_layers_and_heads()``.
+    """
+
+    layer: int
+    head_scores: list[float]
+    layer_mean: float
+
+
+@dataclasses.dataclass
+class LayerSilhouette:
+    """Silhouette coefficient for a single layer, averaged across timesteps."""
+
+    layer: int
+    score: float
+
+
+@dataclasses.dataclass
 class EpisodeAnalytics:
     """Aggregated analytics for one episode."""
 
@@ -34,6 +56,12 @@ class EpisodeAnalytics:
     num_timesteps: int
     cmf_per_timestep: list[TimestepCmf]
     silhouette_per_timestep: list[TimestepSilhouette]
+    visual_attention_by_layer: list[LayerHeadVisualAttention] = dataclasses.field(
+        default_factory=list
+    )
+    silhouette_by_layer: list[LayerSilhouette] = dataclasses.field(
+        default_factory=list
+    )
 
     @property
     def cmf_means(self) -> dict[str, float]:
@@ -84,3 +112,41 @@ class AnalyticsReport:
         return sum(ep.silhouette_mean for ep in self.episodes) / len(
             self.episodes
         )
+
+    @property
+    def global_visual_attention_ranking(self) -> list[dict]:
+        """Aggregate visual attention ranking across all episodes."""
+        from analytics.visual_attention import rank_layers_and_heads
+        import numpy as np
+
+        if not self.episodes or not self.episodes[0].visual_attention_by_layer:
+            return []
+
+        layer_accum: dict[int, list[np.ndarray]] = {}
+        for ep in self.episodes:
+            for lv in ep.visual_attention_by_layer:
+                layer_accum.setdefault(lv.layer, []).append(
+                    np.array(lv.head_scores)
+                )
+
+        per_layer = {
+            layer: np.stack(arrs).mean(axis=0)
+            for layer, arrs in layer_accum.items()
+        }
+        return rank_layers_and_heads(per_layer)
+
+    @property
+    def global_silhouette_profile(self) -> list[LayerSilhouette]:
+        """Aggregate per-layer silhouette across all episodes."""
+        if not self.episodes or not self.episodes[0].silhouette_by_layer:
+            return []
+
+        layer_accum: dict[int, list[float]] = {}
+        for ep in self.episodes:
+            for ls in ep.silhouette_by_layer:
+                layer_accum.setdefault(ls.layer, []).append(ls.score)
+
+        return [
+            LayerSilhouette(layer=layer, score=sum(scores) / len(scores))
+            for layer, scores in sorted(layer_accum.items())
+        ]
